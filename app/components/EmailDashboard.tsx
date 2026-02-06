@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { useSession, signOut } from 'next-auth/react';
+import TodayAgenda from './TodayAgenda';
 
 interface Email {
   id: string;
@@ -264,6 +265,9 @@ export default function EmailDashboard({
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Today's Calendar */}
+        <TodayAgenda />
+
         {/* Meeting Agenda Section */}
         {flaggedEmails.length > 0 && (
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
