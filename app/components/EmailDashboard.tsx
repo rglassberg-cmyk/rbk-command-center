@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
+import { useSession, signOut } from 'next-auth/react';
 
 interface Email {
   id: string;
@@ -59,6 +60,7 @@ export default function EmailDashboard({
   initialEmails: Email[];
   initialStats: Stats[];
 }) {
+  const { data: session } = useSession();
   const [emails, setEmails] = useState<Email[]>(initialEmails);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -117,12 +119,34 @@ export default function EmailDashboard({
                 Email Triage Dashboard
               </p>
             </div>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors"
-            >
-              ↻ Refresh
-            </button>
+            <div className="flex items-center gap-4">
+              {session?.user && (
+                <div className="flex items-center gap-2">
+                  {session.user.image && (
+                    <img
+                      src={session.user.image}
+                      alt=""
+                      className="w-8 h-8 rounded-full"
+                    />
+                  )}
+                  <span className="text-sm text-gray-600">
+                    {session.user.name || session.user.email}
+                  </span>
+                  <button
+                    onClick={() => signOut()}
+                    className="text-sm text-gray-500 hover:text-gray-700"
+                  >
+                    Sign out
+                  </button>
+                </div>
+              )}
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors"
+              >
+                ↻ Refresh
+              </button>
+            </div>
           </div>
         </div>
       </header>
