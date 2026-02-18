@@ -16,6 +16,8 @@ declare module 'next-auth' {
 declare module 'next-auth/jwt' {
   interface JWT {
     accessToken?: string;
+    refreshToken?: string;
+    accessTokenExpires?: number;
   }
 }
 
@@ -32,7 +34,7 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: {
         params: {
-          scope: 'openid email profile https://www.googleapis.com/auth/calendar.readonly',
+          scope: 'openid email profile https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/gmail.send',
           access_type: 'offline',
           prompt: 'consent',
         },
@@ -54,9 +56,11 @@ export const authOptions: NextAuthOptions = {
       return allowedEmails.includes(email);
     },
     async jwt({ token, account }) {
-      // Save the access token from the OAuth provider
+      // Save the access token and refresh token from the OAuth provider
       if (account) {
         token.accessToken = account.access_token;
+        token.refreshToken = account.refresh_token;
+        token.accessTokenExpires = account.expires_at ? account.expires_at * 1000 : undefined;
       }
       return token;
     },

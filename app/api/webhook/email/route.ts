@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
+// Attachment interface matching Apps Script getAttachmentInfo()
+interface Attachment {
+  name: string;
+  type: string;
+  size: number;
+}
+
 // Webhook payload interface matching Apps Script
 interface EmailWebhookPayload {
   thread_id: string;
@@ -18,7 +25,7 @@ interface EmailWebhookPayload {
   draft_reply?: string;
   assigned_to: 'rbk' | 'emily';
   labels?: string[];
-  attachments?: any;
+  attachments?: Attachment[];
   is_starred?: boolean;
   is_unread?: boolean;
 }
@@ -85,7 +92,7 @@ export async function POST(request: NextRequest) {
         assigned_to: payload.assigned_to,
         status: 'pending',
         labels: payload.labels || [],
-        attachments: payload.attachments || null,
+        attachments: payload.attachments || [],
         is_starred: payload.is_starred || false,
         is_unread: payload.is_unread !== false, // Default to true
         received_at: receivedAt.toISOString(),

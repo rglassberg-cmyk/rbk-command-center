@@ -46,7 +46,9 @@ export async function GET() {
   const timeMax = endOfDay.toISOString();
 
   try {
-    const calendarUrl = new URL('https://www.googleapis.com/calendar/v3/calendars/primary/events');
+    // Always fetch RBK's calendar, regardless of who is logged in
+    const rbkCalendarId = 'kraussb@saracademy.org';
+    const calendarUrl = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(rbkCalendarId)}/events`);
     calendarUrl.searchParams.set('timeMin', timeMin);
     calendarUrl.searchParams.set('timeMax', timeMax);
     calendarUrl.searchParams.set('singleEvents', 'true');

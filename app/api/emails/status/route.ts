@@ -3,26 +3,45 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { id, status } = await request.json();
+    const body = await request.json();
+    const { id, status, action_status } = body;
 
-    if (!id || !status) {
+    if (!id) {
       return NextResponse.json(
-        { error: 'Missing id or status' },
+        { error: 'Missing id' },
         { status: 400 }
       );
     }
 
-    const validStatuses = ['pending', 'in_progress', 'done', 'archived'];
-    if (!validStatuses.includes(status)) {
-      return NextResponse.json(
-        { error: 'Invalid status' },
-        { status: 400 }
-      );
+    const updateData: Record<string, unknown> = { is_unread: false };
+
+    // Handle regular status update
+    if (status !== undefined) {
+      const validStatuses = ['pending', 'in_progress', 'done', 'archived'];
+      if (!validStatuses.includes(status)) {
+        return NextResponse.json(
+          { error: 'Invalid status' },
+          { status: 400 }
+        );
+      }
+      updateData.status = status;
+    }
+
+    // Handle action status update
+    if (action_status !== undefined) {
+      const validActionStatuses = ['send', 'sent', 'notify_emily', 'remind_me', 'escalate_emily', 'draft_ready', 'urgent', null];
+      if (!validActionStatuses.includes(action_status)) {
+        return NextResponse.json(
+          { error: 'Invalid action status' },
+          { status: 400 }
+        );
+      }
+      updateData.action_status = action_status;
     }
 
     const { data, error } = await supabaseAdmin
       .from('emails')
-      .update({ status, is_unread: false })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();
