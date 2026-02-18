@@ -560,52 +560,63 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
               {email.flagged_for_meeting ? '⭐ On Agenda' : '☆ Add to Agenda'}
             </button>
 
-            {/* Draft Section */}
-            {email.draft_reply && email.draft_reply !== 'No reply needed' && (
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700">📝 Draft Reply</span>
-                  {email.draft_status && draftStatusConfig[email.draft_status] && (
-                    <span className={`${draftStatusConfig[email.draft_status].bg} ${draftStatusConfig[email.draft_status].text} px-2 py-0.5 rounded text-xs`}>
-                      {draftStatusConfig[email.draft_status].label}
-                    </span>
-                  )}
-                </div>
-
-                {editingDraftId === email.id ? (
-                  <div>
-                    <textarea
-                      value={draftText}
-                      onChange={(e) => setDraftText(e.target.value)}
-                      className="w-full h-32 p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent outline-none text-sm"
-                    />
-                    <div className="flex gap-2 mt-2">
-                      <button onClick={() => saveDraft(email.id, draftText)} className="px-3 py-1.5 bg-gray-600 text-white rounded-lg text-xs font-medium">Save</button>
-                      <button onClick={() => saveDraft(email.id, draftText, true)} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium">Mark Ready</button>
-                      <button onClick={() => setEditingDraftId(null)} className="px-3 py-1.5 text-gray-500 text-xs">Cancel</button>
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <p className="text-sm text-gray-600 whitespace-pre-wrap">{(email.edited_draft || email.draft_reply)?.substring(0, 300)}...</p>
-                    <div className="flex gap-2 mt-2">
-                      <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="text-xs text-sky-600 hover:text-sky-800">✏️ Edit</button>
-                      <button onClick={() => navigator.clipboard.writeText(email.edited_draft || email.draft_reply || '')} className="text-xs text-sky-600 hover:text-sky-800">📋 Copy</button>
-                      {email.draft_status === 'draft_ready' && <button onClick={() => approveDraft(email.id)} className="text-xs text-green-600 hover:text-green-800">👍 Approve</button>}
-                      {email.draft_status === 'approved' && (
-                        <button
-                          onClick={() => sendEmail(email.id)}
-                          disabled={sendingEmail === email.id}
-                          className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 disabled:opacity-50"
-                        >
-                          {sendingEmail === email.id ? '📤 Sending...' : '📤 Send Email'}
-                        </button>
-                      )}
-                    </div>
-                  </div>
+            {/* Draft Section - Always show */}
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700">📝 Draft Reply</span>
+                {email.draft_status && draftStatusConfig[email.draft_status] && (
+                  <span className={`${draftStatusConfig[email.draft_status].bg} ${draftStatusConfig[email.draft_status].text} px-2 py-0.5 rounded text-xs`}>
+                    {draftStatusConfig[email.draft_status].label}
+                  </span>
                 )}
               </div>
-            )}
+
+              {editingDraftId === email.id ? (
+                <div>
+                  <textarea
+                    value={draftText}
+                    onChange={(e) => setDraftText(e.target.value)}
+                    className="w-full h-32 p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent outline-none text-sm"
+                    placeholder="Write your reply here..."
+                  />
+                  <div className="flex gap-2 mt-2">
+                    <button onClick={() => saveDraft(email.id, draftText)} className="px-3 py-1.5 bg-gray-600 text-white rounded-lg text-xs font-medium">Save</button>
+                    <button onClick={() => saveDraft(email.id, draftText, true)} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium">Mark Ready</button>
+                    <button onClick={() => setEditingDraftId(null)} className="px-3 py-1.5 text-gray-500 text-xs">Cancel</button>
+                  </div>
+                </div>
+              ) : email.draft_reply && email.draft_reply !== 'No reply needed' ? (
+                <div>
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{(email.edited_draft || email.draft_reply)?.substring(0, 300)}...</p>
+                  <div className="flex gap-2 mt-2">
+                    <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="text-xs text-sky-600 hover:text-sky-800">✏️ Edit</button>
+                    <button onClick={() => navigator.clipboard.writeText(email.edited_draft || email.draft_reply || '')} className="text-xs text-sky-600 hover:text-sky-800">📋 Copy</button>
+                    {email.draft_status === 'draft_ready' && <button onClick={() => approveDraft(email.id)} className="text-xs text-green-600 hover:text-green-800">👍 Approve</button>}
+                    {email.draft_status === 'approved' && (
+                      <button
+                        onClick={() => sendEmail(email.id)}
+                        disabled={sendingEmail === email.id}
+                        className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 disabled:opacity-50"
+                      >
+                        {sendingEmail === email.id ? '📤 Sending...' : '📤 Send Email'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-sm text-gray-400 italic mb-2">
+                    {email.draft_reply === 'No reply needed' ? 'AI suggests no reply needed' : 'No draft yet'}
+                  </p>
+                  <button
+                    onClick={() => { setEditingDraftId(email.id); setDraftText(''); }}
+                    className="px-3 py-1.5 bg-sky-500 text-white rounded-lg text-xs font-medium hover:bg-sky-600"
+                  >
+                    + Add Draft Reply
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
