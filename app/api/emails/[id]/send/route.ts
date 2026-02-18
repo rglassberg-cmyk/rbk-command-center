@@ -15,20 +15,56 @@ interface EmailRecord {
   message_id: string | null;
 }
 
-// Create a MIME message for Gmail API
+// Rabbi Krauss' email signature (HTML)
+const EMAIL_SIGNATURE = `
+<br><br>
+<div style="font-family: Arial, sans-serif; font-size: 14px; color: #333;">
+  <p style="margin: 0; color: #0066cc; font-weight: bold;">Rabbi Binyamin Krauss</p>
+  <p style="margin: 0; color: #0066cc;">Principal</p>
+  <p style="margin: 8px 0 0 0;">
+    <span style="color: #666;">p</span> | <a href="tel:7185481717" style="color: #333; text-decoration: none;">718.548.1717 ext. 1206</a>
+  </p>
+  <p style="margin: 0;">
+    <span style="color: #666;">e</span> | <a href="mailto:kraussb@saracademy.org" style="color: #0066cc; text-decoration: none;">kraussb@saracademy.org</a>
+  </p>
+  <p style="margin: 4px 0 8px 0;">
+    <a href="https://www.linkedin.com/in/bini-krauss/" style="color: #0066cc; text-decoration: none;">LinkedIn</a>
+  </p>
+  <img src="https://rbk-command-center.vercel.app/sar-logo.jpg" alt="SAR Academy" style="max-width: 200px; height: auto;">
+</div>
+`;
+
+// Create a MIME message for Gmail API (HTML format with signature)
 function createMimeMessage(to: string, subject: string, body: string, threadId?: string | null): string {
   const fromEmail = 'kraussb@saracademy.org';
-  const fromName = 'Rabbi Krauss';
+  const fromName = 'Rabbi Binyamin Krauss';
 
-  // Build MIME message
+  // Convert plain text body to HTML (preserve line breaks)
+  const htmlBody = body.replace(/\n/g, '<br>');
+
+  // Build HTML content with signature
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+</head>
+<body style="font-family: Arial, sans-serif; font-size: 14px; color: #333;">
+${htmlBody}
+${EMAIL_SIGNATURE}
+</body>
+</html>
+`;
+
+  // Build MIME message with HTML content type
   const messageParts = [
     `From: ${fromName} <${fromEmail}>`,
     `To: ${to}`,
     `Subject: Re: ${subject}`,
     'MIME-Version: 1.0',
-    'Content-Type: text/plain; charset=utf-8',
+    'Content-Type: text/html; charset=utf-8',
     '',
-    body,
+    htmlContent,
   ];
 
   const message = messageParts.join('\r\n');
