@@ -222,6 +222,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
   const invitationEmails = emails.filter(e => e.priority === 'invitation' && e.status !== 'done' && e.status !== 'archived');
   const fyiEmails = emails.filter(e => e.priority === 'fyi' && e.status !== 'done' && e.status !== 'archived');
   const draftsReady = emails.filter(e => e.draft_status === 'draft_ready');
+  const draftsApproved = emails.filter(e => e.draft_status === 'approved');
 
   // Filter calendar events to show only current/upcoming
   const now = new Date();
@@ -1538,17 +1539,17 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                         ))
                       )}
                     </div>
-                    {draftsReady.length > 0 && (
+                    {draftsApproved.length > 0 && (
                       <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
                         <button
                           onClick={async () => {
-                            if (!confirm(`Send all ${draftsReady.length} drafts?`)) return;
+                            if (!confirm(`Send all ${draftsApproved.length} approved drafts?`)) return;
                             setSendingBatch(true);
                             try {
                               const res = await fetch('/api/emails/send-batch', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ email_ids: draftsReady.map(e => e.id) }),
+                                body: JSON.stringify({ email_ids: draftsApproved.map(e => e.id) }),
                               });
                               const result = await res.json();
                               if (res.ok) {
@@ -1571,7 +1572,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                           disabled={sendingBatch}
                           className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white py-3 rounded-xl font-bold hover:from-green-600 hover:to-emerald-600 disabled:opacity-50"
                         >
-                          {sendingBatch ? 'Sending All...' : `Send All (${draftsReady.length})`}
+                          {sendingBatch ? 'Sending All...' : `Send All Approved (${draftsApproved.length})`}
                         </button>
                       </div>
                     )}
