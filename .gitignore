@@ -43,3 +43,6 @@ next-env.d.ts
 
 # google oauth secrets
 client_secret*.json
+*.pdf
+*.png
+!public/*.png
