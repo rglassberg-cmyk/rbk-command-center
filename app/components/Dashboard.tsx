@@ -1112,14 +1112,14 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                     >
                                       View Email
                                     </button>
-                                    {getGmailUrl(taskEmail.message_id) && (
+                                    {taskEmail.attachments && taskEmail.attachments.length > 0 && getGmailUrl(taskEmail.message_id) && (
                                       <a
                                         href={getGmailUrl(taskEmail.message_id)!}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 px-3 py-1 rounded text-xs font-medium transition-transform"
                                       >
-                                        Open in Gmail
+                                        📎 View Attachments
                                       </a>
                                     )}
                                   </div>
@@ -1248,12 +1248,12 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                             </div>
                             {expandedEmail === email.id && (
                               <div className="mt-3 pt-3 border-t border-white/40">
-                                {/* Attachments & View in Gmail */}
-                                {((email.attachments && email.attachments.length > 0) || getGmailUrl(email.message_id)) && (
+                                {/* Attachments */}
+                                {email.attachments && email.attachments.length > 0 && (
                                   <div className="bg-amber-50 rounded-lg p-2 mb-3 border border-amber-200">
                                     <div className="flex items-center justify-between mb-1">
                                       <p className="text-xs font-semibold text-amber-800">
-                                        {email.attachments && email.attachments.length > 0 ? `📎 ${email.attachments.length} Attachment${email.attachments.length > 1 ? 's' : ''}` : '📧 Original Email'}
+                                        📎 {email.attachments.length} Attachment{email.attachments.length > 1 ? 's' : ''}
                                       </p>
                                       {getGmailUrl(email.message_id) && (
                                         <a
@@ -1263,7 +1263,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                           onClick={(e) => e.stopPropagation()}
                                           className="bg-amber-500 hover:bg-amber-600 text-white px-2 py-0.5 rounded text-xs font-medium transition-colors"
                                         >
-                                          View in Gmail →
+                                          View Attachments →
                                         </a>
                                       )}
                                     </div>
@@ -1355,12 +1355,12 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                             </div>
                             {expandedEmail === email.id && (
                               <div className="mt-3 pt-3 border-t border-white/40">
-                                {/* Attachments & View in Gmail */}
-                                {((email.attachments && email.attachments.length > 0) || getGmailUrl(email.message_id)) && (
+                                {/* Attachments */}
+                                {email.attachments && email.attachments.length > 0 && (
                                   <div className="bg-amber-50 rounded-lg p-2 mb-3 border border-amber-200">
                                     <div className="flex items-center justify-between mb-1">
                                       <p className="text-xs font-semibold text-amber-800">
-                                        {email.attachments && email.attachments.length > 0 ? `📎 ${email.attachments.length} Attachment${email.attachments.length > 1 ? 's' : ''}` : '📧 Original Email'}
+                                        📎 {email.attachments.length} Attachment{email.attachments.length > 1 ? 's' : ''}
                                       </p>
                                       {getGmailUrl(email.message_id) && (
                                         <a
@@ -1370,7 +1370,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                           onClick={(e) => e.stopPropagation()}
                                           className="bg-amber-500 hover:bg-amber-600 text-white px-2 py-0.5 rounded text-xs font-medium transition-colors"
                                         >
-                                          View in Gmail →
+                                          View Attachments →
                                         </a>
                                       )}
                                     </div>
@@ -1503,8 +1503,8 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                     </p>
                                   </div>
                                   <div className="flex flex-wrap gap-2">
-                                    {getGmailUrl(email.message_id) && (
-                                      <a href={getGmailUrl(email.message_id)!} target="_blank" rel="noopener noreferrer" className="bg-white text-gray-700 px-3 py-1.5 rounded text-xs font-semibold hover:bg-gray-50 shadow-sm border border-gray-300">📧 View in Gmail</a>
+                                    {email.attachments && email.attachments.length > 0 && getGmailUrl(email.message_id) && (
+                                      <a href={getGmailUrl(email.message_id)!} target="_blank" rel="noopener noreferrer" className="bg-white text-gray-700 px-3 py-1.5 rounded text-xs font-semibold hover:bg-gray-50 shadow-sm border border-gray-300">📎 View Attachments</a>
                                     )}
                                     <button onClick={() => updateStatus(email.id, 'done')} className="bg-white text-gray-800 px-3 py-1.5 rounded text-xs font-semibold hover:bg-gray-100 shadow-sm border border-gray-200">✓ Done</button>
                                     <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className="bg-gray-100 text-gray-800 px-3 py-1.5 rounded text-xs font-semibold hover:bg-gray-200 shadow-sm">{email.flagged_for_meeting ? '⭐ On Agenda' : '☆ Add to Agenda'}</button>
@@ -1569,8 +1569,8 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                     </p>
                                   </div>
                                   <div className="flex flex-wrap gap-2">
-                                    {getGmailUrl(email.message_id) && (
-                                      <a href={getGmailUrl(email.message_id)!} target="_blank" rel="noopener noreferrer" className="bg-white text-gray-700 px-3 py-1.5 rounded text-xs font-semibold hover:bg-gray-50 shadow-sm border border-gray-300">📧 View in Gmail</a>
+                                    {email.attachments && email.attachments.length > 0 && getGmailUrl(email.message_id) && (
+                                      <a href={getGmailUrl(email.message_id)!} target="_blank" rel="noopener noreferrer" className="bg-white text-gray-700 px-3 py-1.5 rounded text-xs font-semibold hover:bg-gray-50 shadow-sm border border-gray-300">📎 View Attachments</a>
                                     )}
                                     <button onClick={() => updateStatus(email.id, 'done')} className="bg-white text-gray-800 px-3 py-1.5 rounded text-xs font-semibold hover:bg-gray-100 shadow-sm border border-gray-200">✓ Done</button>
                                     <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className="bg-gray-100 text-gray-800 px-3 py-1.5 rounded text-xs font-semibold hover:bg-gray-200 shadow-sm">{email.flagged_for_meeting ? '⭐ On Agenda' : '☆ Add to Agenda'}</button>
@@ -1635,8 +1635,8 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                     </p>
                                   </div>
                                   <div className="flex flex-wrap gap-2">
-                                    {getGmailUrl(email.message_id) && (
-                                      <a href={getGmailUrl(email.message_id)!} target="_blank" rel="noopener noreferrer" className="bg-white text-gray-700 px-3 py-1.5 rounded text-xs font-semibold hover:bg-gray-50 shadow-sm border border-gray-300">📧 View in Gmail</a>
+                                    {email.attachments && email.attachments.length > 0 && getGmailUrl(email.message_id) && (
+                                      <a href={getGmailUrl(email.message_id)!} target="_blank" rel="noopener noreferrer" className="bg-white text-gray-700 px-3 py-1.5 rounded text-xs font-semibold hover:bg-gray-50 shadow-sm border border-gray-300">📎 View Attachments</a>
                                     )}
                                     <button onClick={() => updateStatus(email.id, 'done')} className="bg-white text-gray-800 px-3 py-1.5 rounded text-xs font-semibold hover:bg-gray-100 shadow-sm border border-gray-200">✓ Done</button>
                                     <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className="bg-gray-100 text-gray-800 px-3 py-1.5 rounded text-xs font-semibold hover:bg-gray-200 shadow-sm">{email.flagged_for_meeting ? '⭐ On Agenda' : '☆ Add to Agenda'}</button>
@@ -1701,8 +1701,8 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                     </p>
                                   </div>
                                   <div className="flex flex-wrap gap-2">
-                                    {getGmailUrl(email.message_id) && (
-                                      <a href={getGmailUrl(email.message_id)!} target="_blank" rel="noopener noreferrer" className="bg-white text-gray-700 px-3 py-1.5 rounded text-xs font-semibold hover:bg-gray-50 shadow-sm border border-gray-300">📧 View in Gmail</a>
+                                    {email.attachments && email.attachments.length > 0 && getGmailUrl(email.message_id) && (
+                                      <a href={getGmailUrl(email.message_id)!} target="_blank" rel="noopener noreferrer" className="bg-white text-gray-700 px-3 py-1.5 rounded text-xs font-semibold hover:bg-gray-50 shadow-sm border border-gray-300">📎 View Attachments</a>
                                     )}
                                     <button onClick={() => updateStatus(email.id, 'done')} className="bg-white text-gray-800 px-3 py-1.5 rounded text-xs font-semibold hover:bg-gray-100 shadow-sm border border-gray-200">✓ Done</button>
                                     <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className="bg-gray-100 text-gray-800 px-3 py-1.5 rounded text-xs font-semibold hover:bg-gray-200 shadow-sm">{email.flagged_for_meeting ? '⭐ On Agenda' : '☆ Add to Agenda'}</button>
@@ -2151,14 +2151,14 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                       >
                         ✓ Done
                       </button>
-                      {getGmailUrl(email.message_id) && (
+                      {email.attachments && email.attachments.length > 0 && getGmailUrl(email.message_id) && (
                         <a
                           href={getGmailUrl(email.message_id)!}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium"
                         >
-                          Open in Gmail
+                          📎 View Attachments
                         </a>
                       )}
                     </div>
@@ -2461,14 +2461,14 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
               >
                 Open Full View
               </button>
-              {getGmailUrl(popupEmail.message_id) && (
+              {popupEmail.attachments && popupEmail.attachments.length > 0 && getGmailUrl(popupEmail.message_id) && (
                 <a
                   href={getGmailUrl(popupEmail.message_id)!}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-transform"
                 >
-                  Open in Gmail
+                  📎 View Attachments
                 </a>
               )}
               <button
