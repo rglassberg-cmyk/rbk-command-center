@@ -202,6 +202,28 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
   const [popupEmailId, setPopupEmailId] = useState<string | null>(null);
   const popupEmail = popupEmailId ? emails.find(e => e.id === popupEmailId) : null;
 
+  // Task creation modal (standalone modal for adding tasks from emails)
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [taskModalEmailId, setTaskModalEmailId] = useState<string | null>(null);
+  const [taskModalText, setTaskModalText] = useState('');
+  const [taskModalAssignee, setTaskModalAssignee] = useState<'rbk' | 'emily'>('emily');
+
+  const openTaskModal = (email: Email) => {
+    setTaskModalEmailId(email.id);
+    setTaskModalText(`Task: Follow up on "${email.subject}"`);
+    setTaskModalAssignee('emily');
+    setShowTaskModal(true);
+  };
+
+  const saveTaskFromModal = async () => {
+    if (!taskModalEmailId || !taskModalText.trim()) return;
+    const notes = `[@${taskModalAssignee.toUpperCase()}] ${taskModalText}`;
+    await updateMeetingNotes(taskModalEmailId, notes);
+    setShowTaskModal(false);
+    setTaskModalEmailId(null);
+    setTaskModalText('');
+  };
+
   // Hide completed tasks toggle
   const [hideCompletedTasks, setHideCompletedTasks] = useState(true);
 
@@ -675,13 +697,8 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                 📅 Add to Calendar
               </button>
               <button
-                onClick={() => {
-                  // Add to tasks by flagging with a task note
-                  setEditingNotesId(email.id);
-                  setNotesText(email.meeting_notes || `Task: Follow up on "${email.subject}"`);
-                  setNotesAssignee('emily');
-                }}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-gray-100 text-gray-600 hover:bg-purple-100 hover:text-purple-700"
+                onClick={() => openTaskModal(email)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95 bg-gray-100 text-gray-600 hover:bg-purple-100 hover:text-purple-700"
               >
                 ✓ Add to Tasks
               </button>
@@ -1090,7 +1107,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                   <p className="text-sm text-gray-600 mb-3">{taskEmail.summary}</p>
                                   <div className="flex gap-2">
                                     <button
-                                      onClick={() => setPopupEmailId(taskEmail.id)}
+                                      onClick={(e) => { e.stopPropagation(); setPopupEmailId(taskEmail.id); }}
                                       className="bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white px-3 py-1 rounded text-xs font-medium transition-transform"
                                     >
                                       View Email
@@ -2461,6 +2478,86 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Task Creation Modal */}
+      {showTaskModal && taskModalEmailId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowTaskModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-purple-500 to-indigo-600 px-6 py-4 flex items-center justify-between rounded-t-xl">
+              <h3 className="text-lg font-bold text-white">Add Task</h3>
+              <button onClick={() => setShowTaskModal(false)} className="text-white/80 hover:text-white text-2xl">&times;</button>
+            </div>
+            {(() => {
+              const email = emails.find(e => e.id === taskModalEmailId);
+              if (!email) return null;
+              return (
+                <div className="p-6 space-y-4">
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-500">Related to email:</p>
+                    <p className="font-medium text-gray-900 truncate">{email.subject}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Task Description</label>
+                    <input
+                      type="text"
+                      value={taskModalText}
+                      onChange={(e) => setTaskModalText(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                      placeholder="Enter task description..."
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && taskModalText.trim()) {
+                          saveTaskFromModal();
+                        }
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Assign to</label>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setTaskModalAssignee('emily')}
+                        className={`flex-1 py-2 rounded-lg font-medium transition-all ${
+                          taskModalAssignee === 'emily'
+                            ? 'bg-teal-500 text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        Emily
+                      </button>
+                      <button
+                        onClick={() => setTaskModalAssignee('rbk')}
+                        className={`flex-1 py-2 rounded-lg font-medium transition-all ${
+                          taskModalAssignee === 'rbk'
+                            ? 'bg-indigo-500 text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        RBK
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={() => setShowTaskModal(false)}
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={saveTaskFromModal}
+                      disabled={!taskModalText.trim()}
+                      className="flex-1 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-transform"
+                    >
+                      Add Task
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
