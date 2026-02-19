@@ -4,7 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, status, action_status } = body;
+    const { id, status, action_status, draft_status, reminder_date, revision_comment, priority } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -29,7 +29,7 @@ export async function PATCH(request: NextRequest) {
 
     // Handle action status update
     if (action_status !== undefined) {
-      const validActionStatuses = ['send', 'sent', 'notify_emily', 'remind_me', 'escalate_emily', 'draft_ready', 'urgent', null];
+      const validActionStatuses = ['send', 'sent', 'remind_me', 'draft_ready', 'urgent', null];
       if (!validActionStatuses.includes(action_status)) {
         return NextResponse.json(
           { error: 'Invalid action status' },
@@ -37,6 +37,40 @@ export async function PATCH(request: NextRequest) {
         );
       }
       updateData.action_status = action_status;
+    }
+
+    // Handle draft status update
+    if (draft_status !== undefined) {
+      const validDraftStatuses = ['not_started', 'editing', 'draft_ready', 'approved', 'needs_revision', null];
+      if (!validDraftStatuses.includes(draft_status)) {
+        return NextResponse.json(
+          { error: 'Invalid draft status' },
+          { status: 400 }
+        );
+      }
+      updateData.draft_status = draft_status;
+    }
+
+    // Handle reminder date
+    if (reminder_date !== undefined) {
+      updateData.reminder_date = reminder_date;
+    }
+
+    // Handle revision comment
+    if (revision_comment !== undefined) {
+      updateData.revision_comment = revision_comment;
+    }
+
+    // Handle priority change (for moving to Emily's queue)
+    if (priority !== undefined) {
+      const validPriorities = ['rbk_action', 'eg_action', 'important_no_action', 'review', 'invitation', 'fyi'];
+      if (!validPriorities.includes(priority)) {
+        return NextResponse.json(
+          { error: 'Invalid priority' },
+          { status: 400 }
+        );
+      }
+      updateData.priority = priority;
     }
 
     const { data, error } = await supabaseAdmin

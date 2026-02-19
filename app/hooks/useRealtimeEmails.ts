@@ -33,6 +33,8 @@ interface Email {
   meeting_notes: string | null;
   message_id?: string | null;
   attachments?: Attachment[] | null;
+  reminder_date?: string | null;
+  revision_comment?: string | null;
 }
 
 type RealtimePayload = {

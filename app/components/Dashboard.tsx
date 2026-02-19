@@ -35,6 +35,8 @@ interface Email {
   meeting_notes: string | null;
   message_id?: string | null;
   attachments?: Attachment[] | null;
+  reminder_date?: string | null;
+  revision_comment?: string | null;
 }
 
 interface CalendarEvent {
@@ -87,6 +89,7 @@ const draftStatusConfig: Record<string, { bg: string; text: string; label: strin
   editing: { bg: 'bg-amber-50', text: 'text-amber-700', label: '✏️ Editing' },
   draft_ready: { bg: 'bg-green-50', text: 'text-green-700', label: '📝 Review Draft' },
   approved: { bg: 'bg-blue-50', text: 'text-blue-700', label: '👍 Approved' },
+  needs_revision: { bg: 'bg-orange-50', text: 'text-orange-700', label: '🔄 Needs Revision' },
 };
 
 export default function Dashboard({ emails: initialEmails, calendarEvents }: Props) {
@@ -111,6 +114,14 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
   // Drafts Ready popup
   const [showDraftsPopup, setShowDraftsPopup] = useState(false);
   const [sendingBatch, setSendingBatch] = useState(false);
+
+  // Request Revision modal
+  const [revisionEmailId, setRevisionEmailId] = useState<string | null>(null);
+  const [revisionComment, setRevisionComment] = useState('');
+
+  // Remind Me modal
+  const [remindMeEmailId, setRemindMeEmailId] = useState<string | null>(null);
+  const [remindMeDate, setRemindMeDate] = useState('');
 
   // Bulk email selection
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
@@ -424,7 +435,8 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
   const agendaItems = emails.filter(e => e.flagged_for_meeting);
   const urgentEmails = emails.filter(e => e.priority === 'rbk_action' && e.status !== 'done' && e.status !== 'archived');
   const activeEmails = emails.filter(e => showArchived || (e.status !== 'archived'));
-  const emilyQueue = emails.filter(e => e.priority === 'eg_action' && e.status !== 'done' && e.status !== 'archived');
+  const emilyQueue = emails.filter(e => (e.priority === 'eg_action' || e.draft_status === 'needs_revision') && e.status !== 'done' && e.status !== 'archived');
+  const needsRevisionEmails = emails.filter(e => e.draft_status === 'needs_revision' && e.status !== 'done' && e.status !== 'archived');
 
   // Search filter helper
   const matchesSearch = (email: Email) => {
@@ -441,14 +453,24 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
 
   // Inbox view filtered lists (with search)
   const urgentAlerts = emails.filter(e => e.action_status === 'urgent' && e.status !== 'done' && e.status !== 'archived' && matchesSearch(e));
-  const rbkActionEmails = emails.filter(e => e.priority === 'rbk_action' && e.status !== 'done' && e.status !== 'archived' && matchesSearch(e));
-  const emilyActionEmails = emails.filter(e => e.priority === 'eg_action' && e.status !== 'done' && e.status !== 'archived' && matchesSearch(e));
-  const importantNoAction = emails.filter(e => e.priority === 'important_no_action' && e.status !== 'done' && e.status !== 'archived' && matchesSearch(e));
-  const reviewEmails = emails.filter(e => e.priority === 'review' && e.status !== 'done' && e.status !== 'archived' && matchesSearch(e));
-  const invitationEmails = emails.filter(e => e.priority === 'invitation' && e.status !== 'done' && e.status !== 'archived' && matchesSearch(e));
-  const fyiEmails = emails.filter(e => e.priority === 'fyi' && e.status !== 'done' && e.status !== 'archived' && matchesSearch(e));
-  const draftsReady = emails.filter(e => e.draft_status === 'draft_ready' && e.status !== 'done' && e.status !== 'archived');
-  const draftsApproved = emails.filter(e => e.draft_status === 'approved' && e.status !== 'done' && e.status !== 'archived');
+  // Helper to check if email is snoozed (has future reminder date)
+  const isSnoozed = (email: Email) => {
+    if (!email.reminder_date) return false;
+    const reminderDate = new Date(email.reminder_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return reminderDate > today;
+  };
+
+  // Filter out snoozed emails from main lists
+  const rbkActionEmails = emails.filter(e => e.priority === 'rbk_action' && e.status !== 'done' && e.status !== 'archived' && !isSnoozed(e) && matchesSearch(e));
+  const emilyActionEmails = emails.filter(e => e.priority === 'eg_action' && e.status !== 'done' && e.status !== 'archived' && !isSnoozed(e) && matchesSearch(e));
+  const importantNoAction = emails.filter(e => e.priority === 'important_no_action' && e.status !== 'done' && e.status !== 'archived' && !isSnoozed(e) && matchesSearch(e));
+  const reviewEmails = emails.filter(e => e.priority === 'review' && e.status !== 'done' && e.status !== 'archived' && !isSnoozed(e) && matchesSearch(e));
+  const invitationEmails = emails.filter(e => e.priority === 'invitation' && e.status !== 'done' && e.status !== 'archived' && !isSnoozed(e) && matchesSearch(e));
+  const fyiEmails = emails.filter(e => e.priority === 'fyi' && e.status !== 'done' && e.status !== 'archived' && !isSnoozed(e) && matchesSearch(e));
+  const draftsReady = emails.filter(e => e.draft_status === 'draft_ready' && e.status !== 'done' && e.status !== 'archived' && !isSnoozed(e));
+  const draftsApproved = emails.filter(e => e.draft_status === 'approved' && e.status !== 'done' && e.status !== 'archived' && !isSnoozed(e));
 
   // Filter calendar events to show only current/upcoming (only for today)
   const now = new Date();
@@ -508,6 +530,59 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
         setEmails(prev => prev.map(e => e.id === emailId ? { ...e, action_status: actionStatus } : e));
       } else {
         console.error('Failed to update action status:', await res.text());
+      }
+    } catch (error) { console.error('Failed:', error); }
+    setUpdating(null);
+  };
+
+  // Request revision - sends draft back to Emily with comment
+  const requestRevision = async (emailId: string, comment: string) => {
+    setUpdating(emailId);
+    try {
+      const res = await fetch('/api/emails/status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: emailId,
+          draft_status: 'needs_revision',
+          revision_comment: comment,
+          priority: 'eg_action' // Move to Emily's queue
+        }),
+      });
+      if (res.ok) {
+        setEmails(prev => prev.map(e => e.id === emailId ? {
+          ...e,
+          draft_status: 'needs_revision',
+          priority: 'eg_action'
+        } : e));
+        setRevisionEmailId(null);
+        setRevisionComment('');
+      }
+    } catch (error) { console.error('Failed:', error); }
+    setUpdating(null);
+  };
+
+  // Set reminder - hides email until reminder date
+  const setReminder = async (emailId: string, reminderDate: string) => {
+    setUpdating(emailId);
+    try {
+      const res = await fetch('/api/emails/status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: emailId,
+          action_status: 'remind_me',
+          reminder_date: reminderDate
+        }),
+      });
+      if (res.ok) {
+        setEmails(prev => prev.map(e => e.id === emailId ? {
+          ...e,
+          action_status: 'remind_me',
+          reminder_date: reminderDate
+        } : e));
+        setRemindMeEmailId(null);
+        setRemindMeDate('');
       }
     } catch (error) { console.error('Failed:', error); }
     setUpdating(null);
@@ -769,7 +844,13 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
               </button>
 
               <button
-                onClick={() => updateActionStatus(email.id, email.action_status === 'remind_me' ? null : 'remind_me')}
+                onClick={() => {
+                  setRemindMeEmailId(email.id);
+                  // Default to tomorrow
+                  const tomorrow = new Date();
+                  tomorrow.setDate(tomorrow.getDate() + 1);
+                  setRemindMeDate(tomorrow.toISOString().split('T')[0]);
+                }}
                 disabled={updating === email.id}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 ${
                   email.action_status === 'remind_me'
@@ -780,7 +861,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                 ⏰ Remind Me
               </button>
 
-              {/* More actions dropdown-style */}
+              {/* More actions */}
               <div className="ml-auto flex items-center gap-2">
                 <button
                   onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)}
@@ -807,14 +888,6 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   title="Add as task"
                 >
                   ✓
-                </button>
-                <button
-                  onClick={() => updateStatus(email.id, 'archived')}
-                  disabled={updating === email.id}
-                  className="px-3 py-2 rounded-lg text-sm font-medium transition-all bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  title="Archive"
-                >
-                  📦
                 </button>
               </div>
             </div>
@@ -1243,18 +1316,24 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                             <p className="text-sm font-medium text-gray-900 truncate">{email.subject}</p>
                             <p className="text-xs text-gray-500 mb-2">To: {email.from_email}</p>
                             <p className="text-xs text-gray-600 line-clamp-2 mb-2">{(email.edited_draft || email.draft_reply || '').substring(0, 100)}...</p>
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
                               <button
                                 onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }}
-                                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-medium"
+                                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-xs font-medium"
                               >
                                 ✏️ Edit
                               </button>
                               <button
                                 onClick={() => approveDraft(email.id)}
-                                className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium"
+                                className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded text-xs font-medium"
                               >
                                 👍 Approve
+                              </button>
+                              <button
+                                onClick={() => setRevisionEmailId(email.id)}
+                                className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded text-xs font-medium"
+                              >
+                                🔄 Request Revision
                               </button>
                             </div>
                           </div>
@@ -1274,7 +1353,42 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   {/* Approved Drafts Ready to Send */}
                   {draftsApproved.length > 0 && (
                     <div className="mb-4">
-                      <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-2">📤 Ready to Send ({draftsApproved.length})</p>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">📤 Ready to Send ({draftsApproved.length})</p>
+                        {draftsApproved.length > 1 && (
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`Send all ${draftsApproved.length} approved emails?`)) return;
+                              setSendingBatch(true);
+                              try {
+                                const res = await fetch('/api/emails/send-batch', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ emailIds: draftsApproved.map(e => e.id) }),
+                                });
+                                const result = await res.json();
+                                if (res.ok) {
+                                  const sentIds = result.results.filter((r: { success: boolean }) => r.success).map((r: { id: string }) => r.id);
+                                  setEmails(prev => prev.map(e =>
+                                    sentIds.includes(e.id) ? { ...e, status: 'done', action_status: 'sent' } : e
+                                  ));
+                                  alert(result.message);
+                                } else {
+                                  alert(`Failed: ${result.error}`);
+                                }
+                              } catch (error) {
+                                console.error('Batch send error:', error);
+                                alert('Failed to send emails.');
+                              }
+                              setSendingBatch(false);
+                            }}
+                            disabled={sendingBatch}
+                            className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium disabled:opacity-50"
+                          >
+                            {sendingBatch ? 'Sending...' : '📤 Send All'}
+                          </button>
+                        )}
+                      </div>
                       <div className="space-y-2">
                         {draftsApproved.map((email) => (
                           <div key={email.id} className="bg-blue-50 border border-blue-200 rounded-lg p-3">
@@ -1284,13 +1398,13 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                               <button
                                 onClick={() => sendEmail(email.id)}
                                 disabled={sendingEmail === email.id}
-                                className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-xs font-medium disabled:opacity-50"
+                                className="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded text-xs font-medium disabled:opacity-50"
                               >
                                 {sendingEmail === email.id ? 'Sending...' : '📤 Send'}
                               </button>
                               <button
                                 onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }}
-                                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-medium"
+                                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-xs font-medium"
                               >
                                 ✏️ Edit
                               </button>
@@ -2346,10 +2460,66 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   <p className="text-sm text-gray-400 mt-1">All caught up!</p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {emilyQueue.map((email) => (
-                    <EmailCard key={email.id} email={email} />
-                  ))}
+                <div className="space-y-6">
+                  {/* Needs Revision Section */}
+                  {needsRevisionEmails.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-semibold text-orange-600 uppercase tracking-wide mb-3 flex items-center gap-2">
+                        🔄 Needs Revision ({needsRevisionEmails.length})
+                      </h4>
+                      <div className="space-y-3">
+                        {needsRevisionEmails.map((email) => (
+                          <div key={email.id} className="bg-orange-50 border-2 border-orange-200 rounded-xl p-4">
+                            <div className="flex items-start justify-between mb-2">
+                              <div>
+                                <p className="font-medium text-gray-900">{email.subject}</p>
+                                <p className="text-sm text-gray-500">{email.from_name || email.from_email}</p>
+                              </div>
+                              <span className="bg-orange-500 text-white px-2 py-1 rounded text-xs font-medium">
+                                Needs Revision
+                              </span>
+                            </div>
+                            {email.revision_comment && (
+                              <div className="bg-white rounded-lg p-3 mt-2 border border-orange-200">
+                                <p className="text-xs font-medium text-orange-700 mb-1">Comment from RBK:</p>
+                                <p className="text-sm text-gray-700">{email.revision_comment}</p>
+                              </div>
+                            )}
+                            <div className="flex gap-2 mt-3">
+                              <button
+                                onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }}
+                                className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                              >
+                                ✏️ Edit Draft
+                              </button>
+                              <button
+                                onClick={() => setExpandedEmail(expandedEmail === email.id ? null : email.id)}
+                                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium"
+                              >
+                                View Email
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Regular Emily Queue */}
+                  {emilyQueue.filter(e => e.draft_status !== 'needs_revision').length > 0 && (
+                    <div>
+                      {needsRevisionEmails.length > 0 && (
+                        <h4 className="text-sm font-semibold text-blue-600 uppercase tracking-wide mb-3">
+                          Other Emails
+                        </h4>
+                      )}
+                      <div className="space-y-4">
+                        {emilyQueue.filter(e => e.draft_status !== 'needs_revision').map((email) => (
+                          <EmailCard key={email.id} email={email} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -2410,6 +2580,123 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                       className="bg-green-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-600 disabled:opacity-50"
                     >
                       Mark Ready for Review
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* Request Revision Modal */}
+      {revisionEmailId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setRevisionEmailId(null)}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <span className="text-orange-500">🔄</span> Request Revision
+            </h3>
+            {(() => {
+              const email = emails.find(e => e.id === revisionEmailId);
+              if (!email) return null;
+              return (
+                <div className="space-y-4">
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="font-medium text-gray-900 text-sm">{email.subject}</p>
+                    <p className="text-xs text-gray-500">To: {email.from_email}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Comment for Emily</label>
+                    <textarea
+                      value={revisionComment}
+                      onChange={(e) => setRevisionComment(e.target.value)}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none resize-none"
+                      placeholder="What changes are needed?"
+                    />
+                  </div>
+                  <div className="flex gap-3 justify-end">
+                    <button
+                      onClick={() => setRevisionEmailId(null)}
+                      className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => requestRevision(revisionEmailId, revisionComment)}
+                      disabled={updating === revisionEmailId}
+                      className="bg-orange-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-orange-600 disabled:opacity-50"
+                    >
+                      Send to Emily
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* Remind Me Modal */}
+      {remindMeEmailId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setRemindMeEmailId(null)}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <span className="text-violet-500">⏰</span> Set Reminder
+            </h3>
+            {(() => {
+              const email = emails.find(e => e.id === remindMeEmailId);
+              if (!email) return null;
+              return (
+                <div className="space-y-4">
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="font-medium text-gray-900 text-sm truncate">{email.subject}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Remind me on</label>
+                    <input
+                      type="date"
+                      value={remindMeDate}
+                      onChange={(e) => setRemindMeDate(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 outline-none"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        const tomorrow = new Date();
+                        tomorrow.setDate(tomorrow.getDate() + 1);
+                        setRemindMeDate(tomorrow.toISOString().split('T')[0]);
+                      }}
+                      className="flex-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700"
+                    >
+                      Tomorrow
+                    </button>
+                    <button
+                      onClick={() => {
+                        const nextWeek = new Date();
+                        nextWeek.setDate(nextWeek.getDate() + 7);
+                        setRemindMeDate(nextWeek.toISOString().split('T')[0]);
+                      }}
+                      className="flex-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700"
+                    >
+                      Next Week
+                    </button>
+                  </div>
+                  <div className="flex gap-3 justify-end pt-2">
+                    <button
+                      onClick={() => setRemindMeEmailId(null)}
+                      className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => setReminder(remindMeEmailId, remindMeDate)}
+                      disabled={updating === remindMeEmailId || !remindMeDate}
+                      className="bg-violet-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-violet-600 disabled:opacity-50"
+                    >
+                      Set Reminder
                     </button>
                   </div>
                 </div>
