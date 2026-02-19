@@ -465,7 +465,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: emailId, status: newStatus }),
       });
-      if (res.ok) setEmails(emails.map(e => e.id === emailId ? { ...e, status: newStatus } : e));
+      if (res.ok) setEmails(prev => prev.map(e => e.id === emailId ? { ...e, status: newStatus } : e));
     } catch (error) { console.error('Failed:', error); }
     setUpdating(null);
   };
@@ -478,7 +478,11 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: emailId, action_status: actionStatus }),
       });
-      if (res.ok) setEmails(emails.map(e => e.id === emailId ? { ...e, action_status: actionStatus } : e));
+      if (res.ok) {
+        setEmails(prev => prev.map(e => e.id === emailId ? { ...e, action_status: actionStatus } : e));
+      } else {
+        console.error('Failed to update action status:', await res.text());
+      }
     } catch (error) { console.error('Failed:', error); }
     setUpdating(null);
   };
