@@ -153,9 +153,41 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
     fetchCalendarForDate(newDate);
   };
 
+  const deleteCalendarEvent = async (eventId: string) => {
+    if (!confirm('Delete this calendar event?')) return;
+    try {
+      const res = await fetch(`/api/calendar/delete?eventId=${encodeURIComponent(eventId)}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setScheduleEvents(scheduleEvents.filter(e => e.id !== eventId));
+      } else {
+        alert('Failed to delete event');
+      }
+    } catch (e) {
+      console.error('Failed to delete event:', e);
+      alert('Failed to delete event');
+    }
+  };
+
   const isToday = (date: Date) => {
     const today = new Date();
     return date.toDateString() === today.toDateString();
+  };
+
+  // Create calendar event from email
+  const createEventFromEmail = (email: Email) => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    setEventFormData({
+      title: email.subject,
+      date: tomorrow.toISOString().split('T')[0],
+      startTime: '09:00',
+      endTime: '10:00',
+      location: '',
+      description: `From: ${email.from_name || email.from_email}\n\n${email.summary}`,
+    });
+    setShowEventModal(true);
   };
 
   // Dashboard popups
@@ -163,6 +195,8 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
   const [showAgendaPopup, setShowAgendaPopup] = useState(false);
   const [showImportantDocsPopup, setShowImportantDocsPopup] = useState(false);
   const [editingImportantDocs, setEditingImportantDocs] = useState(false);
+  const [editingAgendaId, setEditingAgendaId] = useState<string | null>(null);
+  const [agendaNoteText, setAgendaNoteText] = useState('');
 
   // Important Docs - stored in database
   const [importantDocs, setImportantDocs] = useState<Array<{ id: string; title: string; url: string }>>([]);
@@ -614,18 +648,37 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
               ))}
             </div>
 
-            {/* Agenda Button */}
-            <button
-              onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)}
-              disabled={updating === email.id}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                email.flagged_for_meeting
-                  ? 'bg-amber-500 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {email.flagged_for_meeting ? '⭐ On Agenda' : '☆ Add to Agenda'}
-            </button>
+            {/* Quick Action Buttons */}
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)}
+                disabled={updating === email.id}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  email.flagged_for_meeting
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {email.flagged_for_meeting ? '⭐ On Agenda' : '☆ Add to Agenda'}
+              </button>
+              <button
+                onClick={() => createEventFromEmail(email)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-gray-100 text-gray-600 hover:bg-sky-100 hover:text-sky-700"
+              >
+                📅 Add to Calendar
+              </button>
+              <button
+                onClick={() => {
+                  // Add to tasks by flagging with a task note
+                  setEditingNotesId(email.id);
+                  setNotesText(email.meeting_notes || `Task: Follow up on "${email.subject}"`);
+                  setNotesAssignee('emily');
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-gray-100 text-gray-600 hover:bg-purple-100 hover:text-purple-700"
+              >
+                ✓ Add to Tasks
+              </button>
+            </div>
 
             {/* Draft Section - Always show */}
             <div className="bg-gray-50 rounded-lg p-4">
@@ -941,27 +994,36 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                             <p className="font-medium text-gray-900">{event.title}</p>
                             {event.location && <p className="text-sm text-gray-500">📍 {event.location}</p>}
                           </div>
-                          {event.meetingLink && (
-                            <a
-                              href={event.meetingLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="bg-sky-500 hover:bg-sky-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
+                          <div className="flex items-center gap-2">
+                            {event.meetingLink && (
+                              <a
+                                href={event.meetingLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="bg-sky-500 hover:bg-sky-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
+                              >
+                                🎥 Join
+                              </a>
+                            )}
+                            {event.calendarLink && (
+                              <a
+                                href={event.calendarLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sky-600 hover:text-sky-800 text-xs"
+                                title="View in Google Calendar"
+                              >
+                                ↗
+                              </a>
+                            )}
+                            <button
+                              onClick={() => deleteCalendarEvent(event.id)}
+                              className="text-gray-400 hover:text-red-500 text-xs"
+                              title="Delete event"
                             >
-                              🎥 Join
-                            </a>
-                          )}
-                          {!event.meetingLink && event.calendarLink && (
-                            <a
-                              href={event.calendarLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sky-600 hover:text-sky-800 text-xs"
-                              title="View in Google Calendar"
-                            >
-                              ↗
-                            </a>
-                          )}
+                              🗑️
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -2118,10 +2180,40 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                         <div className="flex-1 min-w-0">
                           <p className={`font-medium ${isDiscussed ? 'line-through text-gray-400' : 'text-gray-900'}`}>{email.subject}</p>
                           <p className="text-sm text-gray-500 mt-1">{email.from_name || email.from_email}</p>
-                          {email.meeting_notes && (
-                            <p className="text-sm text-amber-700 mt-2 bg-amber-100 rounded px-2 py-1">
-                              📝 {email.meeting_notes.replace('[DISCUSSED] ', '').replace(/\[@\w+\] /, '')}
-                            </p>
+                          {editingAgendaId === email.id ? (
+                            <div className="mt-2">
+                              <textarea
+                                value={agendaNoteText}
+                                onChange={(e) => setAgendaNoteText(e.target.value)}
+                                placeholder="Add notes for this agenda item..."
+                                className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                                rows={2}
+                                autoFocus
+                              />
+                              <div className="flex gap-2 mt-2">
+                                <button
+                                  onClick={() => {
+                                    updateMeetingNotes(email.id, (isDiscussed ? '[DISCUSSED] ' : '') + agendaNoteText);
+                                    setEditingAgendaId(null);
+                                  }}
+                                  className="bg-amber-500 hover:bg-amber-600 text-white px-3 py-1 rounded text-xs font-medium"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={() => setEditingAgendaId(null)}
+                                  className="text-gray-500 hover:text-gray-700 px-2 py-1 text-xs"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            email.meeting_notes && (
+                              <p className="text-sm text-amber-700 mt-2 bg-amber-100 rounded px-2 py-1">
+                                📝 {email.meeting_notes.replace('[DISCUSSED] ', '').replace(/\[@\w+\] /, '')}
+                              </p>
+                            )
                           )}
                         </div>
                       </div>
@@ -2137,10 +2229,20 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                           View Email
                         </button>
                         <button
+                          onClick={() => {
+                            const currentNote = email.meeting_notes?.replace('[DISCUSSED] ', '').replace(/\[@\w+\] /, '') || '';
+                            setEditingAgendaId(email.id);
+                            setAgendaNoteText(currentNote);
+                          }}
+                          className="bg-amber-100 hover:bg-amber-200 text-amber-700 px-3 py-1.5 rounded-lg text-xs font-medium"
+                        >
+                          ✏️ Edit Notes
+                        </button>
+                        <button
                           onClick={() => toggleMeetingFlag(email.id, true)}
                           className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium"
                         >
-                          Remove from Agenda
+                          Remove
                         </button>
                       </div>
                     </div>
