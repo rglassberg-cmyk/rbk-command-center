@@ -1,0 +1,112 @@
+# RBK Command Center Update
+### A Custom Dashboard Built for Rabbi Krauss
+
+---
+
+## The Big Picture
+
+After our last meeting, I decided to pivot away from the off-the-shelf tools (Monday.com, Zapier) and build a **completely custom experience** designed specifically around your workflow. The result is the **RBK Command Center** — a single dashboard where you and Emily can manage your inbox, calendar, tasks, and meeting agenda all in one place.
+
+**Why the pivot?** The generic tools weren't flexible enough. You needed something that works the way *you* work — not the other way around.
+
+**Where we are now:** The core app is built, functional, and processing real emails. Emily and I have been testing and refining it together.
+
+---
+
+## What It Does Today
+
+### Email Triage — Automated & Organized
+- Emails are **pulled automatically** from your inbox every 5 minutes
+- **AI categorizes each email** into priority buckets so you see what matters first:
+  - **RBK Action** — Needs your direct response
+  - **Emily Action** — Emily can handle
+  - **Invitations & Meeting Invites** — Events and RSVPs
+  - **Important (No Action)** — Worth knowing, no reply needed
+  - **Review** — Documents/materials to look at
+  - **FYI** — Informational only
+- **AI drafts replies** for emails that need a response
+- Emily reviews and edits drafts, marks them ready, you approve, and they send — all from the dashboard
+
+### Calendar — At a Glance
+- Today's schedule displayed on the dashboard with **one-click join buttons** for Zoom/Meet/Teams
+- Browse previous and upcoming days
+- Create or delete events right from the dashboard
+- Add calendar events directly from an email
+
+### Tasks & Meeting Agenda
+- Create tasks from emails, assign to you or Emily
+- Flag emails to discuss at your next meeting
+- Track what's done and what's still open
+
+### Quick Access Panel
+- **Important Docs** — Links to your most-used documents (editable)
+- **Quick Links** — Today's Folder, Daily Announcements, Daily Folder
+- **Drafts Ready** counter — See at a glance how many replies are waiting for your approval
+
+---
+
+## What's Coming Next
+
+### Near-Term Priorities
+| Feature | What It Does |
+|---------|-------------|
+| **Email Threading** | See full conversation history, not just individual messages |
+| **Snooze / Remind Later** | Hide an email and have it resurface when you're ready |
+| **Quick Reply Templates** | Pre-written responses for common situations (e.g., "Thank you, Emily will follow up") |
+| **Email Forwarding** | Forward emails to others directly from the dashboard |
+| **Notification Alerts** | Get notified (Slack, browser, or email) when something urgent comes in |
+
+### On the Roadmap
+| Feature | What It Does |
+|---------|-------------|
+| **Analytics** | Track email volume, response times, busiest days |
+| **Recurring Tasks** | Tasks that repeat on a schedule |
+| **Calendar Templates** | Quick-create common meeting types |
+| **Staff Absences** | Automated daily absence reports from Paycom |
+| **Student Absences** | Pull from Veracross |
+| **Mobile App** | Native phone experience (currently works on tablet/desktop) |
+
+---
+
+## Design & Experience
+
+The dashboard is modeled after **clean, modern executive dashboards** — dark sidebar, blue accents, white cards, minimal clutter. The goal is for you to open it once in the morning and have everything you need in front of you.
+
+### Polished & Ready
+- Dashboard summary cards (Urgent Actions, Calendar, Tasks, Agenda)
+- Sidebar navigation with clean icons
+- Email page with two-column layout and color-coded priority sections
+- Email detail view with draft editing, status buttons, and quick actions
+- Search bar for finding any email
+
+### Still Being Refined
+- Meeting Agenda page (functional, design in progress)
+- Tasks page (redesign planned with categories and collapsible sections)
+- Mobile optimization
+- Some popup modals
+
+---
+
+## A Few Things to Know
+
+- **Calendar access:** You'll need to share your calendar with the app (one-time setup)
+- **Attachments:** You can see attachment info in the dashboard; to download, it links you to Gmail
+- **Apps Script:** The email processing runs under your Google account to ensure proper access
+- **Hosting:** The app runs on Vercel with Supabase as the database — secure, fast, and reliable
+
+---
+
+## Questions for You
+
+We'd love your input as we continue building. A few things to think about:
+
+1. Are the email categories right? Anything missing or that should be combined?
+2. How do the AI-drafted replies feel? Too formal? Too casual?
+3. What's part of your daily routine that the dashboard should make easier?
+4. Any shortcuts or quick actions that would save you time?
+5. First impressions on the design — anything hard to find or read?
+
+---
+
+*Built with Next.js, Supabase, Google APIs, and Claude AI*
+*Designed for RBK by Rebecca Glassberg*
