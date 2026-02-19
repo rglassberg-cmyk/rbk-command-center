@@ -1107,7 +1107,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   ) : upcomingEvents.length === 0 ? (
                     <p className="text-gray-400 text-sm">No events on this day</p>
                   ) : (
-                    <div className="space-y-1 max-h-64 overflow-y-auto">
+                    <div className="space-y-1">
                       {upcomingEvents.map((event) => (
                         <div key={event.id} className="flex items-center gap-2 p-2 bg-sky-50 rounded-lg hover:bg-sky-100 transition-colors">
                           <span className="bg-sky-500 text-white text-xs font-medium px-2 py-0.5 rounded min-w-[60px] text-center">
