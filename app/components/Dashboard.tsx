@@ -114,6 +114,70 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
   const [showDraftsPopup, setShowDraftsPopup] = useState(false);
   const [sendingBatch, setSendingBatch] = useState(false);
 
+  // Bulk email selection
+  const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
+  const [bulkUpdating, setBulkUpdating] = useState(false);
+
+  const toggleEmailSelection = (emailId: string) => {
+    const newSelected = new Set(selectedEmails);
+    if (newSelected.has(emailId)) {
+      newSelected.delete(emailId);
+    } else {
+      newSelected.add(emailId);
+    }
+    setSelectedEmails(newSelected);
+  };
+
+  const selectAllInSection = (emailIds: string[]) => {
+    const newSelected = new Set(selectedEmails);
+    emailIds.forEach(id => newSelected.add(id));
+    setSelectedEmails(newSelected);
+  };
+
+  const clearSelection = () => {
+    setSelectedEmails(new Set());
+  };
+
+  const markSelectedDone = async () => {
+    if (selectedEmails.size === 0) return;
+    setBulkUpdating(true);
+    try {
+      const promises = Array.from(selectedEmails).map(id =>
+        fetch('/api/emails/status', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, status: 'done' }),
+        })
+      );
+      await Promise.all(promises);
+      setEmails(emails.map(e => selectedEmails.has(e.id) ? { ...e, status: 'done' } : e));
+      setSelectedEmails(new Set());
+    } catch (error) {
+      console.error('Failed to mark emails done:', error);
+    }
+    setBulkUpdating(false);
+  };
+
+  const markSectionDone = async (emailIds: string[]) => {
+    if (emailIds.length === 0) return;
+    if (!confirm(`Mark ${emailIds.length} email${emailIds.length > 1 ? 's' : ''} as done?`)) return;
+    setBulkUpdating(true);
+    try {
+      const promises = emailIds.map(id =>
+        fetch('/api/emails/status', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, status: 'done' }),
+        })
+      );
+      await Promise.all(promises);
+      setEmails(emails.map(e => emailIds.includes(e.id) ? { ...e, status: 'done' } : e));
+    } catch (error) {
+      console.error('Failed to mark section done:', error);
+    }
+    setBulkUpdating(false);
+  };
+
   // Calendar event creation
   const [showEventModal, setShowEventModal] = useState(false);
   const [eventFormData, setEventFormData] = useState({
@@ -134,14 +198,22 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
   const fetchCalendarForDate = async (date: Date) => {
     setLoadingSchedule(true);
     try {
-      const dateStr = date.toISOString().split('T')[0];
+      // Use local date string to avoid timezone issues
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
       const res = await fetch(`/api/calendar/today?date=${dateStr}`);
       if (res.ok) {
         const data = await res.json();
         setScheduleEvents(data.events || []);
+      } else {
+        console.error('Calendar API returned error:', res.status);
+        setScheduleEvents([]);
       }
     } catch (e) {
       console.error('Failed to fetch calendar:', e);
+      setScheduleEvents([]);
     }
     setLoadingSchedule(false);
   };
@@ -1005,8 +1077,10 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                     <p className="text-gray-400 text-sm">Loading...</p>
                   ) : scheduleEvents.length === 0 ? (
                     <p className="text-gray-400 text-sm">No events {isToday(selectedDate) ? 'today' : 'on this day'}</p>
-                  ) : upcomingEvents.length === 0 ? (
+                  ) : upcomingEvents.length === 0 && isToday(selectedDate) ? (
                     <p className="text-gray-400 text-sm">No more events today</p>
+                  ) : upcomingEvents.length === 0 ? (
+                    <p className="text-gray-400 text-sm">No events on this day</p>
                   ) : (
                     <div className="space-y-3">
                       {upcomingEvents.map((event) => (
@@ -1166,6 +1240,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
 
           {/* Inbox View - Redesigned */}
           {activeNav === 'inbox' && (
+            <>
             <div className="space-y-6">
               {/* Urgent Alert Banner */}
               {urgentAlerts.length > 0 && (
@@ -1221,9 +1296,20 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   <div className="bg-gradient-to-br from-sky-500 to-blue-600 rounded-xl p-5 shadow-lg">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-bold text-white">RBK Action Emails</h3>
-                      <span className="bg-white/20 text-white px-3 py-1 rounded-full text-sm font-medium">
-                        {rbkActionEmails.length}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {rbkActionEmails.length > 0 && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); markSectionDone(rbkActionEmails.map(e => e.id)); }}
+                            disabled={bulkUpdating}
+                            className="bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded-full text-xs font-medium transition-colors disabled:opacity-50"
+                          >
+                            ✓ All Done
+                          </button>
+                        )}
+                        <span className="bg-white/20 text-white px-3 py-1 rounded-full text-sm font-medium">
+                          {rbkActionEmails.length}
+                        </span>
+                      </div>
                     </div>
                     <div className="space-y-3 max-h-80 overflow-y-auto">
                       {rbkActionEmails.length === 0 ? (
@@ -1233,18 +1319,27 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                           <div
                             key={email.id}
                             onClick={() => setExpandedEmail(expandedEmail === email.id ? null : email.id)}
-                            className="bg-white/50 hover:bg-white/60 rounded-lg p-3 cursor-pointer transition-all backdrop-blur-sm shadow-sm"
+                            className={`bg-white/50 hover:bg-white/60 rounded-lg p-3 cursor-pointer transition-all backdrop-blur-sm shadow-sm ${selectedEmails.has(email.id) ? 'ring-2 ring-white' : ''}`}
                           >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1 min-w-0">
-                                <p className="text-gray-900 font-bold text-sm truncate">{email.subject}</p>
-                                <p className="text-gray-700 font-semibold text-xs mt-1">{email.from_name || email.from_email}</p>
+                            <div className="flex items-start gap-2">
+                              <input
+                                type="checkbox"
+                                checked={selectedEmails.has(email.id)}
+                                onChange={(e) => { e.stopPropagation(); toggleEmailSelection(email.id); }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="mt-1 w-4 h-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
+                              />
+                              <div className="flex-1 min-w-0 flex items-start justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-gray-900 font-bold text-sm truncate">{email.subject}</p>
+                                  <p className="text-gray-700 font-semibold text-xs mt-1">{email.from_name || email.from_email}</p>
+                                </div>
+                                {email.attachments && email.attachments.length > 0 && (
+                                  <span className="ml-2 bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1">
+                                    📎 {email.attachments.length}
+                                  </span>
+                                )}
                               </div>
-                              {email.attachments && email.attachments.length > 0 && (
-                                <span className="ml-2 bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1">
-                                  📎 {email.attachments.length}
-                                </span>
-                              )}
                             </div>
                             {expandedEmail === email.id && (
                               <div className="mt-3 pt-3 border-t border-white/40">
@@ -1328,9 +1423,20 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   <div className="bg-gradient-to-br from-blue-400 to-sky-500 rounded-xl p-5 shadow-lg">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-bold text-white">Emily Action Emails</h3>
-                      <span className="bg-white/20 text-white px-3 py-1 rounded-full text-sm font-medium">
-                        {emilyActionEmails.length}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {emilyActionEmails.length > 0 && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); markSectionDone(emilyActionEmails.map(e => e.id)); }}
+                            disabled={bulkUpdating}
+                            className="bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded-full text-xs font-medium transition-colors disabled:opacity-50"
+                          >
+                            ✓ All Done
+                          </button>
+                        )}
+                        <span className="bg-white/20 text-white px-3 py-1 rounded-full text-sm font-medium">
+                          {emilyActionEmails.length}
+                        </span>
+                      </div>
                     </div>
                     <div className="space-y-3 max-h-80 overflow-y-auto">
                       {emilyActionEmails.length === 0 ? (
@@ -1340,18 +1446,27 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                           <div
                             key={email.id}
                             onClick={() => setExpandedEmail(expandedEmail === email.id ? null : email.id)}
-                            className="bg-white/50 hover:bg-white/60 rounded-lg p-3 cursor-pointer transition-all backdrop-blur-sm shadow-sm"
+                            className={`bg-white/50 hover:bg-white/60 rounded-lg p-3 cursor-pointer transition-all backdrop-blur-sm shadow-sm ${selectedEmails.has(email.id) ? 'ring-2 ring-white' : ''}`}
                           >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1 min-w-0">
-                                <p className="text-gray-900 font-bold text-sm truncate">{email.subject}</p>
-                                <p className="text-gray-700 font-semibold text-xs mt-1">{email.from_name || email.from_email}</p>
+                            <div className="flex items-start gap-2">
+                              <input
+                                type="checkbox"
+                                checked={selectedEmails.has(email.id)}
+                                onChange={(e) => { e.stopPropagation(); toggleEmailSelection(email.id); }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="mt-1 w-4 h-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
+                              />
+                              <div className="flex-1 min-w-0 flex items-start justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-gray-900 font-bold text-sm truncate">{email.subject}</p>
+                                  <p className="text-gray-700 font-semibold text-xs mt-1">{email.from_name || email.from_email}</p>
+                                </div>
+                                {email.attachments && email.attachments.length > 0 && (
+                                  <span className="ml-2 bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1">
+                                    📎 {email.attachments.length}
+                                  </span>
+                                )}
                               </div>
-                              {email.attachments && email.attachments.length > 0 && (
-                                <span className="ml-2 bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1">
-                                  📎 {email.attachments.length}
-                                </span>
-                              )}
                             </div>
                             {expandedEmail === email.id && (
                               <div className="mt-3 pt-3 border-t border-white/40">
@@ -1461,6 +1576,15 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                     >
                       <span className="font-semibold">Important No Action</span>
                       <div className="flex items-center gap-2">
+                        {importantNoAction.length > 0 && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); markSectionDone(importantNoAction.map(em => em.id)); }}
+                            disabled={bulkUpdating}
+                            className="bg-white/20 hover:bg-white/30 px-2 py-0.5 rounded text-xs font-medium transition-colors disabled:opacity-50"
+                          >
+                            ✓ All Done
+                          </button>
+                        )}
                         <span className="bg-white/20 px-2 py-0.5 rounded-full text-sm">{importantNoAction.length}</span>
                         <span className={`transition-transform ${expandedSections.important_no_action ? 'rotate-180' : ''}`}>▼</span>
                       </div>
@@ -1527,6 +1651,15 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                     >
                       <span className="font-semibold">Review</span>
                       <div className="flex items-center gap-2">
+                        {reviewEmails.length > 0 && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); markSectionDone(reviewEmails.map(em => em.id)); }}
+                            disabled={bulkUpdating}
+                            className="bg-white/20 hover:bg-white/30 px-2 py-0.5 rounded text-xs font-medium transition-colors disabled:opacity-50"
+                          >
+                            ✓ All Done
+                          </button>
+                        )}
                         <span className="bg-white/20 px-2 py-0.5 rounded-full text-sm">{reviewEmails.length}</span>
                         <span className={`transition-transform ${expandedSections.review ? 'rotate-180' : ''}`}>▼</span>
                       </div>
@@ -1593,6 +1726,15 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                     >
                       <span className="font-semibold">Invitations</span>
                       <div className="flex items-center gap-2">
+                        {invitationEmails.length > 0 && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); markSectionDone(invitationEmails.map(em => em.id)); }}
+                            disabled={bulkUpdating}
+                            className="bg-white/20 hover:bg-white/30 px-2 py-0.5 rounded text-xs font-medium transition-colors disabled:opacity-50"
+                          >
+                            ✓ All Done
+                          </button>
+                        )}
                         <span className="bg-white/20 px-2 py-0.5 rounded-full text-sm">{invitationEmails.length}</span>
                         <span className={`transition-transform ${expandedSections.invitation ? 'rotate-180' : ''}`}>▼</span>
                       </div>
@@ -1659,6 +1801,15 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                     >
                       <span className="font-semibold">FYI</span>
                       <div className="flex items-center gap-2">
+                        {fyiEmails.length > 0 && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); markSectionDone(fyiEmails.map(em => em.id)); }}
+                            disabled={bulkUpdating}
+                            className="bg-gray-600 hover:bg-gray-700 text-white px-2 py-0.5 rounded text-xs font-medium transition-colors disabled:opacity-50"
+                          >
+                            ✓ All Done
+                          </button>
+                        )}
                         <span className="bg-white/20 px-2 py-0.5 rounded-full text-sm">{fyiEmails.length}</span>
                         <span className={`transition-transform ${expandedSections.fyi ? 'rotate-180' : ''}`}>▼</span>
                       </div>
@@ -1858,6 +2009,27 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                 </div>
               )}
             </div>
+
+            {/* Floating Selection Action Bar */}
+            {selectedEmails.size > 0 && (
+              <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-4 z-40">
+                <span className="font-medium">{selectedEmails.size} selected</span>
+                <button
+                  onClick={markSelectedDone}
+                  disabled={bulkUpdating}
+                  className="bg-green-500 hover:bg-green-600 px-4 py-1.5 rounded-full text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  {bulkUpdating ? 'Updating...' : '✓ Mark Done'}
+                </button>
+                <button
+                  onClick={clearSelection}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  ✕ Clear
+                </button>
+              </div>
+            )}
+            </>
           )}
 
           {/* Agenda View */}
