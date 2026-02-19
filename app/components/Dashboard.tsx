@@ -198,6 +198,13 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
   const [editingAgendaId, setEditingAgendaId] = useState<string | null>(null);
   const [agendaNoteText, setAgendaNoteText] = useState('');
 
+  // Email popup (for viewing from tasks/agenda)
+  const [popupEmailId, setPopupEmailId] = useState<string | null>(null);
+  const popupEmail = popupEmailId ? emails.find(e => e.id === popupEmailId) : null;
+
+  // Hide completed tasks toggle
+  const [hideCompletedTasks, setHideCompletedTasks] = useState(true);
+
   // Important Docs - stored in database
   const [importantDocs, setImportantDocs] = useState<Array<{ id: string; title: string; url: string }>>([]);
   const [newDocTitle, setNewDocTitle] = useState('');
@@ -320,8 +327,8 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
   const reviewEmails = emails.filter(e => e.priority === 'review' && e.status !== 'done' && e.status !== 'archived' && matchesSearch(e));
   const invitationEmails = emails.filter(e => e.priority === 'invitation' && e.status !== 'done' && e.status !== 'archived' && matchesSearch(e));
   const fyiEmails = emails.filter(e => e.priority === 'fyi' && e.status !== 'done' && e.status !== 'archived' && matchesSearch(e));
-  const draftsReady = emails.filter(e => e.draft_status === 'draft_ready');
-  const draftsApproved = emails.filter(e => e.draft_status === 'approved');
+  const draftsReady = emails.filter(e => e.draft_status === 'draft_ready' && e.status !== 'done' && e.status !== 'archived');
+  const draftsApproved = emails.filter(e => e.draft_status === 'approved' && e.status !== 'done' && e.status !== 'archived');
 
   // Filter calendar events to show only current/upcoming (only for today)
   const now = new Date();
@@ -618,11 +625,11 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   key={s}
                   onClick={() => updateStatus(email.id, s)}
                   disabled={updating === email.id}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95 ${
                     email.status === s
-                      ? 'bg-sky-500 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
+                      ? 'bg-sky-500 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:shadow'
+                  } ${updating === email.id ? 'opacity-50' : ''}`}
                 >
                   {statusConfig[s].icon} {statusConfig[s].label}
                 </button>
@@ -637,11 +644,11 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   key={key}
                   onClick={() => updateActionStatus(email.id, email.action_status === key ? null : key)}
                   disabled={updating === email.id}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95 ${
                     email.action_status === key
-                      ? 'bg-sky-500 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
+                      ? 'bg-sky-500 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:shadow'
+                  } ${updating === email.id ? 'opacity-50' : ''}`}
                 >
                   {config.icon} {config.label}
                 </button>
@@ -1032,14 +1039,22 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
 
                 {/* Tasks */}
                 <div className="bg-white rounded-xl shadow-sm p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <span className="text-indigo-500">✅</span> My Tasks
-                  </h3>
-                  {tasks.filter(t => t.assignee === 'rbk').length === 0 ? (
-                    <p className="text-gray-400 text-sm">No tasks assigned</p>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                      <span className="text-indigo-500">✅</span> My Tasks
+                    </h3>
+                    <button
+                      onClick={() => setHideCompletedTasks(!hideCompletedTasks)}
+                      className={`text-xs px-2 py-1 rounded transition-all ${hideCompletedTasks ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'}`}
+                    >
+                      {hideCompletedTasks ? 'Show Completed' : 'Hide Completed'}
+                    </button>
+                  </div>
+                  {tasks.filter(t => t.assignee === 'rbk' && (!hideCompletedTasks || !t.isComplete)).length === 0 ? (
+                    <p className="text-gray-400 text-sm">{hideCompletedTasks ? 'No open tasks' : 'No tasks assigned'}</p>
                   ) : (
                     <div className="space-y-2">
-                      {tasks.filter(t => t.assignee === 'rbk').map((task, idx) => {
+                      {tasks.filter(t => t.assignee === 'rbk' && (!hideCompletedTasks || !t.isComplete)).map((task, idx) => {
                         const taskEmail = emails.find(e => e.id === task.emailId);
                         const isExpanded = expandedTask === task.emailId;
                         return (
@@ -1075,11 +1090,8 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                   <p className="text-sm text-gray-600 mb-3">{taskEmail.summary}</p>
                                   <div className="flex gap-2">
                                     <button
-                                      onClick={() => {
-                                        setExpandedEmail(taskEmail.id);
-                                        setActiveNav('inbox');
-                                      }}
-                                      className="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1 rounded text-xs font-medium"
+                                      onClick={() => setPopupEmailId(taskEmail.id)}
+                                      className="bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white px-3 py-1 rounded text-xs font-medium transition-transform"
                                     >
                                       View Email
                                     </button>
@@ -1088,7 +1100,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                         href={getGmailUrl(taskEmail.message_id)!}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded text-xs font-medium"
+                                        className="bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 px-3 py-1 rounded text-xs font-medium transition-transform"
                                       >
                                         Open in Gmail
                                       </a>
@@ -2221,10 +2233,9 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                         <button
                           onClick={() => {
                             setShowAgendaPopup(false);
-                            setActiveNav('inbox');
-                            setExpandedEmail(email.id);
+                            setPopupEmailId(email.id);
                           }}
-                          className="bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium"
+                          className="bg-amber-500 hover:bg-amber-600 active:scale-95 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-transform"
                         >
                           View Email
                         </button>
@@ -2234,7 +2245,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                             setEditingAgendaId(email.id);
                             setAgendaNoteText(currentNote);
                           }}
-                          className="bg-amber-100 hover:bg-amber-200 text-amber-700 px-3 py-1.5 rounded-lg text-xs font-medium"
+                          className="bg-amber-100 hover:bg-amber-200 active:scale-95 text-amber-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-transform"
                         >
                           ✏️ Edit Notes
                         </button>
@@ -2373,6 +2384,83 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Email Popup (for viewing from tasks/agenda) */}
+      {popupEmail && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setPopupEmailId(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[85vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-sky-500 to-blue-600 px-6 py-4 flex items-center justify-between">
+              <div className="text-white">
+                <p className="font-bold text-lg truncate">{popupEmail.subject}</p>
+                <p className="text-sm text-sky-100">From: {popupEmail.from_name || popupEmail.from_email}</p>
+              </div>
+              <button onClick={() => setPopupEmailId(null)} className="text-white/80 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1">
+              <div className="flex items-center gap-2 mb-4">
+                {popupEmail.priority && priorityConfig[popupEmail.priority] && (
+                  <span className={`${priorityConfig[popupEmail.priority].bg} ${priorityConfig[popupEmail.priority].text} px-2 py-0.5 rounded text-xs font-medium`}>
+                    {priorityConfig[popupEmail.priority].icon} {priorityConfig[popupEmail.priority].label}
+                  </span>
+                )}
+                <span className="text-xs text-gray-400">{formatDistanceToNow(parseISO(popupEmail.received_at), { addSuffix: true })}</span>
+              </div>
+
+              <div className="bg-sky-50 rounded-lg p-4 mb-4">
+                <p className="text-sm font-medium text-gray-700 mb-1">Summary</p>
+                <p className="text-gray-600">{popupEmail.summary}</p>
+              </div>
+
+              {popupEmail.action_needed && popupEmail.action_needed !== 'None' && (
+                <div className="bg-amber-50 rounded-lg p-4 mb-4">
+                  <p className="text-sm font-medium text-amber-800 mb-1">Action Needed</p>
+                  <p className="text-amber-700">{popupEmail.action_needed}</p>
+                </div>
+              )}
+
+              <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                <p className="text-sm font-medium text-gray-700 mb-1">Full Email</p>
+                <p className="text-gray-600 text-sm whitespace-pre-wrap max-h-60 overflow-y-auto">{popupEmail.body_text}</p>
+              </div>
+
+              {(popupEmail.draft_reply && popupEmail.draft_reply !== 'No reply needed') && (
+                <div className="bg-green-50 rounded-lg p-4 mb-4">
+                  <p className="text-sm font-medium text-green-800 mb-1">Draft Reply</p>
+                  <p className="text-green-700 text-sm whitespace-pre-wrap">{popupEmail.edited_draft || popupEmail.draft_reply}</p>
+                </div>
+              )}
+            </div>
+            <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex gap-3">
+              <button
+                onClick={() => {
+                  setPopupEmailId(null);
+                  setExpandedEmail(popupEmail.id);
+                  setActiveNav('inbox');
+                }}
+                className="bg-sky-500 hover:bg-sky-600 active:scale-95 text-white px-4 py-2 rounded-lg text-sm font-medium transition-transform"
+              >
+                Open Full View
+              </button>
+              {getGmailUrl(popupEmail.message_id) && (
+                <a
+                  href={getGmailUrl(popupEmail.message_id)!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-transform"
+                >
+                  Open in Gmail
+                </a>
+              )}
+              <button
+                onClick={() => setPopupEmailId(null)}
+                className="ml-auto text-gray-500 hover:text-gray-700 px-4 py-2 text-sm"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
