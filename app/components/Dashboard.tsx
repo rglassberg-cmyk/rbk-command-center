@@ -1340,13 +1340,51 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                       <span className="text-xs font-medium text-gray-700">{taskEmail.from_name || taskEmail.from_email}</span>
                                     </div>
                                     <p className="text-sm text-gray-600 mb-3">{taskEmail.summary}</p>
-                                    <div className="flex gap-2">
+                                    {/* Draft status indicator */}
+                                    {taskEmail.draft_reply && taskEmail.draft_reply !== 'No reply needed' && (
+                                      <div className="mb-3 p-2 bg-gray-50 rounded border border-gray-200">
+                                        <div className="flex items-center justify-between mb-1">
+                                          <span className="text-xs font-medium text-gray-600">Draft Reply</span>
+                                          {taskEmail.draft_status && draftStatusConfig[taskEmail.draft_status] && (
+                                            <span className={`${draftStatusConfig[taskEmail.draft_status].bg} ${draftStatusConfig[taskEmail.draft_status].text} px-2 py-0.5 rounded text-xs`}>
+                                              {draftStatusConfig[taskEmail.draft_status].label}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <p className="text-xs text-gray-500 line-clamp-2">{(taskEmail.edited_draft || taskEmail.draft_reply).substring(0, 100)}...</p>
+                                      </div>
+                                    )}
+                                    <div className="flex flex-wrap gap-2">
                                       <button
                                         onClick={(e) => { e.stopPropagation(); setPopupEmailId(taskEmail.id); }}
                                         className="bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white px-3 py-1 rounded text-xs font-medium transition-transform"
                                       >
                                         View Email
                                       </button>
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); setEditingDraftId(taskEmail.id); setDraftText(taskEmail.edited_draft || taskEmail.draft_reply || ''); }}
+                                        className="bg-amber-500 hover:bg-amber-600 active:scale-95 text-white px-3 py-1 rounded text-xs font-medium transition-transform"
+                                      >
+                                        ✏️ Edit Draft
+                                      </button>
+                                      {taskEmail.draft_status === 'approved' && (
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); sendEmail(taskEmail.id); }}
+                                          disabled={sendingEmail === taskEmail.id}
+                                          className="bg-green-500 hover:bg-green-600 active:scale-95 text-white px-3 py-1 rounded text-xs font-medium transition-transform disabled:opacity-50"
+                                        >
+                                          {sendingEmail === taskEmail.id ? 'Sending...' : '📤 Send'}
+                                        </button>
+                                      )}
+                                      {taskEmail.draft_status === 'draft_ready' && (
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); approveDraft(taskEmail.id); }}
+                                          disabled={updating === taskEmail.id}
+                                          className="bg-blue-500 hover:bg-blue-600 active:scale-95 text-white px-3 py-1 rounded text-xs font-medium transition-transform disabled:opacity-50"
+                                        >
+                                          👍 Approve
+                                        </button>
+                                      )}
                                       {taskEmail.attachments && taskEmail.attachments.length > 0 && getGmailUrl(taskEmail.message_id) && (
                                         <a
                                           href={getGmailUrl(taskEmail.message_id)!}
