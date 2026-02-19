@@ -55,6 +55,33 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function PUT(request: NextRequest) {
+  try {
+    const { id, title } = await request.json();
+
+    if (!id || !title) {
+      return NextResponse.json({ error: 'ID and title are required' }, { status: 400 });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('important_docs')
+      .update({ title })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating doc:', error);
+      return NextResponse.json({ error: 'Failed to update doc' }, { status: 500 });
+    }
+
+    return NextResponse.json({ doc: data });
+  } catch (error) {
+    console.error('Error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

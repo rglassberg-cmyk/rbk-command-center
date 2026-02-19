@@ -99,6 +99,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
   const [expandedEmail, setExpandedEmail] = useState<string | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Draft editing
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
@@ -125,6 +126,38 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
   });
   const [creatingEvent, setCreatingEvent] = useState(false);
 
+  // Calendar navigation
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [scheduleEvents, setScheduleEvents] = useState<CalendarEvent[]>(calendarEvents);
+  const [loadingSchedule, setLoadingSchedule] = useState(false);
+
+  const fetchCalendarForDate = async (date: Date) => {
+    setLoadingSchedule(true);
+    try {
+      const dateStr = date.toISOString().split('T')[0];
+      const res = await fetch(`/api/calendar/today?date=${dateStr}`);
+      if (res.ok) {
+        const data = await res.json();
+        setScheduleEvents(data.events || []);
+      }
+    } catch (e) {
+      console.error('Failed to fetch calendar:', e);
+    }
+    setLoadingSchedule(false);
+  };
+
+  const navigateDate = (direction: 'prev' | 'next') => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() + (direction === 'next' ? 1 : -1));
+    setSelectedDate(newDate);
+    fetchCalendarForDate(newDate);
+  };
+
+  const isToday = (date: Date) => {
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  };
+
   // Dashboard popups
   const [showUrgentPopup, setShowUrgentPopup] = useState(false);
   const [showAgendaPopup, setShowAgendaPopup] = useState(false);
@@ -136,6 +169,8 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
   const [newDocTitle, setNewDocTitle] = useState('');
   const [newDocUrl, setNewDocUrl] = useState('');
   const [loadingDocs, setLoadingDocs] = useState(true);
+  const [editingDocId, setEditingDocId] = useState<string | null>(null);
+  const [editingDocTitle, setEditingDocTitle] = useState('');
 
   // Load Important Docs from database on mount
   useEffect(() => {
@@ -181,6 +216,23 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
     }
   };
 
+  const updateImportantDoc = async (id: string, title: string) => {
+    try {
+      const res = await fetch('/api/important-docs', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, title }),
+      });
+      if (res.ok) {
+        setImportantDocs(importantDocs.map(d => d.id === id ? { ...d, title } : d));
+        setEditingDocId(null);
+        setEditingDocTitle('');
+      }
+    } catch (e) {
+      console.error('Failed to update doc:', e);
+    }
+  };
+
   // Expanded task in My Tasks section
   const [expandedTask, setExpandedTask] = useState<string | null>(null);
 
@@ -213,29 +265,44 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
   const activeEmails = emails.filter(e => showArchived || (e.status !== 'archived'));
   const emilyQueue = emails.filter(e => e.priority === 'eg_action' && e.status !== 'done' && e.status !== 'archived');
 
-  // Inbox view filtered lists
-  const urgentAlerts = emails.filter(e => e.action_status === 'urgent' && e.status !== 'done' && e.status !== 'archived');
-  const rbkActionEmails = emails.filter(e => e.priority === 'rbk_action' && e.status !== 'done' && e.status !== 'archived');
-  const emilyActionEmails = emails.filter(e => e.priority === 'eg_action' && e.status !== 'done' && e.status !== 'archived');
-  const importantNoAction = emails.filter(e => e.priority === 'important_no_action' && e.status !== 'done' && e.status !== 'archived');
-  const reviewEmails = emails.filter(e => e.priority === 'review' && e.status !== 'done' && e.status !== 'archived');
-  const invitationEmails = emails.filter(e => e.priority === 'invitation' && e.status !== 'done' && e.status !== 'archived');
-  const fyiEmails = emails.filter(e => e.priority === 'fyi' && e.status !== 'done' && e.status !== 'archived');
+  // Search filter helper
+  const matchesSearch = (email: Email) => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      email.subject.toLowerCase().includes(query) ||
+      email.from_email.toLowerCase().includes(query) ||
+      (email.from_name && email.from_name.toLowerCase().includes(query)) ||
+      email.summary.toLowerCase().includes(query) ||
+      email.body_text.toLowerCase().includes(query)
+    );
+  };
+
+  // Inbox view filtered lists (with search)
+  const urgentAlerts = emails.filter(e => e.action_status === 'urgent' && e.status !== 'done' && e.status !== 'archived' && matchesSearch(e));
+  const rbkActionEmails = emails.filter(e => e.priority === 'rbk_action' && e.status !== 'done' && e.status !== 'archived' && matchesSearch(e));
+  const emilyActionEmails = emails.filter(e => e.priority === 'eg_action' && e.status !== 'done' && e.status !== 'archived' && matchesSearch(e));
+  const importantNoAction = emails.filter(e => e.priority === 'important_no_action' && e.status !== 'done' && e.status !== 'archived' && matchesSearch(e));
+  const reviewEmails = emails.filter(e => e.priority === 'review' && e.status !== 'done' && e.status !== 'archived' && matchesSearch(e));
+  const invitationEmails = emails.filter(e => e.priority === 'invitation' && e.status !== 'done' && e.status !== 'archived' && matchesSearch(e));
+  const fyiEmails = emails.filter(e => e.priority === 'fyi' && e.status !== 'done' && e.status !== 'archived' && matchesSearch(e));
   const draftsReady = emails.filter(e => e.draft_status === 'draft_ready');
   const draftsApproved = emails.filter(e => e.draft_status === 'approved');
 
-  // Filter calendar events to show only current/upcoming
+  // Filter calendar events to show only current/upcoming (only for today)
   const now = new Date();
-  const upcomingEvents = calendarEvents.filter(event => {
-    // For all-day events, show until end of day
-    if (event.isAllDay) {
-      const eventDate = new Date(event.endTime);
-      return eventDate >= now;
-    }
-    // For timed events, hide if already ended
-    const endTime = new Date(event.endTime);
-    return endTime > now;
-  });
+  const upcomingEvents = isToday(selectedDate)
+    ? scheduleEvents.filter(event => {
+        // For all-day events, show until end of day
+        if (event.isAllDay) {
+          const eventDate = new Date(event.endTime);
+          return eventDate >= now;
+        }
+        // For timed events, hide if already ended
+        const endTime = new Date(event.endTime);
+        return endTime > now;
+      })
+    : scheduleEvents; // Show all events for other days
 
   const formatTime = (time: string, isAllDay: boolean) => {
     if (isAllDay) return 'All day';
@@ -823,9 +890,32 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                 {/* Today's Schedule */}
                 <div className="bg-white rounded-xl shadow-sm p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                      <span className="text-sky-500">📅</span> Today's Schedule
-                    </h3>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => navigateDate('prev')}
+                        className="text-gray-400 hover:text-gray-600 p-1"
+                      >
+                        ◀
+                      </button>
+                      <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                        <span className="text-sky-500">📅</span>
+                        {isToday(selectedDate) ? "Today's Schedule" : format(selectedDate, 'EEE, MMM d')}
+                      </h3>
+                      <button
+                        onClick={() => navigateDate('next')}
+                        className="text-gray-400 hover:text-gray-600 p-1"
+                      >
+                        ▶
+                      </button>
+                      {!isToday(selectedDate) && (
+                        <button
+                          onClick={() => { setSelectedDate(new Date()); setScheduleEvents(calendarEvents); }}
+                          className="text-xs text-sky-500 hover:text-sky-700 ml-2"
+                        >
+                          Back to Today
+                        </button>
+                      )}
+                    </div>
                     <button
                       onClick={() => setShowEventModal(true)}
                       className="bg-sky-500 hover:bg-sky-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-lg font-bold transition-colors"
@@ -834,8 +924,10 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                       +
                     </button>
                   </div>
-                  {calendarEvents.length === 0 ? (
-                    <p className="text-gray-400 text-sm">No events today</p>
+                  {loadingSchedule ? (
+                    <p className="text-gray-400 text-sm">Loading...</p>
+                  ) : scheduleEvents.length === 0 ? (
+                    <p className="text-gray-400 text-sm">No events {isToday(selectedDate) ? 'today' : 'on this day'}</p>
                   ) : upcomingEvents.length === 0 ? (
                     <p className="text-gray-400 text-sm">No more events today</p>
                   ) : (
@@ -1007,6 +1099,28 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   </div>
                 </div>
               )}
+
+              {/* Search Bar */}
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search emails by subject, sender, or content..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full px-4 py-3 pl-10 bg-white border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-sky-500 focus:border-transparent outline-none"
+                />
+                <svg className="absolute left-3 top-3.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
 
               {/* Two Column Layout */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -2069,21 +2183,55 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
               ) : (
                 importantDocs.map((doc) => (
                   <div key={doc.id} className="flex items-center gap-2">
-                    <a
-                      href={doc.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 bg-indigo-50 hover:bg-indigo-100 rounded-lg px-4 py-3 text-indigo-700 font-medium transition-colors"
-                    >
-                      📎 {doc.title}
-                    </a>
-                    {editingImportantDocs && (
-                      <button
-                        onClick={() => deleteImportantDoc(doc.id)}
-                        className="text-red-400 hover:text-red-600 p-2"
-                      >
-                        🗑️
-                      </button>
+                    {editingDocId === doc.id ? (
+                      <div className="flex-1 flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={editingDocTitle}
+                          onChange={(e) => setEditingDocTitle(e.target.value)}
+                          className="flex-1 px-3 py-2 border border-indigo-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => updateImportantDoc(doc.id, editingDocTitle)}
+                          className="text-green-500 hover:text-green-700 p-1"
+                        >
+                          ✓
+                        </button>
+                        <button
+                          onClick={() => { setEditingDocId(null); setEditingDocTitle(''); }}
+                          className="text-gray-400 hover:text-gray-600 p-1"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <a
+                          href={doc.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 bg-indigo-50 hover:bg-indigo-100 rounded-lg px-4 py-3 text-indigo-700 font-medium transition-colors"
+                        >
+                          📎 {doc.title}
+                        </a>
+                        {editingImportantDocs && (
+                          <>
+                            <button
+                              onClick={() => { setEditingDocId(doc.id); setEditingDocTitle(doc.title); }}
+                              className="text-indigo-400 hover:text-indigo-600 p-2"
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              onClick={() => deleteImportantDoc(doc.id)}
+                              className="text-red-400 hover:text-red-600 p-2"
+                            >
+                              🗑️
+                            </button>
+                          </>
+                        )}
+                      </>
                     )}
                   </div>
                 ))
