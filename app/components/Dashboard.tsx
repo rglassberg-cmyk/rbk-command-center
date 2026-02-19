@@ -193,6 +193,34 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
   const [scheduleEvents, setScheduleEvents] = useState<CalendarEvent[]>(calendarEvents);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
 
+  // Meeting countdown alert
+  const [upcomingMeeting, setUpcomingMeeting] = useState<{ title: string; minutesUntil: number; meetingLink?: string | null } | null>(null);
+
+  // Check for upcoming meetings every 30 seconds
+  useEffect(() => {
+    const checkUpcomingMeetings = () => {
+      const now = new Date();
+      // Only check today's events from scheduleEvents
+      for (const event of scheduleEvents) {
+        if (event.isAllDay) continue;
+        const startTime = new Date(event.startTime);
+        const diffMs = startTime.getTime() - now.getTime();
+        const diffMinutes = Math.ceil(diffMs / 60000);
+
+        // Show alert if meeting is within 5 minutes and hasn't started yet
+        if (diffMinutes > 0 && diffMinutes <= 5) {
+          setUpcomingMeeting({ title: event.title, minutesUntil: diffMinutes, meetingLink: event.meetingLink });
+          return;
+        }
+      }
+      setUpcomingMeeting(null);
+    };
+
+    checkUpcomingMeetings();
+    const interval = setInterval(checkUpcomingMeetings, 30000); // Check every 30 seconds
+    return () => clearInterval(interval);
+  }, [scheduleEvents]);
+
   const fetchCalendarForDate = async (date: Date) => {
     setLoadingSchedule(true);
     try {
@@ -964,6 +992,25 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
               <p className="text-sky-100 mt-1">Here's what needs your attention today</p>
             </div>
             <div className="flex items-center gap-3">
+              {/* Meeting Countdown Alert */}
+              {upcomingMeeting && (
+                <div className="bg-amber-500 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 animate-pulse">
+                  <span>📅</span>
+                  <span className="font-bold truncate max-w-[200px]">{upcomingMeeting.title}</span>
+                  <span className="whitespace-nowrap">in {upcomingMeeting.minutesUntil} min{upcomingMeeting.minutesUntil !== 1 ? 's' : ''}</span>
+                  {upcomingMeeting.meetingLink && (
+                    <a
+                      href={upcomingMeeting.meetingLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-white text-amber-600 px-3 py-1 rounded font-bold hover:bg-amber-100 transition-colors ml-1"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Join
+                    </a>
+                  )}
+                </div>
+              )}
               {isConnected && (
                 <span className="flex items-center gap-1 text-sm text-sky-100">
                   <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
