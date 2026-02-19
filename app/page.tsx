@@ -42,8 +42,10 @@ async function getCalendarEvents(accessToken: string) {
     });
 
     if (!response.ok) {
-      console.error('Calendar API error:', await response.text());
-      return [];
+      const errorText = await response.text();
+      console.error('Calendar API error:', response.status, errorText);
+      // Return error info so we can show it in the UI
+      return [{ id: 'error', title: `Calendar error: ${response.status}`, startTime: new Date().toISOString(), endTime: new Date().toISOString(), isAllDay: false, location: null, meetingLink: null, calendarLink: null }];
     }
 
     const data = await response.json();
