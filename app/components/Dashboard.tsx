@@ -72,14 +72,12 @@ const statusConfig: Record<string, { bg: string; text: string; label: string; ic
   archived: { bg: 'bg-gray-50 border border-gray-200', text: 'text-gray-500', label: 'Archived', icon: '📦' },
 };
 
-// Action status
+// Action status - simplified per redesign
 const actionStatusConfig: Record<string, { bg: string; text: string; label: string; icon: string }> = {
   send: { bg: 'bg-green-50 border border-green-200', text: 'text-green-700', label: 'Send', icon: '✉️' },
   sent: { bg: 'bg-emerald-50 border border-emerald-200', text: 'text-emerald-700', label: 'Sent', icon: '✅' },
-  notify_emily: { bg: 'bg-teal-50 border border-teal-200', text: 'text-teal-700', label: 'Notify Emily', icon: '🔔' },
   remind_me: { bg: 'bg-violet-50 border border-violet-200', text: 'text-violet-700', label: 'Remind Me', icon: '⏰' },
-  escalate_emily: { bg: 'bg-orange-50 border border-orange-200', text: 'text-orange-700', label: 'Escalate', icon: '🚨' },
-  draft_ready: { bg: 'bg-blue-50 border border-blue-200', text: 'text-blue-700', label: 'Draft Ready', icon: '📝' },
+  draft_ready: { bg: 'bg-blue-50 border border-blue-200', text: 'text-blue-700', label: 'Review Draft', icon: '📝' },
   urgent: { bg: 'bg-red-500 border border-red-600', text: 'text-white', label: 'URGENT', icon: '🚨' },
 };
 
@@ -87,7 +85,7 @@ const actionStatusConfig: Record<string, { bg: string; text: string; label: stri
 const draftStatusConfig: Record<string, { bg: string; text: string; label: string }> = {
   not_started: { bg: 'bg-gray-50', text: 'text-gray-600', label: 'Not Started' },
   editing: { bg: 'bg-amber-50', text: 'text-amber-700', label: '✏️ Editing' },
-  draft_ready: { bg: 'bg-green-50', text: 'text-green-700', label: '✅ Ready' },
+  draft_ready: { bg: 'bg-green-50', text: 'text-green-700', label: '📝 Review Draft' },
   approved: { bg: 'bg-blue-50', text: 'text-blue-700', label: '👍 Approved' },
 };
 
@@ -715,69 +713,82 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
               </div>
             )}
 
-            {/* Status Buttons */}
-            <div className="flex flex-wrap gap-2">
-              <span className="text-sm text-gray-500 self-center">Status:</span>
-              {(['pending', 'in_progress', 'done', 'archived'] as const).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => updateStatus(email.id, s)}
-                  disabled={updating === email.id}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95 ${
-                    email.status === s
-                      ? 'bg-sky-500 text-white shadow-md'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:shadow'
-                  } ${updating === email.id ? 'opacity-50' : ''}`}
-                >
-                  {statusConfig[s].icon} {statusConfig[s].label}
-                </button>
-              ))}
-            </div>
-
-            {/* Action Status Buttons */}
-            <div className="flex flex-wrap gap-2">
-              <span className="text-sm text-gray-500 self-center">Action:</span>
-              {Object.entries(actionStatusConfig).map(([key, config]) => (
-                <button
-                  key={key}
-                  onClick={() => updateActionStatus(email.id, email.action_status === key ? null : key)}
-                  disabled={updating === email.id}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95 ${
-                    email.action_status === key
-                      ? 'bg-sky-500 text-white shadow-md'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:shadow'
-                  } ${updating === email.id ? 'opacity-50' : ''}`}
-                >
-                  {config.icon} {config.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Quick Action Buttons */}
-            <div className="flex flex-wrap gap-2">
+            {/* Primary Actions Row */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Main action buttons */}
               <button
-                onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)}
+                onClick={() => updateStatus(email.id, 'done')}
+                disabled={updating === email.id || email.status === 'done'}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 ${
+                  email.status === 'done'
+                    ? 'bg-green-100 text-green-700 cursor-default'
+                    : 'bg-green-600 text-white hover:bg-green-700 shadow-sm'
+                } ${updating === email.id ? 'opacity-50' : ''}`}
+              >
+                {email.status === 'done' ? '✓ Done' : '✓ Mark Done'}
+              </button>
+
+              <button
+                onClick={() => updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent')}
                 disabled={updating === email.id}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  email.flagged_for_meeting
-                    ? 'bg-amber-500 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 ${
+                  email.action_status === 'urgent'
+                    ? 'bg-red-600 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-700'
+                } ${updating === email.id ? 'opacity-50' : ''}`}
               >
-                {email.flagged_for_meeting ? '⭐ On Agenda' : '☆ Add to Agenda'}
+                🚨 {email.action_status === 'urgent' ? 'Urgent' : 'Mark Urgent'}
               </button>
+
               <button
-                onClick={() => createEventFromEmail(email)}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-gray-100 text-gray-600 hover:bg-sky-100 hover:text-sky-700"
+                onClick={() => updateActionStatus(email.id, email.action_status === 'remind_me' ? null : 'remind_me')}
+                disabled={updating === email.id}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 ${
+                  email.action_status === 'remind_me'
+                    ? 'bg-violet-600 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-600 hover:bg-violet-100 hover:text-violet-700'
+                } ${updating === email.id ? 'opacity-50' : ''}`}
               >
-                📅 Add to Calendar
+                ⏰ Remind Me
               </button>
-              <button
-                onClick={() => openTaskModal(email)}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95 bg-gray-100 text-gray-600 hover:bg-purple-100 hover:text-purple-700"
-              >
-                ✓ Add to Tasks
-              </button>
+
+              {/* More actions dropdown-style */}
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)}
+                  disabled={updating === email.id}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                    email.flagged_for_meeting
+                      ? 'bg-amber-500 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-amber-100 hover:text-amber-700'
+                  }`}
+                  title="Add to meeting agenda"
+                >
+                  {email.flagged_for_meeting ? '⭐' : '☆'}
+                </button>
+                <button
+                  onClick={() => createEventFromEmail(email)}
+                  className="px-3 py-2 rounded-lg text-sm font-medium transition-all bg-gray-100 text-gray-600 hover:bg-sky-100 hover:text-sky-700"
+                  title="Add to calendar"
+                >
+                  📅
+                </button>
+                <button
+                  onClick={() => openTaskModal(email)}
+                  className="px-3 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 bg-gray-100 text-gray-600 hover:bg-purple-100 hover:text-purple-700"
+                  title="Add as task"
+                >
+                  ✓
+                </button>
+                <button
+                  onClick={() => updateStatus(email.id, 'archived')}
+                  disabled={updating === email.id}
+                  className="px-3 py-2 rounded-lg text-sm font-medium transition-all bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  title="Archive"
+                >
+                  📦
+                </button>
+              </div>
             </div>
 
             {/* Draft Section - Always show */}
@@ -886,6 +897,11 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             )},
+            { id: 'emily', label: "Emily's Queue", icon: (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            )},
             { id: 'agenda', label: 'Meeting Agenda', icon: (
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
@@ -911,6 +927,11 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
               {item.id === 'inbox' && emails.filter(e => e.is_unread).length > 0 && (
                 <span className="ml-auto bg-sky-400 text-white text-xs px-2 py-0.5 rounded-full">
                   {emails.filter(e => e.is_unread).length}
+                </span>
+              )}
+              {item.id === 'emily' && emilyQueue.length > 0 && (
+                <span className="ml-auto bg-blue-400 text-white text-xs px-2 py-0.5 rounded-full">
+                  {emilyQueue.length}
                 </span>
               )}
             </button>
@@ -979,11 +1000,11 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <SummaryCard
                   icon="🔴"
-                  title="Urgent Actions"
-                  count={urgentEmails.length}
-                  subtitle="click to view"
-                  gradient="bg-gradient-to-b from-red-400 via-red-500 to-red-700"
-                  onClick={() => setShowUrgentPopup(true)}
+                  title="Urgent"
+                  count={urgentAlerts.length}
+                  subtitle={urgentAlerts.length > 0 ? "needs attention now" : "all clear"}
+                  gradient={urgentAlerts.length > 0 ? "bg-gradient-to-b from-red-400 via-red-500 to-red-700" : "bg-gradient-to-b from-gray-400 via-gray-500 to-gray-600"}
+                  onClick={urgentAlerts.length > 0 ? () => setShowUrgentPopup(true) : undefined}
                 />
                 {/* Quick Links Card */}
                 <div
@@ -1086,25 +1107,25 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   ) : upcomingEvents.length === 0 ? (
                     <p className="text-gray-400 text-sm">No events on this day</p>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-1 max-h-64 overflow-y-auto">
                       {upcomingEvents.map((event) => (
-                        <div key={event.id} className="flex items-start gap-3 p-3 bg-sky-50 rounded-lg">
-                          <span className="bg-sky-500 text-white text-xs font-medium px-2 py-1 rounded">
+                        <div key={event.id} className="flex items-center gap-2 p-2 bg-sky-50 rounded-lg hover:bg-sky-100 transition-colors">
+                          <span className="bg-sky-500 text-white text-xs font-medium px-2 py-0.5 rounded min-w-[60px] text-center">
                             {formatTime(event.startTime, event.isAllDay)}
                           </span>
-                          <div className="flex-1">
-                            <p className="font-medium text-gray-900">{event.title}</p>
-                            {event.location && <p className="text-sm text-gray-500">📍 {event.location}</p>}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 text-sm truncate">{event.title}</p>
+                            {event.location && <p className="text-xs text-gray-500 truncate">📍 {event.location}</p>}
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1">
                             {event.meetingLink && (
                               <a
                                 href={event.meetingLink}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="bg-sky-500 hover:bg-sky-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
+                                className="bg-sky-500 hover:bg-sky-600 text-white px-2 py-0.5 rounded text-xs font-medium transition-colors"
                               >
-                                🎥 Join
+                                Join
                               </a>
                             )}
                             {event.calendarLink && (
@@ -1132,11 +1153,11 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   )}
                 </div>
 
-                {/* Tasks */}
+                {/* To-Do Today */}
                 <div className="bg-white rounded-xl shadow-sm p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                      <span className="text-indigo-500">✅</span> My Tasks
+                      <span className="text-indigo-500">✅</span> To-Do Today
                     </h3>
                     <button
                       onClick={() => setHideCompletedTasks(!hideCompletedTasks)}
@@ -1145,95 +1166,176 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                       {hideCompletedTasks ? 'Show Completed' : 'Hide Completed'}
                     </button>
                   </div>
-                  {tasks.filter(t => t.assignee === 'rbk' && (!hideCompletedTasks || !t.isComplete)).length === 0 ? (
-                    <p className="text-gray-400 text-sm">{hideCompletedTasks ? 'No open tasks' : 'No tasks assigned'}</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {tasks.filter(t => t.assignee === 'rbk' && (!hideCompletedTasks || !t.isComplete)).map((task, idx) => {
-                        const taskEmail = emails.find(e => e.id === task.emailId);
-                        const isExpanded = expandedTask === task.emailId;
-                        return (
+
+                  {/* Urgent Items - Always at Top */}
+                  {urgentAlerts.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-2">🚨 Urgent</p>
+                      <div className="space-y-2">
+                        {urgentAlerts.map((email) => (
                           <div
-                            key={idx}
-                            className={`rounded-lg transition-all ${task.isComplete ? 'bg-gray-50' : 'bg-indigo-50'} ${isExpanded ? 'ring-2 ring-indigo-300' : ''}`}
+                            key={email.id}
+                            className="bg-red-50 border border-red-200 rounded-lg p-3 cursor-pointer hover:bg-red-100 transition-colors"
+                            onClick={() => setPopupEmailId(email.id)}
                           >
-                            <div
-                              className="flex items-start gap-3 p-3 cursor-pointer"
-                              onClick={() => setExpandedTask(isExpanded ? null : task.emailId)}
-                            >
+                            <p className="text-sm font-medium text-red-900">{email.subject}</p>
+                            <p className="text-xs text-red-600">{email.from_name || email.from_email}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Review Drafts Sub-section */}
+                  {draftsReady.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-xs font-semibold text-green-600 uppercase tracking-wide mb-2">📝 Review Drafts ({draftsReady.length})</p>
+                      <div className="space-y-2">
+                        {draftsReady.slice(0, 3).map((email) => (
+                          <div key={email.id} className="bg-green-50 border border-green-200 rounded-lg p-3">
+                            <p className="text-sm font-medium text-gray-900 truncate">{email.subject}</p>
+                            <p className="text-xs text-gray-500 mb-2">To: {email.from_email}</p>
+                            <p className="text-xs text-gray-600 line-clamp-2 mb-2">{(email.edited_draft || email.draft_reply || '').substring(0, 100)}...</p>
+                            <div className="flex gap-2">
                               <button
-                                onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.emailId); }}
-                                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-xs flex-shrink-0 ${
-                                  task.isComplete ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 hover:border-indigo-500'
-                                }`}
+                                onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }}
+                                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-medium"
                               >
-                                {task.isComplete && '✓'}
+                                ✏️ Edit
                               </button>
-                              <div className="flex-1 min-w-0">
-                                <p className={`text-sm font-medium ${task.isComplete ? 'line-through text-gray-400' : 'text-gray-900'}`}>{task.task}</p>
-                                <p className="text-xs text-gray-400 truncate">Re: {task.subject}</p>
-                              </div>
-                              <span className="text-gray-400 text-xs">{isExpanded ? '▲' : '▼'}</span>
+                              <button
+                                onClick={() => approveDraft(email.id)}
+                                className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium"
+                              >
+                                👍 Approve
+                              </button>
                             </div>
-                            {isExpanded && taskEmail && (
-                              <div className="px-3 pb-3 pt-0">
-                                <div className="bg-white rounded-lg p-3 border border-indigo-100">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <span className="text-xs text-gray-500">From:</span>
-                                    <span className="text-xs font-medium text-gray-700">{taskEmail.from_name || taskEmail.from_email}</span>
-                                  </div>
-                                  <p className="text-sm text-gray-600 mb-3">{taskEmail.summary}</p>
-                                  <div className="flex gap-2">
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); setPopupEmailId(taskEmail.id); }}
-                                      className="bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white px-3 py-1 rounded text-xs font-medium transition-transform"
-                                    >
-                                      View Email
-                                    </button>
-                                    {taskEmail.attachments && taskEmail.attachments.length > 0 && getGmailUrl(taskEmail.message_id) && (
-                                      <a
-                                        href={getGmailUrl(taskEmail.message_id)!}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 px-3 py-1 rounded text-xs font-medium transition-transform"
+                          </div>
+                        ))}
+                        {draftsReady.length > 3 && (
+                          <button
+                            onClick={() => setActiveNav('inbox')}
+                            className="text-xs text-green-600 hover:text-green-800"
+                          >
+                            View all {draftsReady.length} drafts →
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Approved Drafts Ready to Send */}
+                  {draftsApproved.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-2">📤 Ready to Send ({draftsApproved.length})</p>
+                      <div className="space-y-2">
+                        {draftsApproved.map((email) => (
+                          <div key={email.id} className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <p className="text-sm font-medium text-gray-900 truncate">{email.subject}</p>
+                            <p className="text-xs text-gray-500 mb-2">To: {email.from_email}</p>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => sendEmail(email.id)}
+                                disabled={sendingEmail === email.id}
+                                className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-xs font-medium disabled:opacity-50"
+                              >
+                                {sendingEmail === email.id ? 'Sending...' : '📤 Send'}
+                              </button>
+                              <button
+                                onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }}
+                                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-medium"
+                              >
+                                ✏️ Edit
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tasks */}
+                  {tasks.filter(t => t.assignee === 'rbk' && (!hideCompletedTasks || !t.isComplete)).length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2">📋 Tasks</p>
+                      <div className="space-y-2">
+                        {tasks.filter(t => t.assignee === 'rbk' && (!hideCompletedTasks || !t.isComplete)).map((task, idx) => {
+                          const taskEmail = emails.find(e => e.id === task.emailId);
+                          const isExpanded = expandedTask === task.emailId;
+                          return (
+                            <div
+                              key={idx}
+                              className={`rounded-lg transition-all ${task.isComplete ? 'bg-gray-50' : 'bg-indigo-50'} ${isExpanded ? 'ring-2 ring-indigo-300' : ''}`}
+                            >
+                              <div
+                                className="flex items-start gap-3 p-3 cursor-pointer"
+                                onClick={() => setExpandedTask(isExpanded ? null : task.emailId)}
+                              >
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.emailId); }}
+                                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-xs flex-shrink-0 ${
+                                    task.isComplete ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 hover:border-indigo-500'
+                                  }`}
+                                >
+                                  {task.isComplete && '✓'}
+                                </button>
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-sm font-medium ${task.isComplete ? 'line-through text-gray-400' : 'text-gray-900'}`}>{task.task}</p>
+                                  <p className="text-xs text-gray-400 truncate">Re: {task.subject}</p>
+                                </div>
+                                <span className="text-gray-400 text-xs">{isExpanded ? '▲' : '▼'}</span>
+                              </div>
+                              {isExpanded && taskEmail && (
+                                <div className="px-3 pb-3 pt-0">
+                                  <div className="bg-white rounded-lg p-3 border border-indigo-100">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <span className="text-xs text-gray-500">From:</span>
+                                      <span className="text-xs font-medium text-gray-700">{taskEmail.from_name || taskEmail.from_email}</span>
+                                    </div>
+                                    <p className="text-sm text-gray-600 mb-3">{taskEmail.summary}</p>
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); setPopupEmailId(taskEmail.id); }}
+                                        className="bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white px-3 py-1 rounded text-xs font-medium transition-transform"
                                       >
-                                        📎 View Attachments
-                                      </a>
-                                    )}
+                                        View Email
+                                      </button>
+                                      {taskEmail.attachments && taskEmail.attachments.length > 0 && getGmailUrl(taskEmail.message_id) && (
+                                        <a
+                                          href={getGmailUrl(taskEmail.message_id)!}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 px-3 py-1 rounded text-xs font-medium transition-transform"
+                                        >
+                                          📎 View Attachments
+                                        </a>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
+                  )}
+
+                  {/* Empty state */}
+                  {urgentAlerts.length === 0 && draftsReady.length === 0 && draftsApproved.length === 0 && tasks.filter(t => t.assignee === 'rbk' && (!hideCompletedTasks || !t.isComplete)).length === 0 && (
+                    <p className="text-gray-400 text-sm text-center py-4">All caught up! Nothing to do right now.</p>
                   )}
                 </div>
               </div>
 
-              {/* Urgent Emails */}
+              {/* RBK Action Emails */}
               {urgentEmails.length > 0 && (
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <span className="text-red-500">🔴</span> Urgent - Needs Your Action
+                    <span className="text-sky-500">📧</span> RBK Action Emails
                   </h3>
                   <div className="space-y-4">
                     {urgentEmails.map((email) => (
-                      <EmailCard key={email.id} email={email} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Emily's Queue */}
-              {emilyQueue.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <span className="text-blue-500">🔵</span> Emily's Queue
-                  </h3>
-                  <div className="space-y-4">
-                    {emilyQueue.slice(0, 5).map((email) => (
                       <EmailCard key={email.id} email={email} />
                     ))}
                   </div>
@@ -2192,6 +2294,42 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
               </div>
             </div>
           )}
+
+          {/* Emily's Queue View */}
+          {activeNav === 'emily' && (
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <span className="text-blue-500">🔵</span> Emily's Queue
+                  <span className="ml-2 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-sm font-medium">
+                    {emilyQueue.length}
+                  </span>
+                </h3>
+                {emilyQueue.length > 0 && (
+                  <button
+                    onClick={() => markSectionDone(emilyQueue.map(e => e.id))}
+                    disabled={bulkUpdating}
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  >
+                    ✓ Mark All Done
+                  </button>
+                )}
+              </div>
+
+              {emilyQueue.length === 0 ? (
+                <div className="bg-white rounded-xl shadow-sm p-8 text-center">
+                  <p className="text-gray-400">No emails in Emily's queue</p>
+                  <p className="text-sm text-gray-400 mt-1">All caught up!</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {emilyQueue.map((email) => (
+                    <EmailCard key={email.id} email={email} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </main>
 
@@ -2288,7 +2426,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
           <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl mx-4 max-h-[80vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <span className="text-red-500">🔴</span> Urgent Actions ({urgentEmails.length})
+                <span className="text-red-500">🚨</span> Urgent ({urgentAlerts.length})
               </h3>
               <button
                 onClick={() => setShowUrgentPopup(false)}
@@ -2298,10 +2436,10 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
               </button>
             </div>
             <div className="overflow-y-auto flex-1 space-y-3">
-              {urgentEmails.length === 0 ? (
-                <p className="text-gray-400 text-center py-8">No urgent actions</p>
+              {urgentAlerts.length === 0 ? (
+                <p className="text-gray-400 text-center py-8">No urgent items</p>
               ) : (
-                urgentEmails.map((email) => (
+                urgentAlerts.map((email) => (
                   <div key={email.id} className="bg-red-50 rounded-lg p-4 border border-red-100">
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
