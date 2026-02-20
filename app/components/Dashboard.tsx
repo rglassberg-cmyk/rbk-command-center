@@ -1705,13 +1705,13 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                 <div className="flex flex-wrap gap-2 mt-3">
                                   <button
                                     onClick={(e) => { e.stopPropagation(); updateStatus(email.id, 'done'); }}
-                                    className="bg-white text-green-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow"
+                                    className="bg-white text-green-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100"
                                   >
                                     ✓ Done
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent'); }}
-                                    className={`px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow ${
+                                    className={`px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100 ${
                                       email.action_status === 'urgent' ? 'bg-red-500 text-white' : 'bg-white text-red-500'
                                     }`}
                                   >
@@ -1719,25 +1719,25 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); toggleMeetingFlag(email.id, email.flagged_for_meeting); }}
-                                    className="bg-white text-amber-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow"
+                                    className="bg-white text-amber-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100"
                                   >
                                     {email.flagged_for_meeting ? '⭐ On Agenda' : '☆ On Agenda'}
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }}
-                                    className="bg-white text-blue-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow"
+                                    className="bg-white text-blue-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100"
                                   >
                                     ✏️ Edit Draft
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); openEventModalFromEmail(email); }}
-                                    className="bg-white text-blue-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow"
+                                    className="bg-white text-blue-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100"
                                   >
                                     📅 Add to Calendar
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }}
-                                    className="bg-white text-violet-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow"
+                                    className="bg-white text-violet-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100"
                                   >
                                     ⏰ Remind Me
                                   </button>
@@ -1839,13 +1839,13 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                 <div className="flex flex-wrap gap-2 mt-3">
                                   <button
                                     onClick={(e) => { e.stopPropagation(); updateStatus(email.id, 'done'); }}
-                                    className="bg-white text-green-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow"
+                                    className="bg-white text-green-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100"
                                   >
                                     ✓ Done
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent'); }}
-                                    className={`px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow ${
+                                    className={`px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100 ${
                                       email.action_status === 'urgent' ? 'bg-red-500 text-white' : 'bg-white text-red-500'
                                     }`}
                                   >
@@ -1853,25 +1853,25 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); toggleMeetingFlag(email.id, email.flagged_for_meeting); }}
-                                    className="bg-white text-amber-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow"
+                                    className="bg-white text-amber-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100"
                                   >
                                     {email.flagged_for_meeting ? '⭐ On Agenda' : '☆ On Agenda'}
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }}
-                                    className="bg-white text-blue-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow"
+                                    className="bg-white text-blue-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100"
                                   >
                                     ✏️ Edit Draft
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); openEventModalFromEmail(email); }}
-                                    className="bg-white text-blue-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow"
+                                    className="bg-white text-blue-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100"
                                   >
                                     📅 Add to Calendar
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }}
-                                    className="bg-white text-violet-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow"
+                                    className="bg-white text-violet-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100"
                                   >
                                     ⏰ Remind Me
                                   </button>
@@ -1966,13 +1966,13 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                   </div>
                                   <div className="flex flex-wrap gap-2">
                                     {email.attachments && email.attachments.length > 0 && getGmailUrl(email.message_id) && (
-                                      <a href={getGmailUrl(email.message_id)!} target="_blank" rel="noopener noreferrer" className="bg-white text-gray-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow">📎 View Attachments</a>
+                                      <a href={getGmailUrl(email.message_id)!} target="_blank" rel="noopener noreferrer" className="bg-white text-gray-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100">📎 View Attachments</a>
                                     )}
-                                    <button onClick={() => updateStatus(email.id, 'done')} className="bg-white text-green-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow">✓ Done</button>
-                                    <button onClick={() => updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent')} className={`px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow ${email.action_status === 'urgent' ? 'bg-red-500 text-white' : 'bg-white text-red-500'}`}>🚨 {email.action_status === 'urgent' ? 'Urgent' : 'Mark Urgent'}</button>
-                                    <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className="bg-white text-amber-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow">{email.flagged_for_meeting ? '⭐ On Agenda' : '☆ On Agenda'}</button>
-                                    <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="bg-white text-blue-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow">✏️ Edit Draft</button>
-                                    <button onClick={() => { setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }} className="bg-white text-violet-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow">⏰ Remind Me</button>
+                                    <button onClick={() => updateStatus(email.id, 'done')} className="bg-white text-green-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100">✓ Done</button>
+                                    <button onClick={() => updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent')} className={`px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100 ${email.action_status === 'urgent' ? 'bg-red-500 text-white' : 'bg-white text-red-500'}`}>🚨 {email.action_status === 'urgent' ? 'Urgent' : 'Mark Urgent'}</button>
+                                    <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className="bg-white text-amber-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100">{email.flagged_for_meeting ? '⭐ On Agenda' : '☆ On Agenda'}</button>
+                                    <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="bg-white text-blue-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100">✏️ Edit Draft</button>
+                                    <button onClick={() => { setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }} className="bg-white text-violet-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100">⏰ Remind Me</button>
                                   </div>
                                 </div>
                               )}
@@ -2043,13 +2043,13 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                   </div>
                                   <div className="flex flex-wrap gap-2">
                                     {email.attachments && email.attachments.length > 0 && getGmailUrl(email.message_id) && (
-                                      <a href={getGmailUrl(email.message_id)!} target="_blank" rel="noopener noreferrer" className="bg-white text-gray-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow">📎 View Attachments</a>
+                                      <a href={getGmailUrl(email.message_id)!} target="_blank" rel="noopener noreferrer" className="bg-white text-gray-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100">📎 View Attachments</a>
                                     )}
-                                    <button onClick={() => updateStatus(email.id, 'done')} className="bg-white text-green-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow">✓ Done</button>
-                                    <button onClick={() => updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent')} className={`px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow ${email.action_status === 'urgent' ? 'bg-red-500 text-white' : 'bg-white text-red-500'}`}>🚨 {email.action_status === 'urgent' ? 'Urgent' : 'Mark Urgent'}</button>
-                                    <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className="bg-white text-amber-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow">{email.flagged_for_meeting ? '⭐ On Agenda' : '☆ On Agenda'}</button>
-                                    <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="bg-white text-blue-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow">✏️ Edit Draft</button>
-                                    <button onClick={() => { setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }} className="bg-white text-violet-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow">⏰ Remind Me</button>
+                                    <button onClick={() => updateStatus(email.id, 'done')} className="bg-white text-green-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100">✓ Done</button>
+                                    <button onClick={() => updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent')} className={`px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100 ${email.action_status === 'urgent' ? 'bg-red-500 text-white' : 'bg-white text-red-500'}`}>🚨 {email.action_status === 'urgent' ? 'Urgent' : 'Mark Urgent'}</button>
+                                    <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className="bg-white text-amber-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100">{email.flagged_for_meeting ? '⭐ On Agenda' : '☆ On Agenda'}</button>
+                                    <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="bg-white text-blue-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100">✏️ Edit Draft</button>
+                                    <button onClick={() => { setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }} className="bg-white text-violet-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100">⏰ Remind Me</button>
                                   </div>
                                 </div>
                               )}
@@ -2120,13 +2120,13 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                   </div>
                                   <div className="flex flex-wrap gap-2">
                                     {email.attachments && email.attachments.length > 0 && getGmailUrl(email.message_id) && (
-                                      <a href={getGmailUrl(email.message_id)!} target="_blank" rel="noopener noreferrer" className="bg-white text-gray-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow">📎 View Attachments</a>
+                                      <a href={getGmailUrl(email.message_id)!} target="_blank" rel="noopener noreferrer" className="bg-white text-gray-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100">📎 View Attachments</a>
                                     )}
-                                    <button onClick={() => updateStatus(email.id, 'done')} className="bg-white text-green-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow">✓ Done</button>
-                                    <button onClick={() => updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent')} className={`px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow ${email.action_status === 'urgent' ? 'bg-red-500 text-white' : 'bg-white text-red-500'}`}>🚨 {email.action_status === 'urgent' ? 'Urgent' : 'Mark Urgent'}</button>
-                                    <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className="bg-white text-amber-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow">{email.flagged_for_meeting ? '⭐ On Agenda' : '☆ On Agenda'}</button>
-                                    <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="bg-white text-blue-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow">✏️ Edit Draft</button>
-                                    <button onClick={() => { setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }} className="bg-white text-violet-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow">⏰ Remind Me</button>
+                                    <button onClick={() => updateStatus(email.id, 'done')} className="bg-white text-green-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100">✓ Done</button>
+                                    <button onClick={() => updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent')} className={`px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100 ${email.action_status === 'urgent' ? 'bg-red-500 text-white' : 'bg-white text-red-500'}`}>🚨 {email.action_status === 'urgent' ? 'Urgent' : 'Mark Urgent'}</button>
+                                    <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className="bg-white text-amber-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100">{email.flagged_for_meeting ? '⭐ On Agenda' : '☆ On Agenda'}</button>
+                                    <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="bg-white text-blue-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100">✏️ Edit Draft</button>
+                                    <button onClick={() => { setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }} className="bg-white text-violet-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100">⏰ Remind Me</button>
                                   </div>
                                 </div>
                               )}
@@ -2197,13 +2197,13 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                   </div>
                                   <div className="flex flex-wrap gap-2">
                                     {email.attachments && email.attachments.length > 0 && getGmailUrl(email.message_id) && (
-                                      <a href={getGmailUrl(email.message_id)!} target="_blank" rel="noopener noreferrer" className="bg-white text-gray-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow">📎 View Attachments</a>
+                                      <a href={getGmailUrl(email.message_id)!} target="_blank" rel="noopener noreferrer" className="bg-white text-gray-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100">📎 View Attachments</a>
                                     )}
-                                    <button onClick={() => updateStatus(email.id, 'done')} className="bg-white text-green-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow">✓ Done</button>
-                                    <button onClick={() => updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent')} className={`px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow ${email.action_status === 'urgent' ? 'bg-red-500 text-white' : 'bg-white text-red-500'}`}>🚨 {email.action_status === 'urgent' ? 'Urgent' : 'Mark Urgent'}</button>
-                                    <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className="bg-white text-amber-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow">{email.flagged_for_meeting ? '⭐ On Agenda' : '☆ On Agenda'}</button>
-                                    <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="bg-white text-blue-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow">✏️ Edit Draft</button>
-                                    <button onClick={() => { setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }} className="bg-white text-violet-600 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow">⏰ Remind Me</button>
+                                    <button onClick={() => updateStatus(email.id, 'done')} className="bg-white text-green-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100">✓ Done</button>
+                                    <button onClick={() => updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent')} className={`px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100 ${email.action_status === 'urgent' ? 'bg-red-500 text-white' : 'bg-white text-red-500'}`}>🚨 {email.action_status === 'urgent' ? 'Urgent' : 'Mark Urgent'}</button>
+                                    <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className="bg-white text-amber-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100">{email.flagged_for_meeting ? '⭐ On Agenda' : '☆ On Agenda'}</button>
+                                    <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="bg-white text-blue-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100">✏️ Edit Draft</button>
+                                    <button onClick={() => { setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }} className="bg-white text-violet-600 px-4 py-2 rounded-xl text-sm font-medium shadow border border-gray-100">⏰ Remind Me</button>
                                   </div>
                                 </div>
                               )}
