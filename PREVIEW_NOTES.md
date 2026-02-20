@@ -1,5 +1,6 @@
 # RBK Command Center - Preview Notes
 **Prepared for Rabbi Krauss | February 2026**
+**Last Updated: February 19, 2026**
 
 ---
 
@@ -7,20 +8,7 @@
 
 The RBK Command Center is a custom email triage dashboard designed to help Rabbi Krauss and Emily manage his inbox more efficiently. The app automatically processes incoming emails, categorizes them by priority, drafts responses, and provides a unified view of emails, calendar, tasks, and meeting agenda items.
 
-**Current Status:** Core functionality is complete and ready for daily use. The app successfully:
-- Pulls emails automatically via Google Apps Script
-- Categorizes and prioritizes emails using AI
-- Displays today's calendar with meeting links
-- Tracks tasks and meeting agenda items
-- Sends approved email replies directly from the dashboard
-
-**What's Working Well:**
-- Email triage workflow (view, categorize, draft, approve, send)
-- Calendar integration with one-click meeting joins
-- Bulk actions to quickly clear email backlogs
-- Real-time updates when new emails arrive
-
-**Areas for Feedback:** We'd love input on the workflow, what's missing, and what would make this more useful day-to-day.
+**Current Status:** Core functionality is complete and ready for daily use. Major UI/UX improvements completed on Feb 19, 2026.
 
 ---
 
@@ -31,13 +19,17 @@ The RBK Command Center is a custom email triage dashboard designed to help Rabbi
 - **AI-Powered Triage** - Emails automatically categorized (RBK Action, Emily Action, Important, Review, Invitations, FYI)
 - **AI Draft Replies** - Suggested responses generated for emails needing replies
 - **Draft Editing & Approval** - Edit drafts, mark as ready, approve, then send
+- **Request Revision** - Send drafts back to Emily with comments for revision
 - **Send Emails** - Send approved replies directly from the dashboard (with RBK's signature)
+- **Send All Approved** - Bulk send all approved drafts at once
+- **Gmail Archive on Done** - Marking email as "Done" archives it in Gmail automatically
 - **Bulk Actions** - "Mark All Done" buttons on each section, plus multi-select with checkboxes
 - **Email Search** - Search by subject, sender, or content
-- **Attachments** - View attachment info; "View Attachments" link to Gmail when needed
+- **Remind Me** - Snooze emails with time options (1 hour, 2 hours, this afternoon, tomorrow, next week, custom)
 
 ### Calendar Integration
-- **Today's Schedule** - Shows upcoming events on the dashboard
+- **Today's Schedule** - Shows upcoming events on the dashboard (past events auto-hidden)
+- **Meeting Countdown** - Alert in header when meeting starts within 5 minutes with Join button
 - **Calendar Navigation** - Browse previous/next days
 - **Meeting Links** - One-click "Join" buttons for Zoom/Google Meet/Teams
 - **Create Events** - Add calendar events from the dashboard or directly from emails
@@ -45,111 +37,94 @@ The RBK Command Center is a custom email triage dashboard designed to help Rabbi
 - **Auto Token Refresh** - No manual sign-out/in required
 
 ### Tasks & Agenda
+- **To-Do Today** - Combined view showing urgent items, drafts to review, ready to send, and tasks
 - **Task Assignment** - Create tasks from emails, assign to RBK or Emily
-- **Task Tracking** - Mark tasks complete, hide completed tasks
+- **Task Tracking** - Mark tasks complete with draft editing right from task view
 - **Meeting Agenda** - Flag emails to discuss, add notes, mark as discussed
-- **Email Popup** - View full email details from tasks/agenda without leaving the page
 
-### Quick Access
-- **Important Docs** - Customizable links to frequently used documents (add, edit, delete)
+### Navigation & Organization
+- **Emily's Queue** - Separate page for Emily's action items (with "Needs Revision" section)
+- **Important Docs** - Customizable links to frequently used documents
 - **Quick Links** - Direct access to Today's Folder, Daily Announcements, Daily Folder
-- **Drafts Ready Counter** - See how many emails are ready to send at a glance
 
 ### Technical
 - **Real-time Updates** - Email list updates automatically when changes occur
 - **Secure Authentication** - Google OAuth with automatic token refresh
-- **Mobile Responsive** - Works on tablet/desktop (mobile optimization pending)
+- **Two-way Gmail Sync** - Archive emails in Gmail when marked done
+
+---
+
+## Recently Completed (Feb 19, 2026)
+
+### Dashboard Redesign
+- Renamed "Urgent Needs Your Action" to "RBK Action Emails"
+- Removed Emily's Queue from dashboard (now separate page)
+- Replaced "My Tasks" with "To-Do Today" combining urgent/drafts/tasks
+- Made Today's Schedule more compact
+- Added meeting countdown alert in header
+
+### Action Button Cleanup
+- Removed Status row (pending/in_progress/done/archived)
+- Removed Escalate button
+- Removed explicit Archive button (auto-archive on Done)
+- Consolidated to: Mark Done, Mark Urgent, Remind Me + icon buttons
+- Renamed "Draft Ready" to "Review Draft"
+
+### Draft Workflow
+- Request Revision sends draft back to Emily with comment
+- Emily's Queue shows "Needs Revision" section prominently
+- Send All Approved for bulk sending
+- Edit Draft works from all locations (dashboard, tasks, etc.)
+
+### Remind Me
+- Time-based options: 1 hour, 2 hours, this afternoon, end of day
+- Date-based options: Tomorrow 9am, Next week
+- Custom datetime picker
+- Snoozed emails hidden until reminder time
+
+### Gmail Integration
+- Mark Done now archives email in Gmail
+- Bulk actions also archive in Gmail
 
 ---
 
 ## Roadmap / Future Features
 
-### High Priority
-- **Email Threading** - View conversation history for email chains
-- **Snooze/Remind Later** - Temporarily hide emails and resurface them later
-- **Quick Reply Templates** - Pre-written responses for common situations
-- **Email Forwarding** - Forward emails to others directly from the dashboard
+### High Priority (Next Up)
+- [ ] **Button Styling Audit** - Standardize all buttons to match All Emails page style
+- [ ] **Urgent Button Everywhere** - Add Mark Urgent option to all email sections
+- [ ] **Drop-down Action Menu** - Implement proper dropdown for RBK Action Emails
 
 ### Medium Priority
-- **Analytics Dashboard** - Track email volume, response times, busiest days
-- **Recurring Tasks** - Tasks that repeat on a schedule
-- **Calendar Event Templates** - Quick-create common meeting types
-- **Notification System** - Browser/email alerts for urgent items
+- [ ] **Email Threading** - View conversation history for email chains
+- [ ] **Quick Reply Templates** - Pre-written responses for common situations
+- [ ] **Email Forwarding** - Forward emails to others directly from the dashboard
+- [ ] **Department Dashboards** - Cooper Fund dashboard with live spreadsheet data
 
-### Nice to Have
-- **Dark Mode** - Easier on the eyes for evening use
-- **Keyboard Shortcuts** - Power-user navigation
-- **Mobile App** - Native iOS/Android experience
-- **Integration with Other Tools** - Slack notifications, etc.
+### Lower Priority
+- [ ] **Slack Integration** - Connect Notify Emily to Slack
+- [ ] **Analytics Dashboard** - Track email volume, response times, busiest days
+- [ ] **Notification System** - Browser/email alerts for urgent items
 
----
-
-## UI/Design Notes
-
-### Areas with Focused Design Work
-These sections have had intentional design attention and should feel polished:
-
-1. **Dashboard - Top Half**
-   - Summary cards (Urgent Actions, Quick Links, Important Docs, Meeting Agenda)
-   - Today's Schedule section with calendar navigation
-   - My Tasks section with expandable task details
-
-2. **Sidebar Navigation**
-   - Clean navigation with icons
-   - Active state highlighting
-   - User profile and sign-out
-
-3. **All Emails Page**
-   - Two-column layout (Action emails left, Categories right)
-   - Color-coded sections by priority
-   - Expandable email cards with full details
-   - Search bar with clear functionality
-   - Bulk selection with floating action bar
-
-4. **Email Cards (Expanded)**
-   - Summary, action needed, draft reply sections
-   - Status buttons with visual feedback
-   - Attachment display
-   - Quick action buttons (Add to Calendar, Add to Tasks, Add to Agenda)
-
-### Areas Still Using Basic Styling
-These work functionally but haven't had design polish yet:
-
-1. **Meeting Agenda Page** - Functional but basic layout
-2. **Tasks Page** - Simple two-column list view
-3. **Popup Modals** - Functional but could be more refined
-4. **Mobile Views** - Not yet optimized for small screens
-5. **Dashboard - Bottom Half** - Urgent Emails and Emily's Queue sections
-
-### Design Consistency Notes
-- Color palette: Sky blue (primary), with amber/orange for warnings, red for urgent
-- All buttons have hover states and click feedback (scale animation)
-- Cards use subtle shadows and rounded corners
-- Gradient headers on sections for visual hierarchy
+### Future / Longer Term
+- [ ] **Two-way Gmail Sync** - Full sync so all Gmail actions reflect in dashboard
+- [ ] **Standalone App** - Package for use by other admins
+- [ ] **Dark Mode**
+- [ ] **Keyboard Shortcuts**
+- [ ] **Mobile App**
 
 ---
 
 ## Known Issues / Limitations
 
-1. **Calendar Access** - User must have access to RBK's calendar (sharing required)
-2. **Attachments** - Can't download directly; must click through to Gmail
-3. **Email Threading** - Each email shown separately, no conversation view yet
-4. **Apps Script Trigger** - Must run under RBK's account for proper access
+1. **Gmail Scope** - Users need to sign out and back in after updates to grant new permissions
+2. **Calendar Access** - User must have access to RBK's calendar (sharing required)
+3. **Attachments** - Can't download directly; must click through to Gmail
+4. **Email Threading** - Each email shown separately, no conversation view yet
 
 ---
 
-## Questions for Feedback
-
-1. Is the email categorization accurate? Any categories that should be added/changed?
-2. Are the AI-generated draft replies helpful? Too formal/informal?
-3. What's missing from the daily workflow?
-4. Any actions you do frequently that should have a shortcut?
-5. How does the calendar integration feel? Missing any info?
-6. Thoughts on the visual design? Anything hard to read or find?
-
----
-
-## Technical Details (For Reference)
+## Technical Details
 
 - **Frontend:** Next.js 14 with React, TypeScript, Tailwind CSS
 - **Database:** Supabase (PostgreSQL)
