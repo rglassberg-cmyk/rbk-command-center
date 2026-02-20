@@ -86,14 +86,20 @@ The RBK Command Center is a custom email triage dashboard designed to help Rabbi
 - Mark Done now archives email in Gmail
 - Bulk actions also archive in Gmail
 
+### UI Polish
+- Button styling standardized across all email sections
+- Mark Urgent button added to all email categories
+- "More" dropdown menu for secondary actions (Add to Agenda, Calendar, Remind Me, Task)
+- Click-outside handler to close dropdowns
+
 ---
 
 ## Roadmap / Future Features
 
 ### High Priority (Next Up)
-- [ ] **Button Styling Audit** - Standardize all buttons to match All Emails page style
-- [ ] **Urgent Button Everywhere** - Add Mark Urgent option to all email sections
-- [ ] **Drop-down Action Menu** - Implement proper dropdown for RBK Action Emails
+- [x] **Button Styling Audit** - Standardize all buttons to match All Emails page style (DONE)
+- [x] **Urgent Button Everywhere** - Add Mark Urgent option to all email sections (DONE)
+- [x] **Drop-down Action Menu** - Implement proper dropdown for RBK/Emily Action Emails (DONE)
 
 ### Medium Priority
 - [ ] **Email Threading** - View conversation history for email chains
