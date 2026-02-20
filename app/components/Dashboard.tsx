@@ -151,7 +151,8 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
     if (selectedEmails.size === 0) return;
     setBulkUpdating(true);
     try {
-      const promises = Array.from(selectedEmails).map(id =>
+      const emailIds = Array.from(selectedEmails);
+      const promises = emailIds.map(id =>
         fetch('/api/emails/status', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -161,6 +162,12 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
       await Promise.all(promises);
       setEmails(emails.map(e => selectedEmails.has(e.id) ? { ...e, status: 'done' } : e));
       setSelectedEmails(new Set());
+
+      // Archive all in Gmail (fire and forget)
+      emailIds.forEach(id => {
+        fetch(`/api/emails/${id}/archive`, { method: 'POST' })
+          .catch(err => console.error('Gmail archive failed:', err));
+      });
     } catch (error) {
       console.error('Failed to mark emails done:', error);
     }
@@ -181,6 +188,12 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
       );
       await Promise.all(promises);
       setEmails(emails.map(e => emailIds.includes(e.id) ? { ...e, status: 'done' } : e));
+
+      // Archive all in Gmail (fire and forget)
+      emailIds.forEach(id => {
+        fetch(`/api/emails/${id}/archive`, { method: 'POST' })
+          .catch(err => console.error('Gmail archive failed:', err));
+      });
     } catch (error) {
       console.error('Failed to mark section done:', error);
     }
@@ -511,7 +524,15 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: emailId, status: newStatus }),
       });
-      if (res.ok) setEmails(prev => prev.map(e => e.id === emailId ? { ...e, status: newStatus } : e));
+      if (res.ok) {
+        setEmails(prev => prev.map(e => e.id === emailId ? { ...e, status: newStatus } : e));
+
+        // If marking as done, also archive in Gmail
+        if (newStatus === 'done') {
+          fetch(`/api/emails/${emailId}/archive`, { method: 'POST' })
+            .catch(err => console.error('Gmail archive failed:', err));
+        }
+      }
     } catch (error) { console.error('Failed:', error); }
     setUpdating(null);
   };

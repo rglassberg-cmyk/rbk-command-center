@@ -1,0 +1,2814 @@
+WEBVTT
+
+1
+00:00:02.020 --> 00:00:11.800
+Speaker 1 (Rebecca Glassberg): Okay, I am working with Alana to create, an event registration form from beginning to end.
+
+2
+00:00:12.960 --> 00:00:17.510
+Speaker 1 (Rebecca Glassberg): So that we could document all of the steps that go into…
+
+3
+00:00:17.640 --> 00:00:21.980
+Speaker 1 (Rebecca Glassberg): creating a form in Veracross and embedding a JotForm into it.
+
+4
+00:00:22.350 --> 00:00:23.330
+Speaker 1 (Rebecca Glassberg): Okay.
+
+5
+00:00:23.870 --> 00:00:27.199
+Speaker 1 (Rebecca Glassberg): So, Alana, show me your screen, what we're doing.
+
+6
+00:00:28.210 --> 00:00:31.239
+Speaker 1 (Rebecca Glassberg): And I think… I think there's a meeting in 7 minutes.
+
+7
+00:00:32.280 --> 00:00:34.410
+Speaker 1 (Rebecca Glassberg): But it's that, so you're probably coming to that too.
+
+8
+00:00:34.580 --> 00:00:35.490
+Speaker 1 (Rebecca Glassberg): Okay.
+
+9
+00:00:35.940 --> 00:00:38.159
+Speaker 2 (Rebecca Glassberg): So… To make an event, I guess.
+
+10
+00:00:38.640 --> 00:00:48.330
+Speaker 1 (Rebecca Glassberg): Oh, sorry. So, yeah, first we check, VeriCross to make sure there's an event there. So I'm gonna look in Monday… which one is it, the February 23rd STEM workshop?
+
+11
+00:00:49.190 --> 00:00:59.469
+Speaker 1 (Rebecca Glassberg): Sure. Okay, so I… There's actually two dates, but yeah. I could probably show you what… oh, shoot. Yeah, so this is showing that the… so this should not be in like this, because this is showing that it's…
+
+12
+00:01:00.650 --> 00:01:02.525
+Speaker 2 (Rebecca Glassberg): It's from 6.30 to… here, actually.
+
+13
+00:01:02.525 --> 00:01:14.524
+Speaker 1 (Rebecca Glassberg): This is showing the end of the event. Right, but, like, on the same… it's a two-day event, it's lasting two days. No. Right, so… this is a separate one that Melissa put in. This one?
+
+14
+00:01:14.525 --> 00:01:18.059
+Speaker 2 (Rebecca Glassberg): I think I did it. I just submitted it because it was… I didn't see it on the thing.
+
+15
+00:01:18.570 --> 00:01:24.195
+Speaker 2 (Rebecca Glassberg): Was it our… was it on the calendar? Because I didn't see it on the Google Calendar, so I just submitted an event form. Yeah, it's on the.
+
+16
+00:01:24.195 --> 00:01:25.390
+Speaker 1 (Rebecca Glassberg): Google Calendar, see?
+
+17
+00:01:26.070 --> 00:01:27.630
+Speaker 1 (Rebecca Glassberg): I couldn't see it.
+
+18
+00:01:29.010 --> 00:01:31.500
+Speaker 2 (Rebecca Glassberg): I put around just, like, an hour ago.
+
+19
+00:01:31.990 --> 00:01:35.139
+Speaker 1 (Rebecca Glassberg): And you didn't see it on the internal calendar? Like, is it there twice?
+
+20
+00:01:35.690 --> 00:01:52.720
+Speaker 1 (Rebecca Glassberg): Will you put this in as 6.30 to 6.30? Like, this goes 6.30 to 6.30, that's why. No, so we're gonna update the times, right? So this goes from when? February 23rd, 6.30 till… 7.30. February 23rd, 7.30, okay.
+
+21
+00:01:54.090 --> 00:02:04.470
+Speaker 1 (Rebecca Glassberg): Did you fill out the form? Yeah, I just did… That's how you did, that's how you did this. Okay, good. And then this one is February 24th, 6.30 to February 24th, 7.30?
+
+22
+00:02:08.750 --> 00:02:13.800
+Speaker 1 (Rebecca Glassberg): So now the dates, so if you refresh that, that should be updated.
+
+23
+00:02:19.490 --> 00:02:20.300
+Speaker 1 (Rebecca Glassberg): See?
+
+24
+00:02:20.820 --> 00:02:24.569
+Speaker 2 (Rebecca Glassberg): Well, that was already huge, and I was like… oh, now it's updated, okay.
+
+25
+00:02:25.080 --> 00:02:27.350
+Speaker 2 (Rebecca Glassberg): Cool. Cause… yeah.
+
+26
+00:02:27.710 --> 00:02:30.899
+Speaker 1 (Rebecca Glassberg): What's your name? Looks like somebody added it separately.
+
+27
+00:02:31.540 --> 00:02:40.029
+Speaker 1 (Rebecca Glassberg): Okay. Now… so the event's here. Now I want to show you, like, there is a place on the form where you say, like, do you want this
+
+28
+00:02:40.390 --> 00:02:46.080
+Speaker 1 (Rebecca Glassberg): added to… the Veracross calendar. Do you remember if you checked that off?
+
+29
+00:02:47.780 --> 00:02:51.904
+Speaker 1 (Rebecca Glassberg): I said internal view only. That's why it's not on the Veracross calendar.
+
+30
+00:02:51.905 --> 00:02:55.655
+Speaker 2 (Rebecca Glassberg): Oh. I didn't want parents seeing it until I… okay.
+
+31
+00:02:55.655 --> 00:02:59.500
+Speaker 1 (Rebecca Glassberg): So we're gonna change this to, public.
+
+32
+00:02:59.810 --> 00:03:00.560
+Speaker 2 (Rebecca Glassberg): Okay.
+
+33
+00:03:01.870 --> 00:03:08.129
+Speaker 1 (Rebecca Glassberg): That means parents can see it? Yeah, but it's fine. It's like, they're not gonna see anything about it, like…
+
+34
+00:03:09.740 --> 00:03:16.030
+Speaker 1 (Rebecca Glassberg): Okay. To be honest, do you know what I'm saying? Okay. Like, I wish we knew, but we don't.
+
+35
+00:03:16.330 --> 00:03:25.890
+Speaker 1 (Rebecca Glassberg): So, Emily will probably get a notification To update these, let's see… Not sure why she didn't.
+
+36
+00:03:26.000 --> 00:03:29.330
+Speaker 2 (Rebecca Glassberg): Oh, I added these to the VeriCross calendar, she just responded now.
+
+37
+00:03:32.650 --> 00:03:33.570
+Speaker 1 (Rebecca Glassberg): Great.
+
+38
+00:03:33.820 --> 00:03:35.329
+Speaker 1 (Rebecca Glassberg): So now…
+
+39
+00:03:40.540 --> 00:03:43.230
+Speaker 1 (Rebecca Glassberg): Okay.
+
+40
+00:03:43.790 --> 00:03:46.300
+Speaker 1 (Rebecca Glassberg): So now… so… so next step.
+
+41
+00:03:46.650 --> 00:03:52.579
+Speaker 1 (Rebecca Glassberg): Now we're going to create an event registration form in VeriCross.
+
+42
+00:03:54.660 --> 00:03:56.560
+Speaker 2 (Rebecca Glassberg): Okay, we'll continue to find the event.
+
+43
+00:03:57.120 --> 00:03:59.580
+Speaker 2 (Rebecca Glassberg): Sometimes I have a hard time finding it. Okay.
+
+44
+00:04:02.910 --> 00:04:12.035
+Speaker 1 (Rebecca Glassberg): So you're just doing a group event query, searching for… and then what I would do is, like, open a new tab, because if you add the event ID, that's much easier.
+
+45
+00:04:12.035 --> 00:04:14.284
+Speaker 2 (Rebecca Glassberg): Yeah, and is there a specific event I should copy?
+
+46
+00:04:14.285 --> 00:04:23.749
+Speaker 1 (Rebecca Glassberg): Right, so then you go to calendar… no, not calendar. Okay, I do it a different way, but fine. So you're going to your event registration forms.
+
+47
+00:04:23.890 --> 00:04:30.819
+Speaker 1 (Rebecca Glassberg): Well, this is a grandparent form? No, it's parent. Is it, like, what was the last parent event we did?
+
+48
+00:04:32.680 --> 00:04:34.100
+Speaker 1 (Rebecca Glassberg): Is it for everybody?
+
+49
+00:04:35.270 --> 00:04:37.070
+Speaker 2 (Rebecca Glassberg): It's for first and second grade parents.
+
+50
+00:04:37.260 --> 00:04:40.880
+Speaker 1 (Rebecca Glassberg): Okay, so maybe do, like, Gamara night, because that was, like, a specific parent.
+
+51
+00:04:41.370 --> 00:04:42.620
+Speaker 1 (Rebecca Glassberg): student event.
+
+52
+00:04:43.740 --> 00:04:49.250
+Speaker 1 (Rebecca Glassberg): Okay, so you're copying the… registration form.
+
+53
+00:04:49.830 --> 00:04:53.950
+Speaker 1 (Rebecca Glassberg): Great, because we know, like, the image header is right. Okay, so you're going to update the name…
+
+54
+00:04:54.320 --> 00:04:59.020
+Speaker 1 (Rebecca Glassberg): Okay. And the details here, too. You could write first and second grade
+
+55
+00:05:31.120 --> 00:05:35.189
+Speaker 1 (Rebecca Glassberg): Okay, so you're just updating the description and the URL…
+
+56
+00:05:44.410 --> 00:05:46.350
+Speaker 2 (Rebecca Glassberg): 82178.
+
+57
+00:05:52.730 --> 00:05:56.370
+Speaker 2 (Rebecca Glassberg): Okay. 82179.
+
+58
+00:06:20.320 --> 00:06:21.130
+Speaker 1 (Rebecca Glassberg): Okay.
+
+59
+00:06:23.640 --> 00:06:40.500
+Speaker 1 (Rebecca Glassberg): Oh, wait, so let's talk through it, because we're just recording all the steps. Oh. Okay, so you updated the details to be specifically for first and second grade. This is a Veracross parent and student event, is that what we want? Correct. Okay, good. So, now you're going to pop out each event.
+
+60
+00:06:40.680 --> 00:06:48.419
+Speaker 1 (Rebecca Glassberg): And also, I would say, under the description of each event, like, you could just… maybe just put the date or so, like.
+
+61
+00:06:48.760 --> 00:06:53.730
+Speaker 1 (Rebecca Glassberg): You could say, like, you could shorten it and, put the date.
+
+62
+00:06:55.470 --> 00:06:59.609
+Speaker 1 (Rebecca Glassberg): Oh, it says the event date, so that's fine, actually. You could just say…
+
+63
+00:07:00.190 --> 00:07:04.940
+Speaker 1 (Rebecca Glassberg): like, Sunday, or whatever the day… I don't know, like, because when they, you know, when they check it.
+
+64
+00:07:05.070 --> 00:07:13.009
+Speaker 1 (Rebecca Glassberg): they're gonna see… Yeah. You know, fine. Please select a date. Okay, fine. So, update, great.
+
+65
+00:07:13.260 --> 00:07:18.359
+Speaker 1 (Rebecca Glassberg): Click update. Who's the contact email? Do you want to update that? Like, whoever's going to get emails when people register?
+
+66
+00:07:19.630 --> 00:07:25.789
+Speaker 1 (Rebecca Glassberg): Do you want to get emails when people register? Yeah. Okay, great. So copy that into each event, and then also into the contact email.
+
+67
+00:07:28.680 --> 00:07:31.410
+Speaker 3 (Rebecca Glassberg): Great.
+
+68
+00:07:33.940 --> 00:07:39.290
+Speaker 1 (Rebecca Glassberg): Although, I don't know, that says consolidated events only, so I don't know if that matters, but that's fine. Okay, update. Great.
+
+69
+00:07:39.440 --> 00:07:43.289
+Speaker 1 (Rebecca Glassberg): Now, you're gonna pop out each event.
+
+70
+00:07:44.440 --> 00:07:49.889
+Speaker 1 (Rebecca Glassberg): And you said you wanted them to be limited to a certain amount of tickets? Yeah.
+
+71
+00:07:51.300 --> 00:08:00.674
+Speaker 1 (Rebecca Glassberg): So, quantity per registration. This is how… total quantity is how many registrations? Maximum quantity per registration? Oh, interesting.
+
+72
+00:08:00.675 --> 00:08:02.925
+Speaker 2 (Rebecca Glassberg): Only 20 families can register, it doesn't matter…
+
+73
+00:08:02.925 --> 00:08:05.649
+Speaker 1 (Rebecca Glassberg): families. Okay, fine, so it's 20, yeah, so there, great.
+
+74
+00:08:06.080 --> 00:08:11.929
+Speaker 1 (Rebecca Glassberg): So 20 families, okay. And then, do you want to add donations?
+
+75
+00:08:12.600 --> 00:08:14.474
+Speaker 2 (Rebecca Glassberg): Yeah, but you found… didn't you find a way.
+
+76
+00:08:14.475 --> 00:08:17.850
+Speaker 1 (Rebecca Glassberg): Yep. So you just do, ad record?
+
+77
+00:08:18.290 --> 00:08:21.939
+Speaker 1 (Rebecca Glassberg): And then choose donation, and then you keep it at zero.
+
+78
+00:08:22.450 --> 00:08:28.889
+Speaker 1 (Rebecca Glassberg): That was… that was how… I told you. Yeah, this has to be copied from the other events.
+
+79
+00:08:29.560 --> 00:08:32.420
+Speaker 1 (Rebecca Glassberg): For you, so you update the donation tab.
+
+80
+00:08:32.549 --> 00:08:36.219
+Speaker 1 (Rebecca Glassberg): to operating 2025-2026.
+
+81
+00:08:36.580 --> 00:08:43.350
+Speaker 1 (Rebecca Glassberg): The default fund is OP sponsorships, and then if you want any instructions,
+
+82
+00:08:43.970 --> 00:08:50.560
+Speaker 1 (Rebecca Glassberg): to be written on the donation page, you could add that too. Right, you could go to another event and see what it said.
+
+83
+00:08:51.530 --> 00:08:53.120
+Speaker 1 (Rebecca Glassberg): If you want to just copy it.
+
+84
+00:08:57.200 --> 00:09:03.689
+Speaker 1 (Rebecca Glassberg): It would be cool if you could import it, because then you could just, like, do it on a spreadsheet, and then, like, open it.
+
+85
+00:09:04.580 --> 00:09:09.569
+Speaker 1 (Rebecca Glassberg): Yeah, I think that's fine. Please consider a gift in honor of your child or grandchild.
+
+86
+00:09:12.560 --> 00:09:15.830
+Speaker 1 (Rebecca Glassberg): To support every student at SAR, beautiful, okay.
+
+87
+00:09:17.650 --> 00:09:19.189
+Speaker 1 (Rebecca Glassberg): And now we're in Gomorrah.
+
+88
+00:09:19.800 --> 00:09:22.439
+Speaker 1 (Rebecca Glassberg): Let's go back to the other event. Oh, okay.
+
+89
+00:09:25.600 --> 00:09:35.339
+Speaker 1 (Rebecca Glassberg): Okay. And then I think we only keep the donation on 1, right? That's what happened last time. But you should still update the event. Oh, good point. Yeah.
+
+90
+00:09:41.840 --> 00:09:46.550
+Speaker 1 (Rebecca Glassberg): Oh, you could say maximum capacity there, that was interesting. I just wanted to see what this… can you hover over that?
+
+91
+00:09:47.450 --> 00:09:48.699
+Speaker 1 (Rebecca Glassberg): Hover over this.
+
+92
+00:09:54.990 --> 00:09:57.799
+Speaker 1 (Rebecca Glassberg): Click here, or just, like, add it, and then hover.
+
+93
+00:09:59.500 --> 00:10:00.540
+Speaker 1 (Rebecca Glassberg): That's weird.
+
+94
+00:10:01.940 --> 00:10:02.435
+Speaker 3 (Rebecca Glassberg): Oh.
+
+95
+00:10:06.780 --> 00:10:07.730
+Speaker 1 (Rebecca Glassberg): Okay.
+
+96
+00:10:10.550 --> 00:10:11.280
+Speaker 3 (Rebecca Glassberg): Okay.
+
+97
+00:10:18.190 --> 00:10:23.064
+Speaker 1 (Rebecca Glassberg): Do we really need to… are we doing… I think when I copy this, this stuff copies.
+
+98
+00:10:23.065 --> 00:10:25.430
+Speaker 2 (Rebecca Glassberg): I think you're right. I think for me, it never does.
+
+99
+00:10:26.120 --> 00:10:32.140
+Speaker 1 (Rebecca Glassberg): So that's… I think that's a feature that we've requested, that it's like, why doesn't it copy for you?
+
+100
+00:10:32.520 --> 00:10:37.240
+Speaker 1 (Rebecca Glassberg): But I'm gonna find out what… Because it is supposed to.
+
+101
+00:10:45.160 --> 00:10:48.535
+Speaker 1 (Rebecca Glassberg): Okay, so now, I'm gonna look at older.
+
+102
+00:10:48.535 --> 00:10:49.285
+Speaker 2 (Rebecca Glassberg): instructions, or do you.
+
+103
+00:10:49.285 --> 00:10:54.599
+Speaker 1 (Rebecca Glassberg): You want me to just… No, so now, right, you are on the… okay, so here's my recommendation.
+
+104
+00:10:55.200 --> 00:10:58.800
+Speaker 1 (Rebecca Glassberg): go to… yeah, oh, you could open ChatGPT, that's fine.
+
+105
+00:11:00.350 --> 00:11:04.589
+Speaker 1 (Rebecca Glassberg): And then, on the… on the other tab.
+
+106
+00:11:06.270 --> 00:11:09.630
+Speaker 1 (Rebecca Glassberg): on the other tab, like the Veracross tab, right-click it.
+
+107
+00:11:10.740 --> 00:11:13.479
+Speaker 1 (Rebecca Glassberg): No, in the, like, click… right-click the tab.
+
+108
+00:11:14.190 --> 00:11:16.910
+Speaker 1 (Rebecca Glassberg): And then do Add Tab to New Split View.
+
+109
+00:11:18.600 --> 00:11:21.129
+Speaker 1 (Rebecca Glassberg): And then choose, ChatGPT.
+
+110
+00:11:21.700 --> 00:11:23.740
+Speaker 1 (Rebecca Glassberg): Okay, so now you'll have both.
+
+111
+00:11:23.860 --> 00:11:26.060
+Speaker 1 (Rebecca Glassberg): And you can go… here, click…
+
+112
+00:11:26.480 --> 00:11:30.960
+Speaker 1 (Rebecca Glassberg): Like, the lines, and then scroll down, yeah, so you're in the comms. Great.
+
+113
+00:11:31.180 --> 00:11:38.420
+Speaker 1 (Rebecca Glassberg): Okay, and then you could do a new chat. Okay, so now you could just put whatever info
+
+114
+00:11:40.390 --> 00:11:43.920
+Speaker 1 (Rebecca Glassberg): You have… and are, like, are you putting an image in, or…
+
+115
+00:11:44.030 --> 00:11:45.980
+Speaker 1 (Rebecca Glassberg): I don't think we need to. Okay.
+
+116
+00:11:49.770 --> 00:12:03.929
+Speaker 1 (Rebecca Glassberg): please, yeah, you could just say, like, please create all the steps for this event registration form, and then paste the info in, like, here's the info, and say, ask me if I'm missing any information, like, ask me for information if I'm missing anything.
+
+117
+00:13:16.150 --> 00:13:18.959
+Speaker 1 (Rebecca Glassberg): If it's easier, you could also, like, voice it.
+
+118
+00:13:19.510 --> 00:13:21.169
+Speaker 1 (Rebecca Glassberg): Oh, that's cool.
+
+119
+00:13:31.870 --> 00:13:33.489
+Speaker 1 (Rebecca Glassberg): Yeah, what is yours.
+
+120
+00:13:41.340 --> 00:13:43.650
+Speaker 1 (Rebecca Glassberg): Good question, but probably fine.
+
+121
+00:14:10.040 --> 00:14:13.890
+Speaker 1 (Rebecca Glassberg): Do you think this looks nice in terms of, like, colors and stuff? Yeah, I like it.
+
+122
+00:14:14.110 --> 00:14:15.880
+Speaker 1 (Rebecca Glassberg): How cool is this?
+
+123
+00:14:16.480 --> 00:14:23.629
+Speaker 1 (Rebecca Glassberg): Like, we're basically just, like, building an inbox on this thing, but it's, like, just dividing it the way it should, you know? Yeah.
+
+124
+00:14:26.520 --> 00:14:27.320
+Speaker 1 (Rebecca Glassberg): Okay.
+
+125
+00:14:37.530 --> 00:14:44.229
+Speaker 1 (Rebecca Glassberg): I'm just wondering, like, you could totally type it, I just wonder, like, if this is annoying for you, it could be… it might be easier for you if you just answer them out loud.
+
+126
+00:14:44.700 --> 00:14:46.050
+Speaker 1 (Rebecca Glassberg): It's up to you.
+
+127
+00:14:47.180 --> 00:14:49.909
+Speaker 1 (Rebecca Glassberg): We could try it next time. Yeah, no, that's a good idea.
+
+128
+00:15:22.070 --> 00:15:22.930
+Speaker 1 (Rebecca Glassberg): Okay.
+
+129
+00:15:43.670 --> 00:15:44.530
+Speaker 3 (Rebecca Glassberg): Oh, boy.
+
+130
+00:16:42.190 --> 00:16:47.500
+Speaker 2 (Rebecca Glassberg): I'm just gonna really need to know, like, keep an eye… oh, I guess if it'll max out, I won't need to keep an eye on. What?
+
+131
+00:16:48.610 --> 00:16:51.809
+Speaker 2 (Rebecca Glassberg): The max… the maxing out of registration.
+
+132
+00:16:52.410 --> 00:16:55.070
+Speaker 1 (Rebecca Glassberg): The form can do it itself, I don't… Yeah, it should be able to.
+
+133
+00:16:55.770 --> 00:17:00.644
+Speaker 2 (Rebecca Glassberg): And the next one is the planting parsley. I already started the spreadsheet, I just need to figure out…
+
+134
+00:17:00.645 --> 00:17:02.460
+Speaker 1 (Rebecca Glassberg): Okay. Share that with you.
+
+135
+00:18:06.380 --> 00:18:08.580
+Speaker 1 (Rebecca Glassberg): I think we have to go to that meeting.
+
+136
+00:18:11.260 --> 00:18:13.149
+Speaker 1 (Rebecca Glassberg): Are you on that meeting?
+
+137
+00:18:13.970 --> 00:18:19.259
+Speaker 2 (Rebecca Glassberg): I don't think I need to be there, but if you want me there, I can be there.
+
+138
+00:18:19.920 --> 00:18:23.570
+Speaker 2 (Rebecca Glassberg): I also want to work on the…
+
+139
+00:18:40.910 --> 00:18:43.069
+Speaker 2 (Rebecca Glassberg): We also typically send arrival details.
+
+140
+00:18:43.890 --> 00:18:45.280
+Speaker 2 (Rebecca Glassberg): For Yonder Ledor.
+
+141
+00:18:47.490 --> 00:18:50.050
+Speaker 1 (Rebecca Glassberg): Well, so we should go over there then, because that's…
+
+142
+00:18:50.270 --> 00:19:08.479
+Speaker 1 (Rebecca Glassberg): Yeah. Yeah, so let's finish this first. Okay, so… so she went into ChatGPT, she pasted in all the information, it asked her questions for what she was missing, and then, she pasted it into… you should… you could make it public if you… did you make it public to test it? No.
+
+143
+00:19:08.630 --> 00:19:16.669
+Speaker 1 (Rebecca Glassberg): So it's not gonna let you in, yeah, so just make it public. So, so it… for registration type, for testing, we have to make it public and bear across user.
+
+144
+00:19:16.840 --> 00:19:19.809
+Speaker 1 (Rebecca Glassberg): You could do Veracos user only also, but it doesn't matter.
+
+145
+00:19:20.980 --> 00:19:25.069
+Speaker 1 (Rebecca Glassberg): Okay, great. Pre- okay, this looks nice. Get ready to shave them, though.
+
+146
+00:19:27.140 --> 00:19:28.430
+Speaker 1 (Rebecca Glassberg): This is cute.
+
+147
+00:19:33.080 --> 00:19:40.489
+Speaker 1 (Rebecca Glassberg): Okay… Do sign in with Verigross, and see how it looks next.
+
+148
+00:19:47.550 --> 00:19:50.480
+Speaker 1 (Rebecca Glassberg): Okay, just testing it to make sure it looks great.
+
+149
+00:19:52.990 --> 00:19:54.790
+Speaker 2 (Rebecca Glassberg): Doesn't look right.
+
+150
+00:19:55.850 --> 00:19:59.429
+Speaker 1 (Rebecca Glassberg): What is that? Oh, because there's no job form.
+
+151
+00:20:00.280 --> 00:20:02.899
+Speaker 1 (Rebecca Glassberg): We didn't put a job form in yet. That's why.
+
+152
+00:20:07.310 --> 00:20:09.389
+Speaker 1 (Rebecca Glassberg): Yeah, do you want us in this meeting?
+
+153
+00:20:09.620 --> 00:20:12.080
+Speaker 9 (Rebecca Glassberg): Oh. Can you just share with Devin.
+
+154
+00:20:12.380 --> 00:20:16.339
+Speaker 9 (Rebecca Glassberg): The file where we hold all the lists.
+
+155
+00:20:16.960 --> 00:20:19.170
+Speaker 1 (Rebecca Glassberg): Like, the spreadsheet for Doralador?
+
+156
+00:20:19.280 --> 00:20:23.305
+Speaker 9 (Rebecca Glassberg): I want the whole… Where you… The folder?
+
+157
+00:20:23.305 --> 00:20:24.540
+Speaker 1 (Rebecca Glassberg): But, yeah. Okay.
+
+158
+00:20:25.550 --> 00:20:26.880
+Speaker 9 (Rebecca Glassberg): The whole folding.
+
+159
+00:20:28.990 --> 00:20:31.510
+Speaker 1 (Rebecca Glassberg): Share us with the drills. Okay.
+
+160
+00:20:41.630 --> 00:20:43.729
+Speaker 1 (Rebecca Glassberg): It's… they both have it already.
+
+161
+00:21:55.800 --> 00:21:56.960
+Speaker 1 (Rebecca Glassberg): What's the issue?
+
+162
+00:21:58.540 --> 00:22:07.950
+Speaker 2 (Rebecca Glassberg): This happens all the time when I use ChatGPD. What? If you look at here, thank you for registering, but it's not registered until you put thank you.
+
+163
+00:22:09.620 --> 00:22:12.995
+Speaker 2 (Rebecca Glassberg): So I'm going to change it to thank you for registering, to please select a thing.
+
+164
+00:22:12.995 --> 00:22:18.510
+Speaker 1 (Rebecca Glassberg): Oh, so we have to update the, the project.
+
+165
+00:22:36.980 --> 00:22:41.105
+Speaker 1 (Rebecca Glassberg): So what does it… where does it put that? Confirmation instructions.
+
+166
+00:22:41.105 --> 00:22:42.480
+Speaker 2 (Rebecca Glassberg): Okay.
+
+167
+00:22:43.710 --> 00:22:47.085
+Speaker 2 (Rebecca Glassberg): Like, instead of, thank you for registering, please say, please select…
+
+168
+00:22:47.085 --> 00:22:53.959
+Speaker 1 (Rebecca Glassberg): Confirmation instructions in Veracross event registration.
+
+169
+00:22:54.340 --> 00:23:00.879
+Speaker 1 (Rebecca Glassberg): Should not… say… Thank you, thank you for registering.
+
+170
+00:23:02.350 --> 00:23:03.760
+Speaker 1 (Rebecca Glassberg): Because…
+
+171
+00:23:04.260 --> 00:23:08.870
+Speaker 2 (Rebecca Glassberg): They need to click the thank you button in the bottom right-hand corner.
+
+172
+00:23:09.020 --> 00:23:10.859
+Speaker 2 (Rebecca Glassberg): In order to complete registration.
+
+173
+00:23:38.300 --> 00:23:40.830
+Speaker 1 (Rebecca Glassberg): You need to go next door. No, except…
+
+174
+00:23:44.750 --> 00:23:45.420
+Speaker 3 (Rebecca Glassberg): Nice.
+
+175
+00:23:52.330 --> 00:23:55.629
+Speaker 3 (Rebecca Glassberg): I think that's what they're doing.
+
+176
+00:24:55.000 --> 00:24:55.700
+Speaker 1 (Rebecca Glassberg): Okay.
+
+177
+00:24:56.810 --> 00:25:00.460
+Speaker 1 (Rebecca Glassberg): So I'm gonna fix that moving forward, but for this one, obviously, I have to tell it.
+
+178
+00:25:00.970 --> 00:25:02.879
+Speaker 2 (Rebecca Glassberg): Okay, let's see what it looks like now.
+
+179
+00:25:09.940 --> 00:25:14.300
+Speaker 2 (Rebecca Glassberg): Okay, it said please register below on top. I changed it, but I'll put it back, I think it's better.
+
+180
+00:25:14.890 --> 00:25:16.730
+Speaker 2 (Rebecca Glassberg): I added OR.
+
+181
+00:25:20.000 --> 00:25:23.060
+Speaker 2 (Rebecca Glassberg): And I asked it to center it, it doesn't always center the first page.
+
+182
+00:25:25.070 --> 00:25:26.060
+Speaker 1 (Rebecca Glassberg): Okay.
+
+183
+00:25:26.550 --> 00:25:32.600
+Speaker 1 (Rebecca Glassberg): If there's, like, like, directions that you want updated moving forward, we could do that.
+
+184
+00:25:33.050 --> 00:25:33.696
+Speaker 3 (Rebecca Glassberg): I thought…
+
+185
+00:26:54.550 --> 00:26:56.259
+Speaker 1 (Rebecca Glassberg): Today's date, 17th?
+
+186
+00:26:56.560 --> 00:26:57.720
+Speaker 1 (Rebecca Glassberg): You can? Yeah.
+
+187
+00:27:10.400 --> 00:27:14.219
+Speaker 1 (Rebecca Glassberg): I think it's the 18th, the 18th today. Oh, okay, fine.
+
+188
+00:28:29.080 --> 00:28:30.560
+Speaker 1 (Rebecca Glassberg): Okay, what are we up to?
+
+189
+00:28:43.470 --> 00:28:47.369
+Speaker 1 (Rebecca Glassberg): By the way, that's why you should have the split view, so that you could… Oh, where'd it go?
+
+190
+00:28:47.630 --> 00:28:48.310
+Speaker 2 (Rebecca Glassberg): Here.
+
+191
+00:28:48.710 --> 00:28:54.810
+Speaker 1 (Rebecca Glassberg): Oh, oh, so what you could do, yeah, so you can make another split view with the view, if you want.
+
+192
+00:28:55.400 --> 00:28:56.469
+Speaker 1 (Rebecca Glassberg): And the chat.
+
+193
+00:28:58.630 --> 00:29:01.299
+Speaker 2 (Rebecca Glassberg): I'm sorry, for now. Okay.
+
+194
+00:29:34.940 --> 00:29:39.940
+Speaker 2 (Rebecca Glassberg): Do you think there… if it's clear that if there are two options, you know to select one?
+
+195
+00:29:43.880 --> 00:29:45.330
+Speaker 1 (Rebecca Glassberg): Always… mmm.
+
+196
+00:29:47.130 --> 00:29:49.470
+Speaker 2 (Rebecca Glassberg): We could add that here. Please select one date.
+
+197
+00:29:50.130 --> 00:29:53.399
+Speaker 1 (Rebecca Glassberg): You said or, look, why would you sign up for both?
+
+198
+00:29:53.570 --> 00:29:54.920
+Speaker 1 (Rebecca Glassberg): It's the same event.
+
+199
+00:29:55.040 --> 00:29:55.840
+Speaker 2 (Rebecca Glassberg): Okay.
+
+200
+00:30:10.890 --> 00:30:12.590
+Speaker 2 (Rebecca Glassberg): Select your preferred evening.
+
+201
+00:30:12.950 --> 00:30:15.000
+Speaker 2 (Rebecca Glassberg): I guess we'll have to say that in the job forum.
+
+202
+00:30:22.040 --> 00:30:24.000
+Speaker 2 (Rebecca Glassberg): Okay, we need to make a job for him.
+
+203
+00:30:24.200 --> 00:30:26.630
+Speaker 2 (Rebecca Glassberg): Oh, you started the chat form before break.
+
+204
+00:30:26.850 --> 00:30:28.020
+Speaker 1 (Rebecca Glassberg): I did.
+
+205
+00:30:29.620 --> 00:30:31.660
+Speaker 2 (Rebecca Glassberg): You did, or you were going to?
+
+206
+00:30:35.450 --> 00:30:38.999
+Speaker 1 (Rebecca Glassberg): I feel like it was, like, right before I was leaving.
+
+207
+00:30:43.600 --> 00:30:44.530
+Speaker 3 (Rebecca Glassberg): My goodness.
+
+208
+00:31:31.340 --> 00:31:32.680
+Speaker 2 (Rebecca Glassberg): Did you find it, or no?
+
+209
+00:31:32.830 --> 00:31:34.510
+Speaker 1 (Rebecca Glassberg): Oh,
+
+210
+00:32:18.900 --> 00:32:20.699
+Speaker 1 (Rebecca Glassberg): Which one was it? Was it called?
+
+211
+00:32:21.220 --> 00:32:23.095
+Speaker 2 (Rebecca Glassberg): Stem?
+
+212
+00:32:23.095 --> 00:32:26.500
+Speaker 1 (Rebecca Glassberg): I don't think I see anything firsthand. Okay.
+
+213
+00:32:26.930 --> 00:32:30.469
+Speaker 1 (Rebecca Glassberg): But let me see, I wanna see if this works.
+
+214
+00:32:35.170 --> 00:32:35.990
+Speaker 1 (Rebecca Glassberg): Hmm.
+
+215
+00:32:36.400 --> 00:32:39.539
+Speaker 1 (Rebecca Glassberg): I wonder if I could chat in here…
+
+216
+00:32:44.910 --> 00:32:47.020
+Speaker 1 (Rebecca Glassberg): Is this the one you're doing?
+
+217
+00:32:49.820 --> 00:32:51.290
+Speaker 1 (Rebecca Glassberg): Yeah, okay.
+
+218
+00:32:57.270 --> 00:32:59.310
+Speaker 1 (Rebecca Glassberg): Interesting, I'm so curious.
+
+219
+00:33:00.960 --> 00:33:01.830
+Speaker 1 (Rebecca Glassberg): Okay.
+
+220
+00:33:02.990 --> 00:33:03.700
+Speaker 3 (Rebecca Glassberg): Nope.
+
+221
+00:33:25.260 --> 00:33:27.135
+Speaker 2 (Rebecca Glassberg): I think it looks like it's in good shape, besides.
+
+222
+00:33:27.135 --> 00:33:30.159
+Speaker 1 (Rebecca Glassberg): We just need the job form. What information do you need on the job form?
+
+223
+00:33:30.460 --> 00:33:32.919
+Speaker 2 (Rebecca Glassberg): Just the security stuff?
+
+224
+00:33:33.250 --> 00:33:33.970
+Speaker 2 (Rebecca Glassberg): No.
+
+225
+00:33:34.820 --> 00:33:37.210
+Speaker 2 (Rebecca Glassberg): Where's the gravity Holder?
+
+226
+00:33:39.000 --> 00:33:41.670
+Speaker 2 (Rebecca Glassberg): Student name, student class…
+
+227
+00:33:42.180 --> 00:33:45.529
+Speaker 2 (Rebecca Glassberg): Why do you need that? Because we want to know, like, what grade their kid's in.
+
+228
+00:33:45.910 --> 00:33:47.340
+Speaker 1 (Rebecca Glassberg): First or second?
+
+229
+00:33:49.230 --> 00:33:52.249
+Speaker 1 (Rebecca Glassberg): Okay. I don't know, I just, like, do you use that?
+
+230
+00:33:53.540 --> 00:33:55.080
+Speaker 1 (Rebecca Glassberg): I don't know. Okay.
+
+231
+00:33:55.310 --> 00:33:58.300
+Speaker 1 (Rebecca Glassberg): Like, cause… cause you're signing up…
+
+232
+00:33:58.600 --> 00:34:00.790
+Speaker 1 (Rebecca Glassberg): In event registration, you're signing them up.
+
+233
+00:34:03.550 --> 00:34:04.830
+Speaker 1 (Rebecca Glassberg): You know what I mean?
+
+234
+00:34:06.120 --> 00:34:08.745
+Speaker 2 (Rebecca Glassberg): Like, they have to select their kid? They're not selecting their kid.
+
+235
+00:34:08.745 --> 00:34:10.300
+Speaker 1 (Rebecca Glassberg): Yeah, they are.
+
+236
+00:34:11.580 --> 00:34:16.309
+Speaker 1 (Rebecca Glassberg): I mean, well, we don't have to. We could just do Veracos user. We don't have to do student-parent.
+
+237
+00:34:16.850 --> 00:34:19.379
+Speaker 1 (Rebecca Glassberg): Okay, we could just do Veracross user, that's fine.
+
+238
+00:34:19.800 --> 00:34:24.940
+Speaker 1 (Rebecca Glassberg): Either way. And then, cause it's like… Just first and second questions. Okay, okay, wait, so go back to the questions?
+
+239
+00:34:26.429 --> 00:34:29.569
+Speaker 1 (Rebecca Glassberg): But it was super simple. It's really who's joining us, right?
+
+240
+00:34:29.909 --> 00:34:32.799
+Speaker 2 (Rebecca Glassberg): Yeah, and then parent one option, parent one. Okay.
+
+241
+00:34:32.969 --> 00:34:38.930
+Speaker 2 (Rebecca Glassberg): And which workshop are you attending? We're just… that's more for… Us to know.
+
+242
+00:35:05.280 --> 00:35:07.039
+Speaker 1 (Rebecca Glassberg): Okay, we did start it.
+
+243
+00:35:10.040 --> 00:35:11.210
+Speaker 2 (Rebecca Glassberg): Oh.
+
+244
+00:35:36.860 --> 00:35:39.610
+Speaker 1 (Rebecca Glassberg): Do we say that the kids could go on to one?
+
+245
+00:35:40.970 --> 00:35:42.010
+Speaker 1 (Rebecca Glassberg): box.
+
+246
+00:35:42.350 --> 00:35:44.459
+Speaker 1 (Rebecca Glassberg): Like, if they're bringing their whole family?
+
+247
+00:35:49.970 --> 00:35:50.680
+Speaker 2 (Rebecca Glassberg): Yeah.
+
+248
+00:35:57.650 --> 00:36:00.080
+Speaker 2 (Rebecca Glassberg): I'd say students, we don't like the word kid.
+
+249
+00:36:29.950 --> 00:36:31.979
+Speaker 1 (Rebecca Glassberg): Actually, I'm gonna do it this way.
+
+250
+00:36:46.270 --> 00:36:51.805
+Speaker 2 (Rebecca Glassberg): You have his name, email… We just need one email, really. No, we…
+
+251
+00:36:51.805 --> 00:36:59.639
+Speaker 1 (Rebecca Glassberg): No, for security, we need all of that. Right. So the first question should be, how many?
+
+252
+00:37:00.200 --> 00:37:02.599
+Speaker 1 (Rebecca Glassberg): Children are…
+
+253
+00:37:13.830 --> 00:37:15.239
+Speaker 3 (Rebecca Glassberg): Oh, incredibly important.
+
+254
+00:37:29.570 --> 00:37:36.830
+Speaker 1 (Rebecca Glassberg): So for children, we are collecting… Full name.
+
+255
+00:37:38.980 --> 00:37:44.429
+Speaker 1 (Rebecca Glassberg): or first name, last name, separately, I don't know, full name, whatever. Grade.
+
+256
+00:37:44.740 --> 00:37:45.880
+Speaker 1 (Rebecca Glassberg): In class?
+
+257
+00:37:46.930 --> 00:37:47.740
+Speaker 2 (Rebecca Glassberg): Yes.
+
+258
+00:37:53.150 --> 00:37:56.829
+Speaker 2 (Rebecca Glassberg): Well, we don't necessarily need a grade if we have class, you just say a name, class.
+
+259
+00:38:02.840 --> 00:38:05.950
+Speaker 2 (Rebecca Glassberg): We're collecting emails and phone numbers for parents.
+
+260
+00:38:06.300 --> 00:38:09.889
+Speaker 1 (Rebecca Glassberg): But what if it's not the, like, what if they have, like, 4 kids?
+
+261
+00:38:13.030 --> 00:38:14.629
+Speaker 2 (Rebecca Glassberg): I don't think it really matters.
+
+262
+00:38:21.570 --> 00:38:22.750
+Speaker 2 (Rebecca Glassberg): And phone number?
+
+263
+00:38:25.670 --> 00:38:27.670
+Speaker 1 (Rebecca Glassberg): Okay, anything else? No.
+
+264
+00:38:28.800 --> 00:38:33.419
+Speaker 1 (Rebecca Glassberg): Okay. Let's just see if it… I'm not even sure if it could do this, I'm just trying it.
+
+265
+00:38:37.860 --> 00:38:38.670
+Speaker 3 (Rebecca Glassberg): Yeah, good.
+
+266
+00:38:48.310 --> 00:38:51.709
+Speaker 2 (Rebecca Glassberg): Bet it could, but whatever. Oh, I'm just telling you what to do.
+
+267
+00:38:51.820 --> 00:38:54.450
+Speaker 1 (Rebecca Glassberg): Yeah, it's fine. I'm gonna just…
+
+268
+00:38:55.310 --> 00:38:56.010
+Speaker 3 (Rebecca Glassberg): Okay.
+
+269
+00:39:31.650 --> 00:39:33.469
+Speaker 1 (Rebecca Glassberg): Oh, shoot, we also have to add.
+
+270
+00:39:42.880 --> 00:39:44.109
+Speaker 1 (Rebecca Glassberg): What are the dates?
+
+271
+00:39:46.630 --> 00:39:51.589
+Speaker 2 (Rebecca Glassberg): Monday, February 23rd, and Tuesday, February 24th.
+
+272
+00:39:55.900 --> 00:39:57.920
+Speaker 2 (Rebecca Glassberg): And it's 6.30 to 7.30.
+
+273
+00:39:59.100 --> 00:40:00.729
+Speaker 1 (Rebecca Glassberg): Oh, I think that you're just…
+
+274
+00:40:01.070 --> 00:40:03.799
+Speaker 1 (Rebecca Glassberg): To choose the dates, because the time's the same.
+
+275
+00:40:17.300 --> 00:40:18.710
+Speaker 1 (Rebecca Glassberg): I wonder why it can't.
+
+276
+00:40:19.440 --> 00:40:20.340
+Speaker 1 (Rebecca Glassberg): Fair enough.
+
+277
+00:41:17.270 --> 00:41:18.669
+Speaker 1 (Rebecca Glassberg): See if he'll do it for him.
+
+278
+00:42:42.660 --> 00:42:53.679
+Speaker 1 (Rebecca Glassberg): Okay, did this finish? Let's see. Okay, Section 1, Event Date Selection. Which day will your family attend? How many children are attending? How many adults are attending?
+
+279
+00:42:53.820 --> 00:42:59.789
+Speaker 1 (Rebecca Glassberg): Section 3, Children have information, child 1 full name, Child 1 Class, Child 2.
+
+280
+00:43:00.310 --> 00:43:03.589
+Speaker 1 (Rebecca Glassberg): Okay, so we're not putting more than 4, I feel like that's fine.
+
+281
+00:43:06.500 --> 00:43:10.825
+Speaker 1 (Rebecca Glassberg): Okay… On this we could remove.
+
+282
+00:43:10.825 --> 00:43:12.819
+Speaker 2 (Rebecca Glassberg): I think it'll be two parents.
+
+283
+00:43:13.700 --> 00:43:15.679
+Speaker 1 (Rebecca Glassberg): Yeah, so we just…
+
+284
+00:43:16.730 --> 00:43:22.039
+Speaker 1 (Rebecca Glassberg): Okay. It's not a fifth grader, it's a… This is because I copied another one, so I have to remove these.
+
+285
+00:43:30.680 --> 00:43:33.290
+Speaker 1 (Rebecca Glassberg): Oh, shoot, it has an adult full name.
+
+286
+00:43:34.720 --> 00:43:35.570
+Speaker 2 (Rebecca Glassberg): Doesn't.
+
+287
+00:43:35.910 --> 00:43:38.139
+Speaker 1 (Rebecca Glassberg): Who? I don't… oh.
+
+288
+00:43:44.350 --> 00:43:46.149
+Speaker 1 (Rebecca Glassberg): I'm gonna do it this way, I think.
+
+289
+00:43:47.360 --> 00:43:48.920
+Speaker 2 (Rebecca Glassberg): I think it could be simplified.
+
+290
+00:43:52.850 --> 00:43:54.230
+Speaker 2 (Rebecca Glassberg): parent information.
+
+291
+00:44:06.960 --> 00:44:08.349
+Speaker 1 (Rebecca Glassberg): Do you want to do this?
+
+292
+00:44:08.960 --> 00:44:11.640
+Speaker 1 (Rebecca Glassberg): I try. Go for it.
+
+293
+00:44:11.900 --> 00:44:18.719
+Speaker 1 (Rebecca Glassberg): Like, I just basically started with a base of telling it what to build for me, and then would go through and edit it, you know what I mean?
+
+294
+00:44:19.570 --> 00:44:20.380
+Speaker 2 (Rebecca Glassberg): Yeah.
+
+295
+00:44:20.700 --> 00:44:21.430
+Speaker 1 (Rebecca Glassberg): Okay.
+
+296
+00:44:27.280 --> 00:44:28.649
+Speaker 2 (Rebecca Glassberg): Is it JLE?
+
+297
+00:45:57.650 --> 00:46:02.480
+Speaker 1 (Rebecca Glassberg): You have to add, I think you should just actually use the one below, because that has, like.
+
+298
+00:46:02.720 --> 00:46:03.910
+Speaker 1 (Rebecca Glassberg): Full name.
+
+299
+00:46:04.140 --> 00:46:06.609
+Speaker 1 (Rebecca Glassberg): It has the questions that we wanted from before.
+
+300
+00:46:06.880 --> 00:46:08.380
+Speaker 1 (Rebecca Glassberg): Oh. This one.
+
+301
+00:46:16.670 --> 00:46:18.469
+Speaker 1 (Rebecca Glassberg): Man, let me just delete the other ones.
+
+302
+00:46:18.600 --> 00:46:20.180
+Speaker 1 (Rebecca Glassberg): Here, I'll close this.
+
+303
+00:46:21.770 --> 00:46:28.240
+Speaker 1 (Rebecca Glassberg): Okay, so Alana is just editing the Jot form, by copying a previous event's form.
+
+304
+00:46:28.440 --> 00:46:30.549
+Speaker 1 (Rebecca Glassberg): And then adding the information to meet.
+
+305
+00:46:47.950 --> 00:46:54.490
+Speaker 1 (Rebecca Glassberg): Did I get rid of this? You, click the trash button, you have to click the X there, and then there's trash.
+
+306
+00:47:02.110 --> 00:47:06.490
+Speaker 1 (Rebecca Glassberg): I just realized we have to update the, the conditions.
+
+307
+00:47:06.930 --> 00:47:10.420
+Speaker 1 (Rebecca Glassberg): Because it wasn't connected to these ones. Alright, we can do that.
+
+308
+00:47:13.080 --> 00:47:18.220
+Speaker 1 (Rebecca Glassberg): Okay, so scroll up… I'll get rid of this whole thing. Yeah.
+
+309
+00:47:18.710 --> 00:47:19.700
+Speaker 2 (Rebecca Glassberg): No, I can't.
+
+310
+00:47:21.160 --> 00:47:24.040
+Speaker 1 (Rebecca Glassberg): Oh, interesting, it's, like, not a real section.
+
+311
+00:47:24.640 --> 00:47:26.429
+Speaker 1 (Rebecca Glassberg): Yeah, you could just trash those.
+
+312
+00:47:28.180 --> 00:47:31.730
+Speaker 1 (Rebecca Glassberg): You probably could ask it to, but I don't know if you want to risk that.
+
+313
+00:48:07.910 --> 00:48:09.320
+Speaker 2 (Rebecca Glassberg): Yay, it worked.
+
+314
+00:48:09.600 --> 00:48:11.200
+Speaker 2 (Rebecca Glassberg): Okay.
+
+315
+00:48:12.320 --> 00:48:13.450
+Speaker 1 (Rebecca Glassberg): So…
+
+316
+00:48:17.670 --> 00:48:23.690
+Speaker 1 (Rebecca Glassberg): Okay. Wait, so you have to fix the, the…
+
+317
+00:48:24.440 --> 00:48:27.730
+Speaker 1 (Rebecca Glassberg): like, which questions show? So, like, if you go down…
+
+318
+00:48:33.730 --> 00:48:39.320
+Speaker 1 (Rebecca Glassberg): Right? So, like, this should only show if… You want that, holy shit.
+
+319
+00:48:39.940 --> 00:48:42.180
+Speaker 1 (Rebecca Glassberg): Okay, you should probably… Everybody's get rid of these. Yeah.
+
+320
+00:48:47.570 --> 00:48:50.770
+Speaker 1 (Rebecca Glassberg): Scroll up. You want those to only show if the other…
+
+321
+00:48:50.970 --> 00:48:54.280
+Speaker 1 (Rebecca Glassberg): Like, how many are attending, right? Child one?
+
+322
+00:50:26.560 --> 00:50:27.250
+Speaker 3 (Rebecca Glassberg): surprisingly.
+
+323
+00:50:27.380 --> 00:50:28.180
+Speaker 3 (Rebecca Glassberg): Hi.
+
+324
+00:50:28.680 --> 00:50:30.160
+Speaker 3 (Rebecca Glassberg): Great question.
+
+325
+00:50:38.930 --> 00:50:40.010
+Speaker 1 (Rebecca Glassberg): It didn't work.
+
+326
+00:50:41.850 --> 00:50:44.249
+Speaker 1 (Rebecca Glassberg): So, do you want me to show you how to do it?
+
+327
+00:50:44.900 --> 00:50:47.160
+Speaker 1 (Rebecca Glassberg): Okay, so… scroll down.
+
+328
+00:50:48.320 --> 00:50:52.209
+Speaker 1 (Rebecca Glassberg): Okay, click… Like, click… Well, this is…
+
+329
+00:50:52.440 --> 00:50:57.390
+Speaker 1 (Rebecca Glassberg): There's gonna be a child showing anyway. I mean, there's gonna be children coming, so we don't need to do it for this one.
+
+330
+00:50:57.960 --> 00:51:05.949
+Speaker 1 (Rebecca Glassberg): Okay, so click Child 2 Information, like… Right, and then, sorry, I'm gonna go to…
+
+331
+00:51:06.430 --> 00:51:10.190
+Speaker 1 (Rebecca Glassberg): Not at element. Like, where's the… is this not full page?
+
+332
+00:51:10.580 --> 00:51:12.120
+Speaker 1 (Rebecca Glassberg): Oh, conditions, there you go.
+
+333
+00:51:14.160 --> 00:51:16.919
+Speaker 1 (Rebecca Glassberg): How many children… child one? Okay, good.
+
+334
+00:51:17.710 --> 00:51:18.860
+Speaker 1 (Rebecca Glassberg): Good.
+
+335
+00:51:19.410 --> 00:51:23.689
+Speaker 1 (Rebecca Glassberg): So it already did it for this part. Child 1, Child 2, good, hide, hide.
+
+336
+00:51:24.570 --> 00:51:31.960
+Speaker 1 (Rebecca Glassberg): Show, good. Okay, good. And then scroll down, and we're gonna update. Oh, there's no adult ones, so now go back to build.
+
+337
+00:51:34.530 --> 00:51:36.790
+Speaker 1 (Rebecca Glassberg): So that was good, because it already set it up.
+
+338
+00:51:37.850 --> 00:51:41.740
+Speaker 1 (Rebecca Glassberg): Scroll down. You could probably… you could also put those next to each other if you want it to look shorter.
+
+339
+00:51:43.450 --> 00:51:45.460
+Speaker 1 (Rebecca Glassberg): You click this setting.
+
+340
+00:51:47.660 --> 00:51:51.889
+Speaker 1 (Rebecca Glassberg): with the settings, and then, I think on Advanced.
+
+341
+00:51:55.870 --> 00:51:59.500
+Speaker 1 (Rebecca Glassberg): And then scroll down. I think there's, like, a shrink button, let's click shrink.
+
+342
+00:52:00.130 --> 00:52:02.209
+Speaker 1 (Rebecca Glassberg): And then do that on that tailor.
+
+343
+00:52:03.200 --> 00:52:08.360
+Speaker 1 (Rebecca Glassberg): We could probably also, like, later ask them, but that's… yeah, if you do it that way, it'll be on one row.
+
+344
+00:52:09.090 --> 00:52:09.930
+Speaker 3 (Rebecca Glassberg): Cool.
+
+345
+00:52:10.260 --> 00:52:12.529
+Speaker 1 (Rebecca Glassberg): And then, do you want me to show you how to do the other part?
+
+346
+00:52:12.740 --> 00:52:13.610
+Speaker 2 (Rebecca Glassberg): Yeah.
+
+347
+00:52:15.400 --> 00:52:24.819
+Speaker 1 (Rebecca Glassberg): Okay, so… click… So there's gonna be a parent one, right? And then for this, yeah, conditions, so…
+
+348
+00:52:29.750 --> 00:52:35.610
+Speaker 1 (Rebecca Glassberg): Okay, so you're gonna edit that. I'm not sure what this means. Well, you have to edit it, because it…
+
+349
+00:52:36.070 --> 00:52:41.590
+Speaker 1 (Rebecca Glassberg): Because it was… it had conditions from the other form. So, if…
+
+350
+00:52:43.040 --> 00:52:51.200
+Speaker 1 (Rebecca Glassberg): This is the second parent, right? How many adults? R? 2 is equal to… 2, right, then show…
+
+351
+00:52:53.510 --> 00:52:56.830
+Speaker 1 (Rebecca Glassberg): What does missing feel? We took that out. She took that out.
+
+352
+00:52:57.400 --> 00:52:59.490
+Speaker 1 (Rebecca Glassberg): Okay, save.
+
+353
+00:53:00.570 --> 00:53:04.769
+Speaker 1 (Rebecca Glassberg): Wait. Parent2… okay, good.
+
+354
+00:53:05.190 --> 00:53:15.340
+Speaker 1 (Rebecca Glassberg): And then go back to the build… oh, you probably delete the other ones, because we don't have 4 and 5. You deleted those. Did I delete them? Yeah, but you have other ones checked off, so just make sure you're not…
+
+355
+00:53:16.040 --> 00:53:17.249
+Speaker 3 (Rebecca Glassberg): quite up to say.
+
+356
+00:53:21.720 --> 00:53:22.570
+Speaker 1 (Rebecca Glassberg): Okay.
+
+357
+00:53:22.700 --> 00:53:23.650
+Speaker 1 (Rebecca Glassberg): Delete.
+
+358
+00:53:29.630 --> 00:53:30.550
+Speaker 3 (Rebecca Glassberg): Writing seafood.
+
+359
+00:53:42.580 --> 00:53:44.220
+Speaker 3 (Rebecca Glassberg): Like, same thing or flooring.
+
+360
+00:53:44.950 --> 00:53:46.799
+Speaker 2 (Rebecca Glassberg): Can I shrink all questions?
+
+361
+00:53:50.890 --> 00:53:54.419
+Speaker 1 (Rebecca Glassberg): I don't know what all are, but you could try it.
+
+362
+00:54:17.030 --> 00:54:19.250
+Speaker 1 (Rebecca Glassberg): Maybe, like, be more specific?
+
+363
+00:54:21.900 --> 00:54:24.880
+Speaker 1 (Rebecca Glassberg): And you could do it with the microphone, if that's easier.
+
+364
+00:54:25.540 --> 00:54:26.550
+Speaker 3 (Rebecca Glassberg): That's cool.
+
+365
+00:54:31.570 --> 00:54:32.470
+Speaker 3 (Rebecca Glassberg): What's that?
+
+366
+00:54:34.020 --> 00:54:35.040
+Speaker 2 (Rebecca Glassberg): Shrink.
+
+367
+00:54:36.940 --> 00:54:41.065
+Speaker 2 (Rebecca Glassberg): Child class questions. And child full name questions.
+
+368
+00:54:41.065 --> 00:54:43.280
+Speaker 1 (Rebecca Glassberg): questions. So that they are.
+
+369
+00:54:43.610 --> 00:54:45.030
+Speaker 2 (Rebecca Glassberg): Next to each other.
+
+370
+00:54:46.960 --> 00:54:49.580
+Speaker 3 (Rebecca Glassberg): That was arbitrary.
+
+371
+00:54:58.220 --> 00:55:00.510
+Speaker 3 (Rebecca Glassberg): This isn't working out, actually.
+
+372
+00:55:13.020 --> 00:55:14.840
+Speaker 3 (Rebecca Glassberg): The final survey knows that we thought.
+
+373
+00:55:29.590 --> 00:55:30.540
+Speaker 3 (Rebecca Glassberg): I just don't hear…
+
+374
+00:55:31.190 --> 00:55:32.430
+Speaker 1 (Rebecca Glassberg): doing my workflow.
+
+375
+00:55:32.780 --> 00:55:34.655
+Speaker 1 (Rebecca Glassberg): What'd it do? I put all the questions.
+
+376
+00:55:34.655 --> 00:55:35.890
+Speaker 2 (Rebecca Glassberg): in childborn.
+
+377
+00:55:38.950 --> 00:55:40.830
+Speaker 1 (Rebecca Glassberg): Oh, you didn't specify that.
+
+378
+00:55:45.020 --> 00:55:50.890
+Speaker 2 (Rebecca Glassberg): You can do it! You can do it! Please separate the child number by the header.
+
+379
+00:55:51.630 --> 00:55:54.029
+Speaker 2 (Rebecca Glassberg): Based on the questions.
+
+380
+00:55:54.210 --> 00:55:55.189
+Speaker 2 (Rebecca Glassberg): That's a bad one.
+
+381
+00:55:55.640 --> 00:55:59.840
+Speaker 1 (Rebecca Glassberg): I'm going to explain what I mean. Child 1 information
+
+382
+00:56:00.010 --> 00:56:15.300
+Speaker 1 (Rebecca Glassberg): header. Under it should have child 1 full name, and then next to that question, child 1 class. Then we should have the header, child 2 information. Under that header should be child 2 full name, and next to that.
+
+383
+00:56:15.300 --> 00:56:20.040
+Speaker 1 (Rebecca Glassberg): Child 2 class. Please do the same for Child 3.
+
+384
+00:56:20.830 --> 00:56:22.930
+Speaker 1 (Rebecca Glassberg): And for child 4.
+
+385
+00:56:40.580 --> 00:56:41.480
+Speaker 1 (Rebecca Glassberg): Does that work?
+
+386
+00:56:42.620 --> 00:56:45.339
+Speaker 2 (Rebecca Glassberg): Yeah, mmm, let's see.
+
+387
+00:56:54.160 --> 00:57:01.589
+Speaker 1 (Rebecca Glassberg): It doesn't need the different headers. Children information, yeah, let's just do that, that's fine. Just delete this.
+
+388
+00:57:02.090 --> 00:57:08.464
+Speaker 1 (Rebecca Glassberg): Delete what this? Child 1 information, right? Child one… delete that, okay. Child 1, Child 2, Child 3.
+
+389
+00:57:08.465 --> 00:57:10.530
+Speaker 2 (Rebecca Glassberg): I just think we should make it not required.
+
+390
+00:57:10.970 --> 00:57:13.440
+Speaker 1 (Rebecca Glassberg): Well, it should be required if it chose.
+
+391
+00:57:13.600 --> 00:57:15.280
+Speaker 1 (Rebecca Glassberg): So it should be required.
+
+392
+00:57:15.550 --> 00:57:18.169
+Speaker 1 (Rebecca Glassberg): So, you want to look at the,
+
+393
+00:57:18.430 --> 00:57:24.559
+Speaker 1 (Rebecca Glassberg): Hover, and then just make sure that the… Sorry, the conditional questions.
+
+394
+00:57:26.540 --> 00:57:27.620
+Speaker 3 (Rebecca Glassberg): Too much time.
+
+395
+00:57:28.020 --> 00:57:30.450
+Speaker 1 (Rebecca Glassberg): You wanna go back to the conditions page.
+
+396
+00:57:38.680 --> 00:57:40.299
+Speaker 2 (Rebecca Glassberg): I don't know where you went.
+
+397
+00:57:40.470 --> 00:57:44.580
+Speaker 1 (Rebecca Glassberg): Oh, right, wasn't it just on the side? Yeah.
+
+398
+00:57:46.160 --> 00:57:50.169
+Speaker 1 (Rebecca Glassberg): Scroll down. Oh, okay, how did that pop up? I missed it.
+
+399
+00:57:50.350 --> 00:57:57.350
+Speaker 1 (Rebecca Glassberg): I just clicked the upper button. Okay, scroll up. This is for parents. I know. Okay, so it removed the other one, so…
+
+400
+00:57:59.690 --> 00:58:00.930
+Speaker 1 (Rebecca Glassberg): Oh, I see.
+
+401
+00:58:01.750 --> 00:58:03.330
+Speaker 1 (Rebecca Glassberg): Okay, got it.
+
+402
+00:58:04.280 --> 00:58:07.910
+Speaker 1 (Rebecca Glassberg): So, if it's 1… So, click here.
+
+403
+00:58:12.000 --> 00:58:22.430
+Speaker 1 (Rebecca Glassberg): Right, you want to show… Child 1… Wait. Please join.
+
+404
+00:58:23.280 --> 00:58:26.399
+Speaker 1 (Rebecca Glassberg): Yes. Add that here.
+
+405
+00:58:34.570 --> 00:58:35.400
+Speaker 3 (Rebecca Glassberg): Let's be nervous.
+
+406
+00:58:36.590 --> 00:58:37.490
+Speaker 3 (Rebecca Glassberg): Hmm.
+
+407
+00:58:38.000 --> 00:58:41.700
+Speaker 1 (Rebecca Glassberg): No, I think you didn't add… it just says child and class.
+
+408
+00:58:42.470 --> 00:58:44.139
+Speaker 1 (Rebecca Glassberg): You wanna add all of those?
+
+409
+00:58:44.930 --> 00:58:48.560
+Speaker 1 (Rebecca Glassberg): I'll try one full name.
+
+410
+00:58:48.720 --> 00:58:50.250
+Speaker 2 (Rebecca Glassberg): I might not let you add those.
+
+411
+00:58:50.660 --> 00:58:52.270
+Speaker 1 (Rebecca Glassberg): But the other one does.
+
+412
+00:58:53.140 --> 00:58:55.359
+Speaker 1 (Rebecca Glassberg): Hi, oh, click Show Multiple.
+
+413
+00:59:03.880 --> 00:59:08.140
+Speaker 2 (Rebecca Glassberg): Child one full name… And…
+
+414
+00:59:10.260 --> 00:59:12.010
+Speaker 1 (Rebecca Glassberg): Class.
+
+415
+00:59:12.640 --> 00:59:13.340
+Speaker 3 (Rebecca Glassberg): Wow.
+
+416
+00:59:15.070 --> 00:59:16.259
+Speaker 3 (Rebecca Glassberg): It was with us tonight.
+
+417
+00:59:17.950 --> 00:59:18.930
+Speaker 3 (Rebecca Glassberg): There's another one?
+
+418
+00:59:20.120 --> 00:59:20.970
+Speaker 3 (Rebecca Glassberg): I don't know.
+
+419
+00:59:22.160 --> 00:59:22.890
+Speaker 3 (Rebecca Glassberg): Right.
+
+420
+00:59:29.760 --> 00:59:30.559
+Speaker 3 (Rebecca Glassberg): This might be something.
+
+421
+00:59:38.720 --> 00:59:39.989
+Speaker 3 (Rebecca Glassberg): Why don't they do events?
+
+422
+00:59:47.020 --> 00:59:49.099
+Speaker 3 (Rebecca Glassberg): Let's… but let's not even bring those things out to you.
+
+423
+00:59:49.440 --> 00:59:50.760
+Speaker 1 (Rebecca Glassberg): Wait.
+
+424
+00:59:52.220 --> 00:59:54.540
+Speaker 1 (Rebecca Glassberg): Which one are you then? Child 2.
+
+425
+00:59:55.150 --> 00:59:56.150
+Speaker 1 (Rebecca Glassberg): Oh.
+
+426
+00:59:56.900 --> 00:59:58.779
+Speaker 1 (Rebecca Glassberg): I thought those were already set up.
+
+427
+00:59:59.550 --> 01:00:03.800
+Speaker 1 (Rebecca Glassberg): There's, like, missing fields. Right, because they were moved around.
+
+428
+01:00:04.350 --> 01:00:05.550
+Speaker 1 (Rebecca Glassberg): You have to update it.
+
+429
+01:00:06.710 --> 01:00:08.549
+Speaker 2 (Rebecca Glassberg): Update it here, or elsewhere?
+
+430
+01:00:09.340 --> 01:00:13.610
+Speaker 1 (Rebecca Glassberg): Yet, like, each… you have to update the conditions for the questions.
+
+431
+01:00:14.600 --> 01:00:21.150
+Speaker 1 (Rebecca Glassberg): So, there's two… if you go up, you have an option for 1 child, 2 child, 3 child, 4 child. Dude, this looks wrong.
+
+432
+01:00:21.600 --> 01:00:24.019
+Speaker 2 (Rebecca Glassberg): Child 1 information, child 2 information.
+
+433
+01:00:25.030 --> 01:00:27.759
+Speaker 3 (Rebecca Glassberg): So, if I wanted to add a monthly program.
+
+434
+01:00:35.200 --> 01:00:36.349
+Speaker 2 (Rebecca Glassberg): Do you need us?
+
+435
+01:00:36.650 --> 01:00:37.360
+Speaker 3 (Rebecca Glassberg): Okay.
+
+436
+01:00:38.000 --> 01:00:40.270
+Speaker 2 (Rebecca Glassberg): Okay, I'll fix it.
+
+437
+01:00:45.560 --> 01:00:47.080
+Speaker 1 (Rebecca Glassberg): How's it going? Do you want us to come?
+
+438
+01:00:47.540 --> 01:00:48.260
+Speaker 1 (Rebecca Glassberg): No.
+
+439
+01:00:49.240 --> 01:00:52.129
+Speaker 9 (Rebecca Glassberg): Did we send any reminders yesterday?
+
+440
+01:00:52.510 --> 01:00:54.469
+Speaker 2 (Rebecca Glassberg): Please send a reminder for Join the Joy.
+
+441
+01:00:54.740 --> 01:01:00.559
+Speaker 2 (Rebecca Glassberg): Or Gumara night? We didn't send Gumara Knight, because there was an error on the flyer, but we'll send it today.
+
+442
+01:01:01.340 --> 01:01:05.509
+Speaker 2 (Rebecca Glassberg): It's a Tuesday, February 25th, but it's Wednesday, February 25th.
+
+443
+01:01:06.080 --> 01:01:11.704
+Speaker 9 (Rebecca Glassberg): So, when do you think we should deal with the list? Oh, so you're going to send it today.
+
+444
+01:01:11.705 --> 01:01:14.730
+Speaker 2 (Rebecca Glassberg): Yeah, the deadline for TARCP is today for Gamara.
+
+445
+01:01:15.470 --> 01:01:21.049
+Speaker 9 (Rebecca Glassberg): So you're gonna send it, like, at 4, and until midnight, they should fill it.
+
+446
+01:01:21.720 --> 01:01:26.369
+Speaker 9 (Rebecca Glassberg): Great. And then tomorrow morning will be it. And Joy is when?
+
+447
+01:01:26.540 --> 01:01:31.469
+Speaker 2 (Rebecca Glassberg): The deadline? Was today. What is the event? The event is Sunday. 2.
+
+448
+01:01:31.850 --> 01:01:36.879
+Speaker 9 (Rebecca Glassberg): So, that was today, yesterday night, so I can send it now. What do you mean, 2?
+
+449
+01:01:38.010 --> 01:01:39.885
+Speaker 9 (Rebecca Glassberg): I was so excited.
+
+450
+01:01:39.885 --> 01:01:42.539
+Speaker 2 (Rebecca Glassberg): Tomorrow night is… Good morning, it's Wednesday. Wednesday.
+
+451
+01:01:45.220 --> 01:01:49.300
+Speaker 9 (Rebecca Glassberg): Okay, so the joy, I can send already. Yeah.
+
+452
+01:01:49.460 --> 01:01:58.229
+Speaker 2 (Rebecca Glassberg): Joy we can send, Gamara will send a reminder. And then, Yom Door Lador is next week. We usually send out parking information, being like, please line up, please park.
+
+453
+01:01:58.650 --> 01:02:01.275
+Speaker 2 (Rebecca Glassberg): How do you want us to go about that this time?
+
+454
+01:02:01.275 --> 01:02:05.860
+Speaker 9 (Rebecca Glassberg): Finish this meeting, and we'll… Okay. Are you towards the end, or…
+
+455
+01:02:06.180 --> 01:02:15.280
+Speaker 9 (Rebecca Glassberg): Cause we'll need to… Remind them, listen, you haven't… Gungbow.
+
+456
+01:02:15.680 --> 01:02:19.119
+Speaker 9 (Rebecca Glassberg): Screening, and you'll be stopped in the gate.
+
+457
+01:02:20.010 --> 01:02:21.559
+Speaker 9 (Rebecca Glassberg): This is the parking.
+
+458
+01:02:21.790 --> 01:02:22.590
+Speaker 9 (Rebecca Glassberg): But…
+
+459
+01:02:23.930 --> 01:02:28.429
+Speaker 2 (Rebecca Glassberg): And what are we gonna do? How are people going to be registering?
+
+460
+01:02:28.650 --> 01:02:32.025
+Speaker 2 (Rebecca Glassberg): If they're… if they didn't register and they show up at the gate, what's happening to them?
+
+461
+01:02:32.025 --> 01:02:35.025
+Speaker 9 (Rebecca Glassberg): And, do it in the kiosk, but that's gonna be about.
+
+462
+01:02:35.025 --> 01:02:38.230
+Speaker 2 (Rebecca Glassberg): But the kiosk is in the lobby? Yeah.
+
+463
+01:02:38.540 --> 01:02:40.519
+Speaker 9 (Rebecca Glassberg): Outside, with my guards.
+
+464
+01:02:42.770 --> 01:02:45.399
+Speaker 2 (Rebecca Glassberg): Like, outside of the gate, or inside of the gate?
+
+465
+01:02:46.060 --> 01:02:48.685
+Speaker 9 (Rebecca Glassberg): The guards, in the, in the front.
+
+466
+01:02:48.685 --> 01:02:53.934
+Speaker 2 (Rebecca Glassberg): So we're gonna let them park and then fill it out? Yep. So we're letting people in the gate. Yeah.
+
+467
+01:02:53.935 --> 01:02:57.684
+Speaker 9 (Rebecca Glassberg): the outgate, not the main gate. Okay.
+
+468
+01:02:57.685 --> 01:02:59.250
+Speaker 3 (Rebecca Glassberg): I'm touching the screens.
+
+469
+01:02:59.870 --> 01:03:01.570
+Speaker 3 (Rebecca Glassberg): Hold on, don't give me a second.
+
+470
+01:03:25.530 --> 01:03:26.230
+Speaker 3 (Rebecca Glassberg): Excuse me.
+
+471
+01:03:28.060 --> 01:03:30.300
+Speaker 1 (Rebecca Glassberg): I should have just duplicated the other one.
+
+472
+01:03:47.850 --> 01:03:50.110
+Speaker 1 (Rebecca Glassberg): Wait. And get rid of those three information.
+
+473
+01:03:53.430 --> 01:03:55.280
+Speaker 1 (Rebecca Glassberg): We have to delete that question.
+
+474
+01:03:57.280 --> 01:03:58.100
+Speaker 2 (Rebecca Glassberg): Bye.
+
+475
+01:04:03.590 --> 01:04:07.519
+Speaker 1 (Rebecca Glassberg): Because it's not… we're not… we're gonna remove that.
+
+476
+01:04:27.520 --> 01:04:28.470
+Speaker 3 (Rebecca Glassberg): You're gonna do it?
+
+477
+01:04:28.740 --> 01:04:29.610
+Speaker 1 (Rebecca Glassberg): Sure.
+
+478
+01:04:30.170 --> 01:04:31.160
+Speaker 3 (Rebecca Glassberg): Interesting.
+
+479
+01:04:59.970 --> 01:05:00.650
+Speaker 3 (Rebecca Glassberg): Do you have it?
+
+480
+01:05:10.150 --> 01:05:10.810
+Speaker 3 (Rebecca Glassberg): Cool.
+
+481
+01:05:26.950 --> 01:05:27.820
+Speaker 3 (Rebecca Glassberg): The pleasure.
+
+482
+01:06:06.480 --> 01:06:07.170
+Speaker 1 (Rebecca Glassberg): Bye.
+
+483
+01:06:09.700 --> 01:06:10.390
+Speaker 3 (Rebecca Glassberg): Cool.
+
+484
+01:06:12.690 --> 01:06:17.380
+Speaker 1 (Rebecca Glassberg): Okay, now eventually, like, we're just gonna use the same forms, you know what I mean? So, like…
+
+485
+01:06:17.680 --> 01:06:18.980
+Speaker 1 (Rebecca Glassberg): Okay, we ready?
+
+486
+01:06:23.600 --> 01:06:25.475
+Speaker 1 (Rebecca Glassberg): I want to preview it?
+
+487
+01:06:25.475 --> 01:06:31.780
+Speaker 2 (Rebecca Glassberg): we should do this… I think we should do… we need to duplicate it, because if they select 0 or…
+
+488
+01:06:32.170 --> 01:06:34.750
+Speaker 2 (Rebecca Glassberg): Please select, then it doesn't show up.
+
+489
+01:06:35.640 --> 01:06:37.099
+Speaker 2 (Rebecca Glassberg): Then everything shows up.
+
+490
+01:06:37.910 --> 01:06:39.660
+Speaker 1 (Rebecca Glassberg): Nice, glamo.
+
+491
+01:06:40.270 --> 01:06:42.930
+Speaker 1 (Rebecca Glassberg): Please select. Can you click Edit Options.
+
+492
+01:06:46.260 --> 01:06:48.359
+Speaker 1 (Rebecca Glassberg): Why is zero an option? Yeah.
+
+493
+01:06:49.270 --> 01:06:50.420
+Speaker 1 (Rebecca Glassberg): Okay.
+
+494
+01:06:51.700 --> 01:06:56.620
+Speaker 1 (Rebecca Glassberg): Like, I don't… is please select counted as an option? Wait, make sure this doesn't have zero.
+
+495
+01:06:57.390 --> 01:06:59.265
+Speaker 3 (Rebecca Glassberg): It's great, and I love this.
+
+496
+01:06:59.265 --> 01:07:02.470
+Speaker 1 (Rebecca Glassberg): So, quick preview.
+
+497
+01:07:08.590 --> 01:07:13.139
+Speaker 1 (Rebecca Glassberg): Like, click… oh, interesting. But it doesn't show one.
+
+498
+01:07:16.790 --> 01:07:17.560
+Speaker 2 (Rebecca Glassberg): Right.
+
+499
+01:07:28.070 --> 01:07:29.860
+Speaker 1 (Rebecca Glassberg): Out of ordering.
+
+500
+01:07:32.260 --> 01:07:33.280
+Speaker 3 (Rebecca Glassberg): I will do it.
+
+501
+01:07:34.780 --> 01:07:38.320
+Speaker 1 (Rebecca Glassberg): Out of order here, too. Yeah, you could totally fix that.
+
+502
+01:07:39.660 --> 01:07:41.790
+Speaker 1 (Rebecca Glassberg): Let's see what the errors… oh, I see.
+
+503
+01:07:43.270 --> 01:07:47.590
+Speaker 1 (Rebecca Glassberg): You could just drag and drop them on the edit page. Okay.
+
+504
+01:07:52.770 --> 01:07:54.580
+Speaker 2 (Rebecca Glassberg): They're in order on the other page.
+
+505
+01:07:56.150 --> 01:07:59.350
+Speaker 1 (Rebecca Glassberg): Well, maybe on the conditions or not?
+
+506
+01:08:09.610 --> 01:08:10.320
+Speaker 3 (Rebecca Glassberg): That's do the…
+
+507
+01:08:10.480 --> 01:08:12.650
+Speaker 1 (Rebecca Glassberg): I would… maybe,
+
+508
+01:08:19.910 --> 01:08:32.059
+Speaker 1 (Rebecca Glassberg): Maybe add one that's… what? Maybe add that says, like, if it's equal to nobody, then nothing shows. So, like, you could duplicate this one.
+
+509
+01:08:32.950 --> 01:08:34.920
+Speaker 1 (Rebecca Glassberg): I would… okay.
+
+510
+01:08:35.069 --> 01:08:36.059
+Speaker 1 (Rebecca Glassberg): Yeah.
+
+511
+01:08:36.290 --> 01:08:37.479
+Speaker 3 (Rebecca Glassberg): That's the unfortunate.
+
+512
+01:08:38.520 --> 01:08:41.145
+Speaker 3 (Rebecca Glassberg): That's the unfortunate reality, is you're finding.
+
+513
+01:08:41.145 --> 01:08:43.639
+Speaker 1 (Rebecca Glassberg): Oh, it's empty, yeah.
+
+514
+01:08:43.779 --> 01:08:45.229
+Speaker 1 (Rebecca Glassberg): Then hide all.
+
+515
+01:08:46.290 --> 01:08:51.489
+Speaker 1 (Rebecca Glassberg): You'll hide multiple, and then you just say 1, child 1, you have to add child one.
+
+516
+01:09:05.859 --> 01:09:07.249
+Speaker 3 (Rebecca Glassberg): What's really important.
+
+517
+01:09:14.880 --> 01:09:16.460
+Speaker 3 (Rebecca Glassberg): If my childhood response.
+
+518
+01:09:20.550 --> 01:09:22.569
+Speaker 2 (Rebecca Glassberg): That's fine, I think. Yeah, it's fine.
+
+519
+01:09:22.930 --> 01:09:26.880
+Speaker 3 (Rebecca Glassberg): Whatever.
+
+520
+01:09:27.910 --> 01:09:28.830
+Speaker 1 (Rebecca Glassberg): Wait.
+
+521
+01:09:29.890 --> 01:09:34.015
+Speaker 1 (Rebecca Glassberg): Where are those showing? Wait, scroll up? It's the next page.
+
+522
+01:09:34.015 --> 01:09:35.419
+Speaker 2 (Rebecca Glassberg): See what they're done?
+
+523
+01:09:36.210 --> 01:09:38.829
+Speaker 1 (Rebecca Glassberg): Oh, so we should move that to a different section.
+
+524
+01:09:42.470 --> 01:09:44.060
+Speaker 1 (Rebecca Glassberg): I'll go back at it.
+
+525
+01:09:44.910 --> 01:09:49.340
+Speaker 3 (Rebecca Glassberg): One of the community, obviously, We'll talk about.
+
+526
+01:09:49.479 --> 01:09:51.409
+Speaker 3 (Rebecca Glassberg): We just came with portions.
+
+527
+01:09:55.570 --> 01:09:56.529
+Speaker 3 (Rebecca Glassberg): What is this about?
+
+528
+01:09:56.910 --> 01:09:58.270
+Speaker 3 (Rebecca Glassberg): This Sunday, the 22nd?
+
+529
+01:10:01.100 --> 01:10:02.000
+Speaker 3 (Rebecca Glassberg): That's right.
+
+530
+01:10:03.160 --> 01:10:03.880
+Speaker 3 (Rebecca Glassberg): Oh, okay.
+
+531
+01:10:06.990 --> 01:10:10.879
+Speaker 3 (Rebecca Glassberg): Studio Spirit, I was so angry.
+
+532
+01:10:16.260 --> 01:10:17.330
+Speaker 2 (Rebecca Glassberg): Like, here.
+
+533
+01:10:17.800 --> 01:10:22.359
+Speaker 1 (Rebecca Glassberg): Is that a new section? Wait, parent one… the parent one was already a new section.
+
+534
+01:10:24.210 --> 01:10:25.460
+Speaker 1 (Rebecca Glassberg): Oops, yeah.
+
+535
+01:10:26.490 --> 01:10:28.460
+Speaker 2 (Rebecca Glassberg): Get rid of this.
+
+536
+01:10:29.020 --> 01:10:30.010
+Speaker 1 (Rebecca Glassberg): No, you won't.
+
+537
+01:10:30.230 --> 01:10:31.480
+Speaker 1 (Rebecca Glassberg): Love that.
+
+538
+01:10:34.690 --> 01:10:36.570
+Speaker 2 (Rebecca Glassberg): We could probably combine the section.
+
+539
+01:10:38.540 --> 01:10:39.910
+Speaker 1 (Rebecca Glassberg): So then we could just…
+
+540
+01:10:41.730 --> 01:10:42.410
+Speaker 3 (Rebecca Glassberg): Listen.
+
+541
+01:10:53.030 --> 01:10:57.729
+Speaker 1 (Rebecca Glassberg): What are you doing? I'm moving you, but I feel like we should be able to move them.
+
+542
+01:10:58.510 --> 01:11:00.340
+Speaker 2 (Rebecca Glassberg): Wouldn't you just move them all up?
+
+543
+01:11:01.510 --> 01:11:02.890
+Speaker 2 (Rebecca Glassberg): As opposed to down.
+
+544
+01:11:03.990 --> 01:11:05.890
+Speaker 1 (Rebecca Glassberg): You don't want them in a new section?
+
+545
+01:11:09.910 --> 01:11:15.079
+Speaker 2 (Rebecca Glassberg): I don't know if they need to be, because then they need to go to a next page, as opposed to staying on the same page and are all showing up.
+
+546
+01:11:15.720 --> 01:11:18.640
+Speaker 1 (Rebecca Glassberg): I wonder if we can move them all at the same time.
+
+547
+01:11:18.910 --> 01:11:20.785
+Speaker 2 (Rebecca Glassberg): Can we ask the bot to do it?
+
+548
+01:11:20.785 --> 01:11:21.535
+Speaker 3 (Rebecca Glassberg): a bad idea.
+
+549
+01:11:48.810 --> 01:11:49.889
+Speaker 3 (Rebecca Glassberg): Look at nobody.
+
+550
+01:11:50.520 --> 01:11:51.053
+Speaker 3 (Rebecca Glassberg): Yeah, visit.
+
+551
+01:11:52.700 --> 01:11:54.979
+Speaker 2 (Rebecca Glassberg): Thank you for your help on this. Sure.
+
+552
+01:12:02.800 --> 01:12:10.300
+Speaker 3 (Rebecca Glassberg): They may have… How do you figure out things…
+
+553
+01:12:10.880 --> 01:12:13.229
+Speaker 3 (Rebecca Glassberg): Oh, do you think anyone who hasn't asked.
+
+554
+01:12:15.050 --> 01:12:15.940
+Speaker 3 (Rebecca Glassberg): Oh, sorry.
+
+555
+01:12:30.435 --> 01:12:32.180
+Speaker 2 (Rebecca Glassberg): Like, it did what you wanted it to do.
+
+556
+01:12:32.350 --> 01:12:34.829
+Speaker 2 (Rebecca Glassberg): Just moved. How many adults are attending here?
+
+557
+01:12:38.590 --> 01:12:40.710
+Speaker 3 (Rebecca Glassberg): I'm still doing audit, dang it.
+
+558
+01:12:55.170 --> 01:12:57.459
+Speaker 2 (Rebecca Glassberg): What do you want it before children?
+
+559
+01:12:58.280 --> 01:13:00.290
+Speaker 1 (Rebecca Glassberg): Because it's not a child?
+
+560
+01:13:04.560 --> 01:13:08.080
+Speaker 1 (Rebecca Glassberg): I'm sure there's a way to move the whole section, but I don't really…
+
+561
+01:13:09.220 --> 01:13:10.419
+Speaker 3 (Rebecca Glassberg): Never do it.
+
+562
+01:13:10.920 --> 01:13:12.140
+Speaker 3 (Rebecca Glassberg): Okay.
+
+563
+01:13:14.540 --> 01:13:15.330
+Speaker 3 (Rebecca Glassberg): blah, blah, blah, blah.
+
+564
+01:13:36.810 --> 01:13:40.770
+Speaker 3 (Rebecca Glassberg): I guess, Amazing.
+
+565
+01:13:42.520 --> 01:13:43.230
+Speaker 3 (Rebecca Glassberg): Favorite.
+
+566
+01:13:54.650 --> 01:13:55.520
+Speaker 1 (Rebecca Glassberg): -Oh.
+
+567
+01:13:56.080 --> 01:13:58.879
+Speaker 1 (Rebecca Glassberg): What? It's not showing the email functions.
+
+568
+01:13:59.910 --> 01:14:01.889
+Speaker 2 (Rebecca Glassberg): They're now. Yeah.
+
+569
+01:14:02.220 --> 01:14:04.429
+Speaker 2 (Rebecca Glassberg): Didn't show the email question? I didn't see that.
+
+570
+01:14:05.360 --> 01:14:06.589
+Speaker 3 (Rebecca Glassberg): That's why I still have it.
+
+571
+01:14:08.880 --> 01:14:09.740
+Speaker 3 (Rebecca Glassberg): Two rainbows.
+
+572
+01:14:15.450 --> 01:14:17.930
+Speaker 3 (Rebecca Glassberg): some wheels, but… Oh, no, oh my god.
+
+573
+01:14:19.180 --> 01:14:19.910
+Speaker 3 (Rebecca Glassberg): picking up.
+
+574
+01:14:22.570 --> 01:14:24.330
+Speaker 3 (Rebecca Glassberg): That's the reason I wanted to see me.
+
+575
+01:14:25.340 --> 01:14:36.214
+Speaker 9 (Rebecca Glassberg): Small update. We've sent the invitations for Joy for Sunday, Donna. Okay. We're gonna send… tomorrow, we're gonna send the Gamara.
+
+576
+01:14:36.215 --> 01:14:41.739
+Speaker 2 (Rebecca Glassberg): I think I have to put, like… There's, like, 20 families signed up for Crown of the Joy, right? Yeah.
+
+577
+01:14:44.140 --> 01:14:45.280
+Speaker 9 (Rebecca Glassberg): Not many.
+
+578
+01:14:45.520 --> 01:14:46.340
+Speaker 1 (Rebecca Glassberg): Nice.
+
+579
+01:14:46.500 --> 01:14:47.880
+Speaker 9 (Rebecca Glassberg): Thanks.
+
+580
+01:14:48.560 --> 01:14:51.360
+Speaker 9 (Rebecca Glassberg): Rebecca, she's already…
+
+581
+01:14:52.030 --> 01:14:57.250
+Speaker 1 (Rebecca Glassberg): I didn't break anything. I believe that. But he's gonna start…
+
+582
+01:14:58.440 --> 01:15:01.814
+Speaker 9 (Rebecca Glassberg): We need to see what the Monday can tell for ASAP.
+
+583
+01:15:01.815 --> 01:15:04.500
+Speaker 1 (Rebecca Glassberg): What do you want me to do?
+
+584
+01:15:04.850 --> 01:15:08.225
+Speaker 1 (Rebecca Glassberg): Probably reminders, probably…
+
+585
+01:15:08.225 --> 01:15:11.439
+Speaker 9 (Rebecca Glassberg): She needs to know when is the event.
+
+586
+01:15:11.590 --> 01:15:19.989
+Speaker 9 (Rebecca Glassberg): It's on the floor. She needs to know that she's sent already, she needs to know which events she didn't send yet.
+
+587
+01:15:20.020 --> 01:15:27.144
+Speaker 1 (Rebecca Glassberg): I think maybe… Why don't we need to go over those steps? Okay. We have a category where it's like.
+
+588
+01:15:27.145 --> 01:15:28.645
+Speaker 2 (Rebecca Glassberg): This is something that has, like, a big guest.
+
+589
+01:15:28.645 --> 01:15:30.880
+Speaker 1 (Rebecca Glassberg): list that I'm handling. Okay.
+
+590
+01:15:30.880 --> 01:15:33.504
+Speaker 9 (Rebecca Glassberg): You could… maybe you should…
+
+591
+01:15:33.505 --> 01:15:38.755
+Speaker 1 (Rebecca Glassberg): Yeah, that's a good idea, let's do that. Yeah, I'll invite you. I'll invite you.
+
+592
+01:15:38.755 --> 01:15:44.339
+Speaker 2 (Rebecca Glassberg): Perfect. And what about the arrival details? The arrival details for Young Doralador?
+
+593
+01:15:44.700 --> 01:15:51.685
+Speaker 9 (Rebecca Glassberg): Let's… I'll… I'll send it. That's…
+
+594
+01:15:51.685 --> 01:15:55.435
+Speaker 2 (Rebecca Glassberg): Okay, we usually send it, like, tomorrow.
+
+595
+01:15:55.435 --> 01:15:56.185
+Speaker 1 (Rebecca Glassberg): at the moment.
+
+596
+01:15:56.185 --> 01:15:58.650
+Speaker 2 (Rebecca Glassberg): I think so. It's Monday, Tuesday?
+
+597
+01:15:58.810 --> 01:16:02.590
+Speaker 9 (Rebecca Glassberg): Okay. When you finish, come down. Okay.
+
+598
+01:16:03.980 --> 01:16:07.355
+Speaker 2 (Rebecca Glassberg): I think this is good. Thank you so much. Can we embed it? Or how do we…
+
+599
+01:16:07.355 --> 01:16:11.400
+Speaker 1 (Rebecca Glassberg): how do we go about embedding it? Right, so now, go back into the…
+
+600
+01:16:12.420 --> 01:16:18.079
+Speaker 1 (Rebecca Glassberg): Like, yeah, you could just click here, like, how do I embed?
+
+601
+01:16:18.970 --> 01:16:22.050
+Speaker 1 (Rebecca Glassberg): the form. I mean, I could tell you how, but you could also ask, like…
+
+602
+01:16:22.360 --> 01:16:26.480
+Speaker 1 (Rebecca Glassberg): what link am I supposed to get, or I don't know, I should just ask it how to do it.
+
+603
+01:16:32.390 --> 01:16:38.190
+Speaker 3 (Rebecca Glassberg): I was gonna just, update,
+
+604
+01:16:45.010 --> 01:16:45.740
+Speaker 3 (Rebecca Glassberg): Good stuff.
+
+605
+01:16:50.410 --> 01:16:52.330
+Speaker 3 (Rebecca Glassberg): interview with E30.
+
+606
+01:16:56.980 --> 01:16:57.740
+Speaker 3 (Rebecca Glassberg): Nobody.
+
+607
+01:16:59.290 --> 01:16:59.970
+Speaker 3 (Rebecca Glassberg): Good luck.
+
+608
+01:17:18.310 --> 01:17:21.040
+Speaker 1 (Rebecca Glassberg): You could just paste the embed form in here and tell it.
+
+609
+01:17:24.170 --> 01:17:27.950
+Speaker 1 (Rebecca Glassberg): Like, you want to get the embed code, so you wanna… Can I publish it?
+
+610
+01:17:28.190 --> 01:17:31.590
+Speaker 1 (Rebecca Glassberg): Yeah, I think if you click publish, it'll be here.
+
+611
+01:17:31.760 --> 01:17:32.820
+Speaker 2 (Rebecca Glassberg): Copy link.
+
+612
+01:17:33.210 --> 01:17:36.270
+Speaker 1 (Rebecca Glassberg): Are you, yeah, copy code.
+
+613
+01:17:38.320 --> 01:17:43.119
+Speaker 1 (Rebecca Glassberg): So here's in the… in the… is the embed code, can you tell me what to… which sections to update?
+
+614
+01:17:44.000 --> 01:17:47.374
+Speaker 1 (Rebecca Glassberg): Also, did it put the Google Calendar invites in there? No.
+
+615
+01:17:47.375 --> 01:17:49.639
+Speaker 2 (Rebecca Glassberg): Okay. But it's a little confusing because there's two events.
+
+616
+01:17:50.500 --> 01:17:56.670
+Speaker 1 (Rebecca Glassberg): I don't know that we should… it's two different days. Yeah, but it puts for different… each one. Are you sure it didn't? Like, you saw that it didn't…
+
+617
+01:17:56.850 --> 01:17:59.474
+Speaker 2 (Rebecca Glassberg): I didn't see it, but I didn't look at the… Okay.
+
+618
+01:17:59.475 --> 01:18:00.975
+Speaker 1 (Rebecca Glassberg): UK.
+
+619
+01:18:00.975 --> 01:18:01.724
+Speaker 2 (Rebecca Glassberg): Yeah, it's feeling really bad.
+
+620
+01:18:01.725 --> 01:18:03.225
+Speaker 1 (Rebecca Glassberg): I'm sorry, do you want to add, Bill?
+
+621
+01:18:03.225 --> 01:18:04.409
+Speaker 2 (Rebecca Glassberg): Oh, it's okay.
+
+622
+01:18:13.210 --> 01:18:15.189
+Speaker 1 (Rebecca Glassberg): You don't water? No, okay.
+
+623
+01:18:18.540 --> 01:18:22.500
+Speaker 1 (Rebecca Glassberg): Actually, yeah, I'm gonna be right back, I'm gonna go fill this up. Okay.
+
+624
+01:18:22.660 --> 01:18:24.849
+Speaker 3 (Rebecca Glassberg): I'm gonna leave. No, no, wait.
+
+625
+01:18:32.510 --> 01:18:33.630
+Speaker 1 (Rebecca Glassberg): Okay.
+
+626
+01:18:34.870 --> 01:18:35.710
+Speaker 1 (Rebecca Glassberg): Great.
+
+627
+01:18:36.230 --> 01:18:39.380
+Speaker 2 (Rebecca Glassberg): The only thing is, I asked it to put the down arrow button.
+
+628
+01:18:39.550 --> 01:18:40.819
+Speaker 2 (Rebecca Glassberg): I don't know if it did it.
+
+629
+01:18:41.130 --> 01:18:43.780
+Speaker 1 (Rebecca Glassberg): No, it won't know how to do that, because it's…
+
+630
+01:18:44.440 --> 01:18:49.600
+Speaker 1 (Rebecca Glassberg): Okay, so, go back to the form. Go back to… open a new tab.
+
+631
+01:18:50.200 --> 01:18:52.075
+Speaker 1 (Rebecca Glassberg): Wait, the down arrow's been removed from the.
+
+632
+01:18:52.075 --> 01:18:55.269
+Speaker 2 (Rebecca Glassberg): I asked him to add it, and it didn't work, so I asked him to remove it.
+
+633
+01:18:55.550 --> 01:18:57.240
+Speaker 1 (Rebecca Glassberg): What down arrow?
+
+634
+01:18:58.800 --> 01:19:03.674
+Speaker 2 (Rebecca Glassberg): I just want an arrow to make… make them… make sure people know to complete… finish completing.
+
+635
+01:19:03.675 --> 01:19:09.160
+Speaker 1 (Rebecca Glassberg): Right, right, okay, go to… so that's what I thought. So, open a new tab? Like, duplicate the tab?
+
+636
+01:19:10.980 --> 01:19:14.099
+Speaker 3 (Rebecca Glassberg): Gary, the most effective thing is to talk to his parents.
+
+637
+01:19:14.560 --> 01:19:15.409
+Speaker 3 (Rebecca Glassberg): Thank you, baby.
+
+638
+01:19:16.350 --> 01:19:17.090
+Speaker 3 (Rebecca Glassberg): Thank you, wonderful.
+
+639
+01:19:17.480 --> 01:19:25.400
+Speaker 1 (Rebecca Glassberg): And then go to, like, one of the older forms, like, here, click here…
+
+640
+01:19:29.090 --> 01:19:32.439
+Speaker 1 (Rebecca Glassberg): Young Draw a door.
+
+641
+01:19:34.840 --> 01:19:36.779
+Speaker 1 (Rebecca Glassberg): Express, I didn't copy.
+
+642
+01:19:37.070 --> 01:19:42.940
+Speaker 1 (Rebecca Glassberg): Maybe it did, I don't know. You just, like, opened the results. Do you want to click into…
+
+643
+01:19:47.000 --> 01:19:48.350
+Speaker 3 (Rebecca Glassberg): Like, it's like a million…
+
+644
+01:19:48.460 --> 01:19:55.960
+Speaker 1 (Rebecca Glassberg): Go to, I think it's under… Publish, maybe?
+
+645
+01:19:57.120 --> 01:20:01.320
+Speaker 1 (Rebecca Glassberg): Alright, scroll down… No, go to Settings.
+
+646
+01:20:06.085 --> 01:20:13.260
+Speaker 1 (Rebecca Glassberg): No, I think it's in, wait, go back to Bill. No, no, go back to Bill. Oh, yeah, probably.
+
+647
+01:20:13.670 --> 01:20:15.850
+Speaker 1 (Rebecca Glassberg): Yeah, so you want this image.
+
+648
+01:20:16.630 --> 01:20:22.359
+Speaker 1 (Rebecca Glassberg): Actually, it's probably even in the saved ones. Go back to the other one. Go to.
+
+649
+01:20:23.310 --> 01:20:25.185
+Speaker 3 (Rebecca Glassberg): Not send kids to…
+
+650
+01:20:25.185 --> 01:20:32.239
+Speaker 1 (Rebecca Glassberg): It was already there. Oh, because a copy, great. Okay, so you didn't see it when you… I didn't test the form yet. Oh, okay.
+
+651
+01:20:32.830 --> 01:20:34.704
+Speaker 3 (Rebecca Glassberg): But do you think that it doesn't…
+
+652
+01:20:34.705 --> 01:20:36.860
+Speaker 2 (Rebecca Glassberg): I think it looks fine.
+
+653
+01:20:38.620 --> 01:20:39.870
+Speaker 3 (Rebecca Glassberg): the, like, COVID-19.
+
+654
+01:20:41.150 --> 01:20:43.590
+Speaker 3 (Rebecca Glassberg): They just don't know. They just think it's, like, what are they doing?
+
+655
+01:20:46.460 --> 01:20:48.970
+Speaker 3 (Rebecca Glassberg): Thank you so much. Can we test it?
+
+656
+01:20:49.570 --> 01:20:50.810
+Speaker 1 (Rebecca Glassberg): If you want.
+
+657
+01:20:51.710 --> 01:20:52.980
+Speaker 3 (Rebecca Glassberg): Hold on.
+
+658
+01:20:54.250 --> 01:20:55.470
+Speaker 3 (Rebecca Glassberg): Oh, yes, thank you.
+
+659
+01:20:56.210 --> 01:20:57.250
+Speaker 3 (Rebecca Glassberg): What's what I had?
+
+660
+01:20:57.820 --> 01:21:00.370
+Speaker 3 (Rebecca Glassberg): And no one's been allowed to do that.
+
+661
+01:21:02.830 --> 01:21:03.620
+Speaker 3 (Rebecca Glassberg): I got it.
+
+662
+01:21:05.080 --> 01:21:05.940
+Speaker 3 (Rebecca Glassberg): Good move.
+
+663
+01:21:18.520 --> 01:21:21.469
+Speaker 3 (Rebecca Glassberg): You're way less than diplomatic than you are.
+
+664
+01:21:23.760 --> 01:21:25.829
+Speaker 3 (Rebecca Glassberg): You just said lacking fundamental…
+
+665
+01:21:34.360 --> 01:21:35.550
+Speaker 1 (Rebecca Glassberg): Can you scroll down?
+
+666
+01:21:36.240 --> 01:21:40.690
+Speaker 1 (Rebecca Glassberg): Yeah. Okay. So it just… it did… so… Oh, it's here. Yeah.
+
+667
+01:21:42.010 --> 01:22:01.515
+Speaker 1 (Rebecca Glassberg): It will… it'll only add a Google Calendar button on its own. If you wanted to add the ICS, you have to create a file, so I feel like just leave it. If people complain, then we can do that, but, like, I think it's good to just have the ad to Google. Like, most people use Google. Yeah. Right? I don't know.
+
+668
+01:22:01.515 --> 01:22:03.765
+Speaker 2 (Rebecca Glassberg): Great. I think this is good, I think it's good.
+
+669
+01:22:03.765 --> 01:22:13.829
+Speaker 1 (Rebecca Glassberg): And then see, yeah, you should get a confirmation email, and we want to make sure that you don't get one. This is not it. We want to make sure that you don't get one. Did you put in your email address?
+
+670
+01:22:17.650 --> 01:22:21.910
+Speaker 1 (Rebecca Glassberg): Oh, because you logged in, right? So it should… okay, yeah, let's just see how that looks.
+
+671
+01:22:24.930 --> 01:22:25.700
+Speaker 1 (Rebecca Glassberg): Great.
+
+672
+01:22:27.510 --> 01:22:28.829
+Speaker 2 (Rebecca Glassberg): Okay, it's fine.
+
+673
+01:22:29.380 --> 01:22:34.305
+Speaker 1 (Rebecca Glassberg): And then, great. Just.
+
+674
+01:22:34.305 --> 01:22:35.804
+Speaker 2 (Rebecca Glassberg): Select for a look at the form to make sure.
+
+675
+01:22:35.805 --> 01:22:40.459
+Speaker 1 (Rebecca Glassberg): the codes are good. Oh yeah, okay, and then go to the job form, I'll just show you how to grab the,
+
+676
+01:22:40.670 --> 01:22:42.120
+Speaker 1 (Rebecca Glassberg): the spreadsheet.
+
+677
+01:22:42.970 --> 01:22:47.649
+Speaker 1 (Rebecca Glassberg): So, go… yeah, go… I don't know, it's like one of these. Go to… Publish.
+
+678
+01:22:49.340 --> 01:22:50.880
+Speaker 1 (Rebecca Glassberg): Go back to Build.
+
+679
+01:22:51.440 --> 01:22:52.990
+Speaker 1 (Rebecca Glassberg): No, sorry.
+
+680
+01:22:53.340 --> 01:22:56.719
+Speaker 1 (Rebecca Glassberg): It's, like, one of the things on the side.
+
+681
+01:22:58.870 --> 01:23:03.339
+Speaker 1 (Rebecca Glassberg): Oh, third-party publisher? No, I don't think so. Click it, though.
+
+682
+01:23:03.880 --> 01:23:13.119
+Speaker 1 (Rebecca Glassberg): Platforms? No, that wasn't it. Where the heck was it? Go back to settings, I guess. Maybe you sign the form?
+
+683
+01:23:14.160 --> 01:23:17.550
+Speaker 1 (Rebecca Glassberg): No, there's, like, a thing where you… it was on the side.
+
+684
+01:23:19.250 --> 01:23:22.550
+Speaker 1 (Rebecca Glassberg): Just make sure that there's no notifications.
+
+685
+01:23:23.150 --> 01:23:24.980
+Speaker 1 (Rebecca Glassberg): They should be off, but…
+
+686
+01:23:25.570 --> 01:23:29.939
+Speaker 1 (Rebecca Glassberg): Oh, cool, we could add Slack, so if we could do this for teachers, that's cool.
+
+687
+01:23:30.310 --> 01:23:37.129
+Speaker 1 (Rebecca Glassberg): And you could add… that's cool, but anyway, go down. Integrations, as integrations. Oh.
+
+688
+01:23:41.370 --> 01:23:42.719
+Speaker 1 (Rebecca Glassberg): on Google Sheets.
+
+689
+01:23:42.980 --> 01:23:43.930
+Speaker 1 (Rebecca Glassberg): Mmm.
+
+690
+01:23:47.340 --> 01:23:52.170
+Speaker 1 (Rebecca Glassberg): Okay, shoot. We have to… because it copied. So, wait, is that… are we on the right form?
+
+691
+01:23:53.580 --> 01:23:55.769
+Speaker 1 (Rebecca Glassberg): No. No, go to the other one.
+
+692
+01:23:56.790 --> 01:23:57.570
+Speaker 1 (Rebecca Glassberg): Great.
+
+693
+01:24:01.770 --> 01:24:03.699
+Speaker 3 (Rebecca Glassberg): It's not a long-term picture.
+
+694
+01:24:03.930 --> 01:24:12.500
+Speaker 1 (Rebecca Glassberg): Oh, interesting. If you could add Google Calendar as an integration, I wonder if that does it. Yeah, create new, good. And then you just share it with whoever you want.
+
+695
+01:24:12.750 --> 01:24:19.229
+Speaker 1 (Rebecca Glassberg): Oh, interesting. Your authenticated Google Sheets will appear here. You could say use another account.
+
+696
+01:24:23.230 --> 01:24:29.119
+Speaker 1 (Rebecca Glassberg): Do you want me to do this? Yeah, sure. Just, you could just share the form, select all, and then you could just share it with…
+
+697
+01:24:31.650 --> 01:24:38.380
+Speaker 1 (Rebecca Glassberg): like, this is embedded, and then you could decide if… yeah. But scroll down a second, I just want to see one thing at the bottom.
+
+698
+01:24:38.800 --> 01:24:43.160
+Speaker 1 (Rebecca Glassberg): Yeah, I don't think you need any of that. Oh, you could add submission date.
+
+699
+01:24:43.310 --> 01:24:45.630
+Speaker 2 (Rebecca Glassberg): Send existing submissions to…
+
+700
+01:24:46.280 --> 01:24:54.630
+Speaker 1 (Rebecca Glassberg): Yeah. Save. To the sheet? Yeah. I mean, only you signed up so far. Let's just confirm…
+
+701
+01:24:55.310 --> 01:24:55.990
+Speaker 3 (Rebecca Glassberg): Okay.
+
+702
+01:24:56.590 --> 01:24:58.830
+Speaker 1 (Rebecca Glassberg): Yay. Great.
+
+703
+01:24:58.990 --> 01:25:03.950
+Speaker 1 (Rebecca Glassberg): Okay, I'm gonna stop this, and then I'll have it write up directions for you. All over the place.
+
