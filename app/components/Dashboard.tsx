@@ -1617,33 +1617,33 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                 {/* Left Column - Action Emails */}
                 <div className="space-y-6">
                   {/* RBK Action Emails */}
-                  <div className="bg-gradient-to-br from-sky-500 to-blue-600 rounded-xl p-5 shadow-lg">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-bold text-white">RBK Action Emails</h3>
+                  <div className="bg-gray-50 rounded-xl p-5 shadow-sm border border-gray-200">
+                    <div className="flex items-center justify-between mb-4 sticky top-0 z-10 bg-gray-50 pb-2">
+                      <h3 className="text-lg font-bold text-gray-900">RBK Action Emails</h3>
                       <div className="flex items-center gap-2">
                         {rbkActionEmails.length > 0 && (
                           <button
                             onClick={(e) => { e.stopPropagation(); markSectionDone(rbkActionEmails.map(e => e.id)); }}
                             disabled={bulkUpdating}
-                            className="bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded-full text-xs font-medium transition-colors disabled:opacity-50"
+                            className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
                           >
-                            ✓ All Done
+                            All Done
                           </button>
                         )}
-                        <span className="bg-white/20 text-white px-3 py-1 rounded-full text-sm font-medium">
+                        <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold">
                           {rbkActionEmails.length}
                         </span>
                       </div>
                     </div>
-                    <div className="space-y-3 max-h-80 overflow-y-auto">
+                    <div className="space-y-3">
                       {rbkActionEmails.length === 0 ? (
-                        <p className="text-white/70 text-sm">No action items</p>
+                        <p className="text-gray-500 text-sm">No action items</p>
                       ) : (
                         rbkActionEmails.map((email) => (
                           <div
                             key={email.id}
                             onClick={() => setExpandedEmail(expandedEmail === email.id ? null : email.id)}
-                            className={`bg-white/50 hover:bg-white/60 rounded-lg p-3 cursor-pointer transition-all backdrop-blur-sm shadow-sm ${selectedEmails.has(email.id) ? 'ring-2 ring-white' : ''}`}
+                            className={`bg-white border-2 border-blue-600 rounded-lg p-3 cursor-pointer transition-all shadow-sm hover:shadow-md ${selectedEmails.has(email.id) ? 'ring-2 ring-blue-400' : ''}`}
                           >
                             <div className="flex items-start gap-2">
                               <input
@@ -1702,45 +1702,51 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                     {email.body_text || email.summary}
                                   </p>
                                 </div>
-                                <div className="flex flex-wrap gap-2 mt-3">
+                                <div className="flex flex-wrap items-center gap-2 mt-3">
                                   <button
                                     onClick={(e) => { e.stopPropagation(); updateStatus(email.id, 'done'); }}
-                                    className="bg-white text-green-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200"
+                                    className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold border-2 border-green-600 hover:bg-green-700"
                                   >
-                                    ✓ Done
+                                    Done
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent'); }}
-                                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200 ${
-                                      email.action_status === 'urgent' ? 'bg-red-500 text-white' : 'bg-white text-red-500'
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border-2 ${
+                                      email.action_status === 'urgent' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-red-600 border-red-600 hover:bg-red-50'
                                     }`}
                                   >
-                                    🚨 {email.action_status === 'urgent' ? 'Urgent' : 'Mark Urgent'}
+                                    {email.action_status === 'urgent' ? 'Urgent' : 'Urgent'}
                                   </button>
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); toggleMeetingFlag(email.id, email.flagged_for_meeting); }}
-                                    className="bg-white text-amber-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200"
-                                  >
-                                    {email.flagged_for_meeting ? '⭐ On Agenda' : '☆ On Agenda'}
-                                  </button>
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }}
-                                    className="bg-white text-blue-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200"
-                                  >
-                                    ✏️ Edit Draft
-                                  </button>
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); openEventModalFromEmail(email); }}
-                                    className="bg-white text-blue-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200"
-                                  >
-                                    📅 Add to Calendar
-                                  </button>
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }}
-                                    className="bg-white text-violet-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200"
-                                  >
-                                    ⏰ Remind Me
-                                  </button>
+                                  <div className="flex items-center gap-1 ml-auto">
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); toggleMeetingFlag(email.id, email.flagged_for_meeting); }}
+                                      className={`p-2 rounded-full hover:bg-gray-100 ${email.flagged_for_meeting ? 'text-amber-500' : 'text-gray-400'}`}
+                                      title="Add to Agenda"
+                                    >
+                                      {email.flagged_for_meeting ? '⭐' : '☆'}
+                                    </button>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }}
+                                      className="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                                      title="Edit Draft"
+                                    >
+                                      ✏️
+                                    </button>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); openEventModalFromEmail(email); }}
+                                      className="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                                      title="Add to Calendar"
+                                    >
+                                      📅
+                                    </button>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }}
+                                      className="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                                      title="Remind Me"
+                                    >
+                                      ⏰
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
                             )}
@@ -1751,33 +1757,33 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   </div>
 
                   {/* Emily Action Emails */}
-                  <div className="bg-gradient-to-br from-blue-400 to-sky-500 rounded-xl p-5 shadow-lg">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-bold text-white">Emily Action Emails</h3>
+                  <div className="bg-gray-50 rounded-xl p-5 shadow-sm border border-gray-200">
+                    <div className="flex items-center justify-between mb-4 sticky top-0 z-10 bg-gray-50 pb-2">
+                      <h3 className="text-lg font-bold text-gray-900">Emily Action Emails</h3>
                       <div className="flex items-center gap-2">
                         {emilyActionEmails.length > 0 && (
                           <button
                             onClick={(e) => { e.stopPropagation(); markSectionDone(emilyActionEmails.map(e => e.id)); }}
                             disabled={bulkUpdating}
-                            className="bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded-full text-xs font-medium transition-colors disabled:opacity-50"
+                            className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
                           >
-                            ✓ All Done
+                            All Done
                           </button>
                         )}
-                        <span className="bg-white/20 text-white px-3 py-1 rounded-full text-sm font-medium">
+                        <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold">
                           {emilyActionEmails.length}
                         </span>
                       </div>
                     </div>
-                    <div className="space-y-3 max-h-80 overflow-y-auto">
+                    <div className="space-y-3">
                       {emilyActionEmails.length === 0 ? (
-                        <p className="text-white/70 text-sm">No action items</p>
+                        <p className="text-gray-500 text-sm">No action items</p>
                       ) : (
                         emilyActionEmails.map((email) => (
                           <div
                             key={email.id}
                             onClick={() => setExpandedEmail(expandedEmail === email.id ? null : email.id)}
-                            className={`bg-white/50 hover:bg-white/60 rounded-lg p-3 cursor-pointer transition-all backdrop-blur-sm shadow-sm ${selectedEmails.has(email.id) ? 'ring-2 ring-white' : ''}`}
+                            className={`bg-white border-2 border-blue-600 rounded-lg p-3 cursor-pointer transition-all shadow-sm hover:shadow-md ${selectedEmails.has(email.id) ? 'ring-2 ring-blue-400' : ''}`}
                           >
                             <div className="flex items-start gap-2">
                               <input
@@ -1836,45 +1842,51 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                     {email.body_text || email.summary}
                                   </p>
                                 </div>
-                                <div className="flex flex-wrap gap-2 mt-3">
+                                <div className="flex flex-wrap items-center gap-2 mt-3">
                                   <button
                                     onClick={(e) => { e.stopPropagation(); updateStatus(email.id, 'done'); }}
-                                    className="bg-white text-green-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200"
+                                    className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold border-2 border-green-600 hover:bg-green-700"
                                   >
-                                    ✓ Done
+                                    Done
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent'); }}
-                                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200 ${
-                                      email.action_status === 'urgent' ? 'bg-red-500 text-white' : 'bg-white text-red-500'
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border-2 ${
+                                      email.action_status === 'urgent' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-red-600 border-red-600 hover:bg-red-50'
                                     }`}
                                   >
-                                    🚨 {email.action_status === 'urgent' ? 'Urgent' : 'Mark Urgent'}
+                                    Urgent
                                   </button>
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); toggleMeetingFlag(email.id, email.flagged_for_meeting); }}
-                                    className="bg-white text-amber-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200"
-                                  >
-                                    {email.flagged_for_meeting ? '⭐ On Agenda' : '☆ On Agenda'}
-                                  </button>
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }}
-                                    className="bg-white text-blue-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200"
-                                  >
-                                    ✏️ Edit Draft
-                                  </button>
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); openEventModalFromEmail(email); }}
-                                    className="bg-white text-blue-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200"
-                                  >
-                                    📅 Add to Calendar
-                                  </button>
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }}
-                                    className="bg-white text-violet-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200"
-                                  >
-                                    ⏰ Remind Me
-                                  </button>
+                                  <div className="flex items-center gap-1 ml-auto">
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); toggleMeetingFlag(email.id, email.flagged_for_meeting); }}
+                                      className={`p-2 rounded-full hover:bg-gray-100 ${email.flagged_for_meeting ? 'text-amber-500' : 'text-gray-400'}`}
+                                      title="Add to Agenda"
+                                    >
+                                      {email.flagged_for_meeting ? '⭐' : '☆'}
+                                    </button>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }}
+                                      className="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                                      title="Edit Draft"
+                                    >
+                                      ✏️
+                                    </button>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); openEventModalFromEmail(email); }}
+                                      className="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                                      title="Add to Calendar"
+                                    >
+                                      📅
+                                    </button>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }}
+                                      className="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                                      title="Remind Me"
+                                    >
+                                      ⏰
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
                             )}
@@ -1907,48 +1919,48 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                 {/* Right Column - Collapsible Categories */}
                 <div className="space-y-4">
                   {/* Important No Action */}
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                  <div className="bg-slate-100 rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <button
                       onClick={() => setExpandedSections(s => ({ ...s, important_no_action: !s.important_no_action }))}
-                      className="w-full bg-gradient-to-r from-gray-600 to-gray-700 px-4 py-3 flex items-center justify-between text-white"
+                      className="w-full bg-slate-200 px-4 py-3 flex items-center justify-between text-slate-800 sticky top-0 z-10"
                     >
-                      <span className="font-semibold">Important No Action</span>
+                      <span className="font-bold text-lg">Important No Action</span>
                       <div className="flex items-center gap-2">
                         {importantNoAction.length > 0 && (
                           <button
                             onClick={(e) => { e.stopPropagation(); markSectionDone(importantNoAction.map(em => em.id)); }}
                             disabled={bulkUpdating}
-                            className="bg-white/20 hover:bg-white/30 px-2 py-0.5 rounded text-xs font-medium transition-colors disabled:opacity-50"
+                            className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
                           >
-                            ✓ All Done
+                            All Done
                           </button>
                         )}
-                        <span className="bg-white/20 px-2 py-0.5 rounded-full text-sm">{importantNoAction.length}</span>
+                        <span className="bg-slate-600 text-white px-3 py-1 rounded-full text-xs font-bold">{importantNoAction.length}</span>
                         <span className={`transition-transform ${expandedSections.important_no_action ? 'rotate-180' : ''}`}>▼</span>
                       </div>
                     </button>
                     {expandedSections.important_no_action && (
-                      <div className="p-4 space-y-2 max-h-80 overflow-y-auto">
+                      <div className="p-4 space-y-3">
                         {importantNoAction.length === 0 ? (
-                          <p className="text-gray-400 text-sm">No emails</p>
+                          <p className="text-gray-500 text-sm">No emails</p>
                         ) : (
                           importantNoAction.map((email) => (
                             <div
                               key={email.id}
-                              className={`p-3 bg-gray-50 rounded-lg cursor-pointer transition-all ${expandedEmail === email.id ? 'ring-2 ring-gray-400' : 'hover:bg-gray-100'}`}
+                              className={`bg-white border border-slate-300 rounded-lg p-3 cursor-pointer transition-all shadow-sm hover:shadow-md ${expandedEmail === email.id ? 'ring-2 ring-slate-400' : ''}`}
                               onClick={() => setExpandedEmail(expandedEmail === email.id ? null : email.id)}
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-gray-900 text-sm">{email.subject}</p>
-                                  <p className="text-gray-500 text-xs mt-1">{email.from_name || email.from_email}</p>
+                                  <p className="font-bold text-gray-900 text-sm">{email.subject}</p>
+                                  <p className="text-gray-700 font-semibold text-xs mt-1">{email.from_name || email.from_email}</p>
                                 </div>
                                 {email.attachments && email.attachments.length > 0 && (
-                                  <span className="ml-2 bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-xs">📎 {email.attachments.length}</span>
+                                  <span className="ml-2 bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-xs font-medium">📎 {email.attachments.length}</span>
                                 )}
                               </div>
                               {expandedEmail === email.id && (
-                                <div className="mt-3 pt-3 border-t border-gray-200" onClick={(e) => e.stopPropagation()}>
+                                <div className="mt-3 pt-3 border-t border-slate-200" onClick={(e) => e.stopPropagation()}>
                                   {email.attachments && email.attachments.length > 0 && (
                                     <div className="bg-amber-50 rounded-lg p-2 mb-3 border border-amber-200">
                                       <p className="text-xs font-semibold text-amber-800 mb-1">📎 Attachments:</p>
@@ -1957,22 +1969,24 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                           <span key={idx} className="bg-white text-gray-700 px-2 py-0.5 rounded text-xs border border-amber-200">{att.name} ({formatFileSize(att.size)})</span>
                                         ))}
                                       </div>
+                                      {getGmailUrl(email.message_id) && (
+                                        <a href={getGmailUrl(email.message_id)!} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block bg-amber-500 hover:bg-amber-600 text-white px-2 py-0.5 rounded text-xs font-medium transition-colors">View Attachments →</a>
+                                      )}
                                     </div>
                                   )}
-                                  <div className="bg-white rounded-lg p-3 max-h-48 overflow-y-auto mb-3 border border-gray-100">
-                                    <p className="text-gray-700 text-sm whitespace-pre-wrap">
+                                  <div className="bg-white/80 rounded-lg p-3 max-h-60 overflow-y-auto mb-3">
+                                    <p className="text-gray-800 text-sm whitespace-pre-wrap">
                                       {email.body_text || email.summary}
                                     </p>
                                   </div>
-                                  <div className="flex flex-wrap gap-2">
-                                    {email.attachments && email.attachments.length > 0 && getGmailUrl(email.message_id) && (
-                                      <a href={getGmailUrl(email.message_id)!} target="_blank" rel="noopener noreferrer" className="bg-white text-gray-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200">📎 View Attachments</a>
-                                    )}
-                                    <button onClick={() => updateStatus(email.id, 'done')} className="bg-white text-green-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200">✓ Done</button>
-                                    <button onClick={() => updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent')} className={`px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200 ${email.action_status === 'urgent' ? 'bg-red-500 text-white' : 'bg-white text-red-500'}`}>🚨 {email.action_status === 'urgent' ? 'Urgent' : 'Mark Urgent'}</button>
-                                    <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className="bg-white text-amber-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200">{email.flagged_for_meeting ? '⭐ On Agenda' : '☆ On Agenda'}</button>
-                                    <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="bg-white text-blue-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200">✏️ Edit Draft</button>
-                                    <button onClick={() => { setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }} className="bg-white text-violet-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200">⏰ Remind Me</button>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <button onClick={() => updateStatus(email.id, 'done')} className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold border-2 border-green-600 hover:bg-green-700">Done</button>
+                                    <button onClick={() => updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent')} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border-2 ${email.action_status === 'urgent' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-red-600 border-red-600 hover:bg-red-50'}`}>Urgent</button>
+                                    <div className="flex items-center gap-1 ml-auto">
+                                      <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className={`p-2 rounded-full hover:bg-gray-100 ${email.flagged_for_meeting ? 'text-amber-500' : 'text-gray-400'}`} title="Add to Agenda">{email.flagged_for_meeting ? '⭐' : '☆'}</button>
+                                      <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="p-2 rounded-full hover:bg-gray-100 text-gray-500" title="Edit Draft">✏️</button>
+                                      <button onClick={() => { setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }} className="p-2 rounded-full hover:bg-gray-100 text-gray-500" title="Remind Me">⏰</button>
+                                    </div>
                                   </div>
                                 </div>
                               )}
@@ -1984,48 +1998,48 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   </div>
 
                   {/* Review */}
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                  <div className="bg-slate-100 rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <button
                       onClick={() => setExpandedSections(s => ({ ...s, review: !s.review }))}
-                      className="w-full bg-gradient-to-r from-gray-500 to-gray-600 px-4 py-3 flex items-center justify-between text-white"
+                      className="w-full bg-slate-200 px-4 py-3 flex items-center justify-between text-slate-800 sticky top-0 z-10"
                     >
-                      <span className="font-semibold">Review</span>
+                      <span className="font-bold text-lg">Review</span>
                       <div className="flex items-center gap-2">
                         {reviewEmails.length > 0 && (
                           <button
                             onClick={(e) => { e.stopPropagation(); markSectionDone(reviewEmails.map(em => em.id)); }}
                             disabled={bulkUpdating}
-                            className="bg-white/20 hover:bg-white/30 px-2 py-0.5 rounded text-xs font-medium transition-colors disabled:opacity-50"
+                            className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
                           >
-                            ✓ All Done
+                            All Done
                           </button>
                         )}
-                        <span className="bg-white/20 px-2 py-0.5 rounded-full text-sm">{reviewEmails.length}</span>
+                        <span className="bg-slate-600 text-white px-3 py-1 rounded-full text-xs font-bold">{reviewEmails.length}</span>
                         <span className={`transition-transform ${expandedSections.review ? 'rotate-180' : ''}`}>▼</span>
                       </div>
                     </button>
                     {expandedSections.review && (
-                      <div className="p-4 space-y-2 max-h-80 overflow-y-auto">
+                      <div className="p-4 space-y-3">
                         {reviewEmails.length === 0 ? (
-                          <p className="text-gray-400 text-sm">No emails</p>
+                          <p className="text-gray-500 text-sm">No emails</p>
                         ) : (
                           reviewEmails.map((email) => (
                             <div
                               key={email.id}
-                              className={`p-3 bg-gray-50 rounded-lg cursor-pointer transition-all ${expandedEmail === email.id ? 'ring-2 ring-gray-400' : 'hover:bg-gray-100'}`}
+                              className={`bg-white border border-slate-300 rounded-lg p-3 cursor-pointer transition-all shadow-sm hover:shadow-md ${expandedEmail === email.id ? 'ring-2 ring-slate-400' : ''}`}
                               onClick={() => setExpandedEmail(expandedEmail === email.id ? null : email.id)}
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-gray-900 text-sm">{email.subject}</p>
-                                  <p className="text-gray-500 text-xs mt-1">{email.from_name || email.from_email}</p>
+                                  <p className="font-bold text-gray-900 text-sm">{email.subject}</p>
+                                  <p className="text-gray-700 font-semibold text-xs mt-1">{email.from_name || email.from_email}</p>
                                 </div>
                                 {email.attachments && email.attachments.length > 0 && (
-                                  <span className="ml-2 bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-xs">📎 {email.attachments.length}</span>
+                                  <span className="ml-2 bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-xs font-medium">📎 {email.attachments.length}</span>
                                 )}
                               </div>
                               {expandedEmail === email.id && (
-                                <div className="mt-3 pt-3 border-t border-gray-200" onClick={(e) => e.stopPropagation()}>
+                                <div className="mt-3 pt-3 border-t border-slate-200" onClick={(e) => e.stopPropagation()}>
                                   {email.attachments && email.attachments.length > 0 && (
                                     <div className="bg-amber-50 rounded-lg p-2 mb-3 border border-amber-200">
                                       <p className="text-xs font-semibold text-amber-800 mb-1">📎 Attachments:</p>
@@ -2034,22 +2048,24 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                           <span key={idx} className="bg-white text-gray-700 px-2 py-0.5 rounded text-xs border border-amber-200">{att.name} ({formatFileSize(att.size)})</span>
                                         ))}
                                       </div>
+                                      {getGmailUrl(email.message_id) && (
+                                        <a href={getGmailUrl(email.message_id)!} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block bg-amber-500 hover:bg-amber-600 text-white px-2 py-0.5 rounded text-xs font-medium transition-colors">View Attachments →</a>
+                                      )}
                                     </div>
                                   )}
-                                  <div className="bg-white rounded-lg p-3 max-h-48 overflow-y-auto mb-3 border border-gray-100">
-                                    <p className="text-gray-700 text-sm whitespace-pre-wrap">
+                                  <div className="bg-white/80 rounded-lg p-3 max-h-60 overflow-y-auto mb-3">
+                                    <p className="text-gray-800 text-sm whitespace-pre-wrap">
                                       {email.body_text || email.summary}
                                     </p>
                                   </div>
-                                  <div className="flex flex-wrap gap-2">
-                                    {email.attachments && email.attachments.length > 0 && getGmailUrl(email.message_id) && (
-                                      <a href={getGmailUrl(email.message_id)!} target="_blank" rel="noopener noreferrer" className="bg-white text-gray-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200">📎 View Attachments</a>
-                                    )}
-                                    <button onClick={() => updateStatus(email.id, 'done')} className="bg-white text-green-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200">✓ Done</button>
-                                    <button onClick={() => updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent')} className={`px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200 ${email.action_status === 'urgent' ? 'bg-red-500 text-white' : 'bg-white text-red-500'}`}>🚨 {email.action_status === 'urgent' ? 'Urgent' : 'Mark Urgent'}</button>
-                                    <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className="bg-white text-amber-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200">{email.flagged_for_meeting ? '⭐ On Agenda' : '☆ On Agenda'}</button>
-                                    <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="bg-white text-blue-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200">✏️ Edit Draft</button>
-                                    <button onClick={() => { setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }} className="bg-white text-violet-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200">⏰ Remind Me</button>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <button onClick={() => updateStatus(email.id, 'done')} className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold border-2 border-green-600 hover:bg-green-700">Done</button>
+                                    <button onClick={() => updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent')} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border-2 ${email.action_status === 'urgent' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-red-600 border-red-600 hover:bg-red-50'}`}>Urgent</button>
+                                    <div className="flex items-center gap-1 ml-auto">
+                                      <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className={`p-2 rounded-full hover:bg-gray-100 ${email.flagged_for_meeting ? 'text-amber-500' : 'text-gray-400'}`} title="Add to Agenda">{email.flagged_for_meeting ? '⭐' : '☆'}</button>
+                                      <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="p-2 rounded-full hover:bg-gray-100 text-gray-500" title="Edit Draft">✏️</button>
+                                      <button onClick={() => { setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }} className="p-2 rounded-full hover:bg-gray-100 text-gray-500" title="Remind Me">⏰</button>
+                                    </div>
                                   </div>
                                 </div>
                               )}
@@ -2061,48 +2077,48 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   </div>
 
                   {/* Invitations */}
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                  <div className="bg-slate-100 rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <button
                       onClick={() => setExpandedSections(s => ({ ...s, invitation: !s.invitation }))}
-                      className="w-full bg-gradient-to-r from-gray-400 to-gray-500 px-4 py-3 flex items-center justify-between text-white"
+                      className="w-full bg-slate-200 px-4 py-3 flex items-center justify-between text-slate-800 sticky top-0 z-10"
                     >
-                      <span className="font-semibold">Invitations</span>
+                      <span className="font-bold text-lg">Invitations</span>
                       <div className="flex items-center gap-2">
                         {invitationEmails.length > 0 && (
                           <button
                             onClick={(e) => { e.stopPropagation(); markSectionDone(invitationEmails.map(em => em.id)); }}
                             disabled={bulkUpdating}
-                            className="bg-white/20 hover:bg-white/30 px-2 py-0.5 rounded text-xs font-medium transition-colors disabled:opacity-50"
+                            className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
                           >
-                            ✓ All Done
+                            All Done
                           </button>
                         )}
-                        <span className="bg-white/20 px-2 py-0.5 rounded-full text-sm">{invitationEmails.length}</span>
+                        <span className="bg-slate-600 text-white px-3 py-1 rounded-full text-xs font-bold">{invitationEmails.length}</span>
                         <span className={`transition-transform ${expandedSections.invitation ? 'rotate-180' : ''}`}>▼</span>
                       </div>
                     </button>
                     {expandedSections.invitation && (
-                      <div className="p-4 space-y-2 max-h-80 overflow-y-auto">
+                      <div className="p-4 space-y-3">
                         {invitationEmails.length === 0 ? (
-                          <p className="text-gray-400 text-sm">No emails</p>
+                          <p className="text-gray-500 text-sm">No emails</p>
                         ) : (
                           invitationEmails.map((email) => (
                             <div
                               key={email.id}
-                              className={`p-3 bg-gray-50 rounded-lg cursor-pointer transition-all ${expandedEmail === email.id ? 'ring-2 ring-gray-400' : 'hover:bg-gray-100'}`}
+                              className={`bg-white border border-slate-300 rounded-lg p-3 cursor-pointer transition-all shadow-sm hover:shadow-md ${expandedEmail === email.id ? 'ring-2 ring-slate-400' : ''}`}
                               onClick={() => setExpandedEmail(expandedEmail === email.id ? null : email.id)}
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-gray-900 text-sm">{email.subject}</p>
-                                  <p className="text-gray-500 text-xs mt-1">{email.from_name || email.from_email}</p>
+                                  <p className="font-bold text-gray-900 text-sm">{email.subject}</p>
+                                  <p className="text-gray-700 font-semibold text-xs mt-1">{email.from_name || email.from_email}</p>
                                 </div>
                                 {email.attachments && email.attachments.length > 0 && (
-                                  <span className="ml-2 bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-xs">📎 {email.attachments.length}</span>
+                                  <span className="ml-2 bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-xs font-medium">📎 {email.attachments.length}</span>
                                 )}
                               </div>
                               {expandedEmail === email.id && (
-                                <div className="mt-3 pt-3 border-t border-gray-200" onClick={(e) => e.stopPropagation()}>
+                                <div className="mt-3 pt-3 border-t border-slate-200" onClick={(e) => e.stopPropagation()}>
                                   {email.attachments && email.attachments.length > 0 && (
                                     <div className="bg-amber-50 rounded-lg p-2 mb-3 border border-amber-200">
                                       <p className="text-xs font-semibold text-amber-800 mb-1">📎 Attachments:</p>
@@ -2111,22 +2127,24 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                           <span key={idx} className="bg-white text-gray-700 px-2 py-0.5 rounded text-xs border border-amber-200">{att.name} ({formatFileSize(att.size)})</span>
                                         ))}
                                       </div>
+                                      {getGmailUrl(email.message_id) && (
+                                        <a href={getGmailUrl(email.message_id)!} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block bg-amber-500 hover:bg-amber-600 text-white px-2 py-0.5 rounded text-xs font-medium transition-colors">View Attachments →</a>
+                                      )}
                                     </div>
                                   )}
-                                  <div className="bg-white rounded-lg p-3 max-h-48 overflow-y-auto mb-3 border border-gray-100">
-                                    <p className="text-gray-700 text-sm whitespace-pre-wrap">
+                                  <div className="bg-white/80 rounded-lg p-3 max-h-60 overflow-y-auto mb-3">
+                                    <p className="text-gray-800 text-sm whitespace-pre-wrap">
                                       {email.body_text || email.summary}
                                     </p>
                                   </div>
-                                  <div className="flex flex-wrap gap-2">
-                                    {email.attachments && email.attachments.length > 0 && getGmailUrl(email.message_id) && (
-                                      <a href={getGmailUrl(email.message_id)!} target="_blank" rel="noopener noreferrer" className="bg-white text-gray-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200">📎 View Attachments</a>
-                                    )}
-                                    <button onClick={() => updateStatus(email.id, 'done')} className="bg-white text-green-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200">✓ Done</button>
-                                    <button onClick={() => updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent')} className={`px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200 ${email.action_status === 'urgent' ? 'bg-red-500 text-white' : 'bg-white text-red-500'}`}>🚨 {email.action_status === 'urgent' ? 'Urgent' : 'Mark Urgent'}</button>
-                                    <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className="bg-white text-amber-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200">{email.flagged_for_meeting ? '⭐ On Agenda' : '☆ On Agenda'}</button>
-                                    <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="bg-white text-blue-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200">✏️ Edit Draft</button>
-                                    <button onClick={() => { setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }} className="bg-white text-violet-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200">⏰ Remind Me</button>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <button onClick={() => updateStatus(email.id, 'done')} className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold border-2 border-green-600 hover:bg-green-700">Done</button>
+                                    <button onClick={() => updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent')} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border-2 ${email.action_status === 'urgent' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-red-600 border-red-600 hover:bg-red-50'}`}>Urgent</button>
+                                    <div className="flex items-center gap-1 ml-auto">
+                                      <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className={`p-2 rounded-full hover:bg-gray-100 ${email.flagged_for_meeting ? 'text-amber-500' : 'text-gray-400'}`} title="Add to Agenda">{email.flagged_for_meeting ? '⭐' : '☆'}</button>
+                                      <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="p-2 rounded-full hover:bg-gray-100 text-gray-500" title="Edit Draft">✏️</button>
+                                      <button onClick={() => { setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }} className="p-2 rounded-full hover:bg-gray-100 text-gray-500" title="Remind Me">⏰</button>
+                                    </div>
                                   </div>
                                 </div>
                               )}
@@ -2138,48 +2156,48 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   </div>
 
                   {/* FYI */}
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                  <div className="bg-slate-100 rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <button
                       onClick={() => setExpandedSections(s => ({ ...s, fyi: !s.fyi }))}
-                      className="w-full bg-gradient-to-r from-gray-300 to-gray-400 px-4 py-3 flex items-center justify-between text-gray-800"
+                      className="w-full bg-slate-200 px-4 py-3 flex items-center justify-between text-slate-800 sticky top-0 z-10"
                     >
-                      <span className="font-semibold">FYI</span>
+                      <span className="font-bold text-lg">FYI</span>
                       <div className="flex items-center gap-2">
                         {fyiEmails.length > 0 && (
                           <button
                             onClick={(e) => { e.stopPropagation(); markSectionDone(fyiEmails.map(em => em.id)); }}
                             disabled={bulkUpdating}
-                            className="bg-gray-600 hover:bg-gray-700 text-white px-2 py-0.5 rounded text-xs font-medium transition-colors disabled:opacity-50"
+                            className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
                           >
-                            ✓ All Done
+                            All Done
                           </button>
                         )}
-                        <span className="bg-white/20 px-2 py-0.5 rounded-full text-sm">{fyiEmails.length}</span>
+                        <span className="bg-slate-600 text-white px-3 py-1 rounded-full text-xs font-bold">{fyiEmails.length}</span>
                         <span className={`transition-transform ${expandedSections.fyi ? 'rotate-180' : ''}`}>▼</span>
                       </div>
                     </button>
                     {expandedSections.fyi && (
-                      <div className="p-4 space-y-2 max-h-80 overflow-y-auto">
+                      <div className="p-4 space-y-3">
                         {fyiEmails.length === 0 ? (
-                          <p className="text-gray-400 text-sm">No emails</p>
+                          <p className="text-gray-500 text-sm">No emails</p>
                         ) : (
                           fyiEmails.map((email) => (
                             <div
                               key={email.id}
-                              className={`p-3 bg-gray-50 rounded-lg cursor-pointer transition-all ${expandedEmail === email.id ? 'ring-2 ring-gray-300' : 'hover:bg-gray-100'}`}
+                              className={`bg-white border border-slate-300 rounded-lg p-3 cursor-pointer transition-all shadow-sm hover:shadow-md ${expandedEmail === email.id ? 'ring-2 ring-slate-400' : ''}`}
                               onClick={() => setExpandedEmail(expandedEmail === email.id ? null : email.id)}
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-gray-900 text-sm">{email.subject}</p>
-                                  <p className="text-gray-500 text-xs mt-1">{email.from_name || email.from_email}</p>
+                                  <p className="font-bold text-gray-900 text-sm">{email.subject}</p>
+                                  <p className="text-gray-700 font-semibold text-xs mt-1">{email.from_name || email.from_email}</p>
                                 </div>
                                 {email.attachments && email.attachments.length > 0 && (
-                                  <span className="ml-2 bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-xs">📎 {email.attachments.length}</span>
+                                  <span className="ml-2 bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-xs font-medium">📎 {email.attachments.length}</span>
                                 )}
                               </div>
                               {expandedEmail === email.id && (
-                                <div className="mt-3 pt-3 border-t border-gray-200" onClick={(e) => e.stopPropagation()}>
+                                <div className="mt-3 pt-3 border-t border-slate-200" onClick={(e) => e.stopPropagation()}>
                                   {email.attachments && email.attachments.length > 0 && (
                                     <div className="bg-amber-50 rounded-lg p-2 mb-3 border border-amber-200">
                                       <p className="text-xs font-semibold text-amber-800 mb-1">📎 Attachments:</p>
@@ -2188,22 +2206,24 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                           <span key={idx} className="bg-white text-gray-700 px-2 py-0.5 rounded text-xs border border-amber-200">{att.name} ({formatFileSize(att.size)})</span>
                                         ))}
                                       </div>
+                                      {getGmailUrl(email.message_id) && (
+                                        <a href={getGmailUrl(email.message_id)!} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block bg-amber-500 hover:bg-amber-600 text-white px-2 py-0.5 rounded text-xs font-medium transition-colors">View Attachments →</a>
+                                      )}
                                     </div>
                                   )}
-                                  <div className="bg-white rounded-lg p-3 max-h-48 overflow-y-auto mb-3 border border-gray-100">
-                                    <p className="text-gray-700 text-sm whitespace-pre-wrap">
+                                  <div className="bg-white/80 rounded-lg p-3 max-h-60 overflow-y-auto mb-3">
+                                    <p className="text-gray-800 text-sm whitespace-pre-wrap">
                                       {email.body_text || email.summary}
                                     </p>
                                   </div>
-                                  <div className="flex flex-wrap gap-2">
-                                    {email.attachments && email.attachments.length > 0 && getGmailUrl(email.message_id) && (
-                                      <a href={getGmailUrl(email.message_id)!} target="_blank" rel="noopener noreferrer" className="bg-white text-gray-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200">📎 View Attachments</a>
-                                    )}
-                                    <button onClick={() => updateStatus(email.id, 'done')} className="bg-white text-green-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200">✓ Done</button>
-                                    <button onClick={() => updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent')} className={`px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200 ${email.action_status === 'urgent' ? 'bg-red-500 text-white' : 'bg-white text-red-500'}`}>🚨 {email.action_status === 'urgent' ? 'Urgent' : 'Mark Urgent'}</button>
-                                    <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className="bg-white text-amber-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200">{email.flagged_for_meeting ? '⭐ On Agenda' : '☆ On Agenda'}</button>
-                                    <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="bg-white text-blue-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200">✏️ Edit Draft</button>
-                                    <button onClick={() => { setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }} className="bg-white text-violet-600 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm border-2 border-gray-200">⏰ Remind Me</button>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <button onClick={() => updateStatus(email.id, 'done')} className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold border-2 border-green-600 hover:bg-green-700">Done</button>
+                                    <button onClick={() => updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent')} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border-2 ${email.action_status === 'urgent' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-red-600 border-red-600 hover:bg-red-50'}`}>Urgent</button>
+                                    <div className="flex items-center gap-1 ml-auto">
+                                      <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className={`p-2 rounded-full hover:bg-gray-100 ${email.flagged_for_meeting ? 'text-amber-500' : 'text-gray-400'}`} title="Add to Agenda">{email.flagged_for_meeting ? '⭐' : '☆'}</button>
+                                      <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="p-2 rounded-full hover:bg-gray-100 text-gray-500" title="Edit Draft">✏️</button>
+                                      <button onClick={() => { setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }} className="p-2 rounded-full hover:bg-gray-100 text-gray-500" title="Remind Me">⏰</button>
+                                    </div>
                                   </div>
                                 </div>
                               )}
