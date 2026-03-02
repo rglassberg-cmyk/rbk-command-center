@@ -1,11 +1,11 @@
+import type { LucideIcon } from 'lucide-react';
+
 export interface ConfigItem {
   label: string;
   borderColor: string;
   textColor: string;
   bgColor: string;
   icon: string;
-  dot?: string;
-  borderLeft?: string;
 }
 
 export interface NavItem {
@@ -21,26 +21,20 @@ export const priorityConfig: Record<string, ConfigItem> = {
     textColor: 'text-red-700',
     bgColor: 'bg-red-50',
     icon: 'AlertCircle',
-    dot: 'bg-red-500',
-    borderLeft: 'border-l-4 border-l-red-600',
   },
   eg_action: {
     label: 'Emily',
-    borderColor: 'border-violet-600',
-    textColor: 'text-violet-700',
-    bgColor: 'bg-violet-50',
+    borderColor: 'border-blue-600',
+    textColor: 'text-blue-700',
+    bgColor: 'bg-blue-50',
     icon: 'User',
-    dot: 'bg-violet-500',
-    borderLeft: 'border-l-4 border-l-violet-600',
   },
   invitation: {
     label: 'Invitation',
-    borderColor: 'border-cyan-600',
-    textColor: 'text-cyan-700',
-    bgColor: 'bg-cyan-50',
+    borderColor: 'border-purple-600',
+    textColor: 'text-purple-700',
+    bgColor: 'bg-purple-50',
     icon: 'Mail',
-    dot: 'bg-cyan-500',
-    borderLeft: 'border-l-4 border-l-cyan-600',
   },
   meeting_invite: {
     label: 'Meeting',
@@ -48,17 +42,13 @@ export const priorityConfig: Record<string, ConfigItem> = {
     textColor: 'text-green-700',
     bgColor: 'bg-green-50',
     icon: 'Calendar',
-    dot: 'bg-green-500',
-    borderLeft: 'border-l-4 border-l-green-500',
   },
   important_no_action: {
     label: 'Important',
-    borderColor: 'border-amber-600',
-    textColor: 'text-amber-700',
-    bgColor: 'bg-amber-50',
+    borderColor: 'border-orange-600',
+    textColor: 'text-orange-700',
+    bgColor: 'bg-orange-50',
     icon: 'Star',
-    dot: 'bg-amber-400',
-    borderLeft: 'border-l-4 border-l-amber-400',
   },
   review: {
     label: 'Review',
@@ -66,8 +56,6 @@ export const priorityConfig: Record<string, ConfigItem> = {
     textColor: 'text-amber-700',
     bgColor: 'bg-amber-50',
     icon: 'Eye',
-    dot: 'bg-amber-400',
-    borderLeft: 'border-l-4 border-l-amber-400',
   },
   fyi: {
     label: 'FYI',
@@ -75,19 +63,16 @@ export const priorityConfig: Record<string, ConfigItem> = {
     textColor: 'text-slate-600',
     bgColor: 'bg-slate-50',
     icon: 'Info',
-    dot: 'bg-slate-300',
-    borderLeft: 'border-l-4 border-l-slate-300',
   },
 };
 
 export const statusConfig: Record<string, ConfigItem> = {
   pending: {
     label: 'Pending',
-    borderColor: 'border-amber-500',
-    textColor: 'text-amber-700',
-    bgColor: 'bg-amber-50',
+    borderColor: 'border-orange-500',
+    textColor: 'text-orange-700',
+    bgColor: 'bg-orange-50',
     icon: 'Clock',
-    dot: 'bg-amber-400',
   },
   in_progress: {
     label: 'In Progress',
@@ -95,7 +80,6 @@ export const statusConfig: Record<string, ConfigItem> = {
     textColor: 'text-blue-700',
     bgColor: 'bg-blue-50',
     icon: 'RefreshCw',
-    dot: 'bg-blue-500',
   },
   done: {
     label: 'Done',
@@ -103,7 +87,6 @@ export const statusConfig: Record<string, ConfigItem> = {
     textColor: 'text-green-700',
     bgColor: 'bg-green-50',
     icon: 'CheckCircle',
-    dot: 'bg-green-500',
   },
   archived: {
     label: 'Archived',
@@ -111,7 +94,6 @@ export const statusConfig: Record<string, ConfigItem> = {
     textColor: 'text-slate-500',
     bgColor: 'bg-slate-50',
     icon: 'Archive',
-    dot: 'bg-slate-300',
   },
 };
 
@@ -193,8 +175,8 @@ export const actionStatusConfig: Record<string, ConfigItem> = {
 
 export const NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: 'LayoutDashboard' },
-  { id: 'inbox', label: 'All Emails', icon: 'Inbox' },
-  { id: 'emily', label: "Emily's Queue", icon: 'User' },
-  { id: 'agenda', label: 'Meeting Agenda', icon: 'Star' },
-  { id: 'tasks', label: 'Tasks', icon: 'ClipboardCheck' },
+  { id: 'inbox', label: 'Inbox', icon: 'Inbox' },
+  { id: 'agenda', label: 'Agenda', icon: 'ListTodo' },
+  { id: 'tasks', label: 'Tasks', icon: 'CheckSquare' },
+  { id: 'calendar', label: 'Calendar', icon: 'Calendar' },
 ];

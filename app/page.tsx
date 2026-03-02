@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getAuthSession } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
-import AppShell from './components/AppShell';
+import Dashboard from './components/Dashboard';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -118,5 +118,5 @@ export default async function Home() {
     session.accessToken ? getCalendarEvents(session.accessToken) : Promise.resolve([]),
   ]);
 
-  return <AppShell emails={emails} calendarEvents={calendarEvents} />;
+  return <Dashboard emails={emails} calendarEvents={calendarEvents} />;
 }
