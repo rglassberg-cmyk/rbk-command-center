@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { useSession, signOut } from 'next-auth/react';
+import { useAuth } from './AuthProvider';
 import TodayAgenda from './TodayAgenda';
 
 interface Email {
@@ -112,7 +112,7 @@ export default function EmailDashboard({
   initialEmails: Email[];
   initialStats: Stats[];
 }) {
-  const { data: session } = useSession();
+  const { user, signOut } = useAuth();
   const [emails, setEmails] = useState<Email[]>(initialEmails);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -376,17 +376,17 @@ export default function EmailDashboard({
               </p>
             </div>
             <div className="flex items-center gap-4">
-              {session?.user && (
+              {user && (
                 <div className="flex items-center gap-2">
-                  {session.user.image && (
+                  {user.photoURL && (
                     <img
-                      src={session.user.image}
+                      src={user.photoURL}
                       alt=""
                       className="w-8 h-8 rounded-full"
                     />
                   )}
                   <span className="text-sm text-gray-600">
-                    {session.user.name || session.user.email}
+                    {user.displayName || user.email}
                   </span>
                   <button
                     onClick={() => signOut()}

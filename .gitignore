@@ -46,3 +46,11 @@ client_secret*.json
 *.pdf
 *.png
 !public/*.png
+.env
+
+# Firebase build artifacts
+.firebase/
+
+# Backup files
+*.backup-*
+*.save

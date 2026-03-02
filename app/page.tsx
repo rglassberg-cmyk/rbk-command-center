@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuthSession } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import Dashboard from './components/Dashboard';
 
@@ -108,7 +107,7 @@ async function getCalendarEvents(accessToken: string) {
 }
 
 export default async function Home() {
-  const session = await getServerSession(authOptions);
+  const session = await getAuthSession();
 
   if (!session) {
     redirect('/login');

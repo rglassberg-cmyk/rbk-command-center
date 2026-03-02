@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuthSession } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 
 interface EmailRecord {
@@ -82,7 +81,7 @@ ${EMAIL_SIGNATURE}
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = await getAuthSession();
 
   if (!session?.user?.email || !session.accessToken) {
     return NextResponse.json(

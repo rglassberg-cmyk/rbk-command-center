@@ -1,12 +1,56 @@
 'use client';
 
-import { signIn } from 'next-auth/react';
-import { useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { auth } from '@/lib/firebase-client';
 
-function LoginContent() {
-  const searchParams = useSearchParams();
-  const error = searchParams.get('error');
+const provider = new GoogleAuthProvider();
+provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
+provider.addScope('https://www.googleapis.com/auth/calendar.events');
+provider.addScope('https://www.googleapis.com/auth/gmail.send');
+provider.addScope('https://www.googleapis.com/auth/gmail.modify');
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleSignIn() {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      const idToken = await result.user.getIdToken();
+      const accessToken = credential?.accessToken || null;
+
+      // POST to our session endpoint to set the __session cookie
+      const res = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken, accessToken }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        if (res.status === 403) {
+          setError('Access denied. Your email is not authorized.');
+        } else {
+          setError(data.error || 'An error occurred. Please try again.');
+        }
+        setLoading(false);
+        return;
+      }
+
+      router.push('/');
+    } catch (err) {
+      console.error('Sign-in error:', err);
+      setError('An error occurred. Please try again.');
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -22,17 +66,14 @@ function LoginContent() {
 
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-800">
-              {error === 'AccessDenied'
-                ? 'Access denied. Your email is not authorized.'
-                : 'An error occurred. Please try again.'}
-            </p>
+            <p className="text-sm text-red-800">{error}</p>
           </div>
         )}
 
         <button
-          onClick={() => signIn('google', { callbackUrl: '/' })}
-          className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
+          onClick={handleSignIn}
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-colors disabled:opacity-50"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
@@ -52,7 +93,9 @@ function LoginContent() {
               d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
             />
           </svg>
-          <span className="text-gray-700 font-medium">Sign in with Google</span>
+          <span className="text-gray-700 font-medium">
+            {loading ? 'Signing in...' : 'Sign in with Google'}
+          </span>
         </button>
 
         <p className="mt-6 text-center text-xs text-gray-500">
@@ -60,17 +103,5 @@ function LoginContent() {
         </p>
       </div>
     </div>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-500">Loading...</div>
-      </div>
-    }>
-      <LoginContent />
-    </Suspense>
   );
 }

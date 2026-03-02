@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { format, parseISO, formatDistanceToNow } from 'date-fns';
-import { useSession, signOut } from 'next-auth/react';
+import { useAuth } from './AuthProvider';
 import { useRealtimeEmails } from '../hooks/useRealtimeEmails';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { auth } from '@/lib/firebase-client';
 
 interface Attachment {
   name: string;
@@ -39,6 +41,15 @@ interface Email {
   revision_comment?: string | null;
 }
 
+interface AgendaNote {
+  id: string;
+  email_id: string;
+  text: string;
+  type: 'note' | 'decision' | 'action';
+  assignee: 'rbk' | 'emily' | null;
+  created_at: string;
+}
+
 interface CalendarEvent {
   id: string;
   title: string;
@@ -55,45 +66,45 @@ interface Props {
   calendarEvents: CalendarEvent[];
 }
 
-// Subtle, professional badge colors
-const priorityConfig: Record<string, { bg: string; text: string; label: string; icon: string }> = {
-  rbk_action: { bg: 'bg-red-50 border border-red-200', text: 'text-red-700', label: 'Action Required', icon: '🔴' },
-  eg_action: { bg: 'bg-blue-50 border border-blue-200', text: 'text-blue-700', label: 'Emily', icon: '🔵' },
-  invitation: { bg: 'bg-purple-50 border border-purple-200', text: 'text-purple-700', label: 'Invitation', icon: '🟣' },
-  meeting_invite: { bg: 'bg-green-50 border border-green-200', text: 'text-green-700', label: 'Meeting', icon: '🟢' },
-  important_no_action: { bg: 'bg-orange-50 border border-orange-200', text: 'text-orange-700', label: 'Important', icon: '🟠' },
-  review: { bg: 'bg-amber-50 border border-amber-200', text: 'text-amber-700', label: 'Review', icon: '🟡' },
-  fyi: { bg: 'bg-gray-50 border border-gray-200', text: 'text-gray-600', label: 'FYI', icon: '⚫' },
+// Priority dot colors for minimal indicators
+const priorityConfig: Record<string, { bg: string; text: string; label: string; icon: string; dot: string; borderLeft: string }> = {
+  rbk_action: { bg: 'bg-red-50 border border-red-200', text: 'text-red-700', label: 'Action Required', icon: '🔴', dot: 'bg-red-500', borderLeft: 'border-l-4 border-l-red-600' },
+  eg_action: { bg: 'bg-violet-50 border border-violet-200', text: 'text-violet-700', label: 'Emily', icon: '🔵', dot: 'bg-violet-500', borderLeft: 'border-l-4 border-l-violet-600' },
+  invitation: { bg: 'bg-cyan-50 border border-cyan-200', text: 'text-cyan-700', label: 'Invitation', icon: '🟣', dot: 'bg-cyan-500', borderLeft: 'border-l-4 border-l-cyan-600' },
+  meeting_invite: { bg: 'bg-green-50 border border-green-200', text: 'text-green-700', label: 'Meeting', icon: '🟢', dot: 'bg-green-500', borderLeft: 'border-l-4 border-l-green-500' },
+  important_no_action: { bg: 'bg-slate-50 border border-slate-200', text: 'text-slate-600', label: 'Important', icon: '🟠', dot: 'bg-slate-400', borderLeft: 'border-l-4 border-l-amber-400' },
+  review: { bg: 'bg-amber-50 border border-amber-200', text: 'text-amber-700', label: 'Review', icon: '🟡', dot: 'bg-amber-400', borderLeft: 'border-l-4 border-l-amber-400' },
+  fyi: { bg: 'bg-slate-50 border border-slate-200', text: 'text-slate-500', label: 'FYI', icon: '⚫', dot: 'bg-slate-300', borderLeft: 'border-l-4 border-l-slate-300' },
 };
 
-// Status badges with emojis
-const statusConfig: Record<string, { bg: string; text: string; label: string; icon: string }> = {
-  pending: { bg: 'bg-orange-50 border border-orange-200', text: 'text-orange-700', label: 'Pending', icon: '⏰' },
-  in_progress: { bg: 'bg-blue-50 border border-blue-200', text: 'text-blue-700', label: 'In Progress', icon: '🔄' },
-  done: { bg: 'bg-green-50 border border-green-200', text: 'text-green-700', label: 'Done', icon: '✅' },
-  archived: { bg: 'bg-gray-50 border border-gray-200', text: 'text-gray-500', label: 'Archived', icon: '📦' },
+// Status dot colors for minimal indicators
+const statusConfig: Record<string, { bg: string; text: string; label: string; icon: string; dot: string }> = {
+  pending: { bg: 'bg-amber-50 border border-amber-200', text: 'text-amber-700', label: 'Pending', icon: '⏰', dot: 'bg-amber-400' },
+  in_progress: { bg: 'bg-blue-50 border border-blue-200', text: 'text-blue-700', label: 'In Progress', icon: '🔄', dot: 'bg-blue-500' },
+  done: { bg: 'bg-green-50 border border-green-200', text: 'text-green-700', label: 'Done', icon: '✅', dot: 'bg-green-500' },
+  archived: { bg: 'bg-slate-50 border border-slate-200', text: 'text-slate-500', label: 'Archived', icon: '📦', dot: 'bg-slate-300' },
 };
 
 // Action status - simplified per redesign
 const actionStatusConfig: Record<string, { bg: string; text: string; label: string; icon: string }> = {
   send: { bg: 'bg-green-50 border border-green-200', text: 'text-green-700', label: 'Send', icon: '✉️' },
   sent: { bg: 'bg-emerald-50 border border-emerald-200', text: 'text-emerald-700', label: 'Sent', icon: '✅' },
-  remind_me: { bg: 'bg-violet-50 border border-violet-200', text: 'text-violet-700', label: 'Remind Me', icon: '⏰' },
+  remind_me: { bg: 'bg-slate-50 border border-slate-200', text: 'text-slate-600', label: 'Remind Me', icon: '⏰' },
   draft_ready: { bg: 'bg-blue-50 border border-blue-200', text: 'text-blue-700', label: 'Review Draft', icon: '📝' },
-  urgent: { bg: 'bg-red-500 border border-red-600', text: 'text-white', label: 'URGENT', icon: '🚨' },
+  urgent: { bg: 'bg-red-50 border border-red-200', text: 'text-red-700', label: 'URGENT', icon: '🚨' },
 };
 
 // Draft status
 const draftStatusConfig: Record<string, { bg: string; text: string; label: string }> = {
-  not_started: { bg: 'bg-gray-50', text: 'text-gray-600', label: 'Not Started' },
-  editing: { bg: 'bg-amber-50', text: 'text-amber-700', label: '✏️ Editing' },
-  draft_ready: { bg: 'bg-green-50', text: 'text-green-700', label: '📝 Review Draft' },
-  approved: { bg: 'bg-blue-50', text: 'text-blue-700', label: '👍 Approved' },
-  needs_revision: { bg: 'bg-orange-50', text: 'text-orange-700', label: '🔄 Needs Revision' },
+  not_started: { bg: 'bg-slate-50', text: 'text-slate-500', label: 'Not Started' },
+  editing: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Editing' },
+  draft_ready: { bg: 'bg-green-50', text: 'text-green-700', label: 'Review Draft' },
+  approved: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Approved' },
+  needs_revision: { bg: 'bg-orange-50', text: 'text-orange-700', label: 'Needs Revision' },
 };
 
 export default function Dashboard({ emails: initialEmails, calendarEvents }: Props) {
-  const { data: session } = useSession();
+  const { user, signOut } = useAuth();
   const { emails, setEmails, isConnected, refreshEmails } = useRealtimeEmails(initialEmails);
   const [activeNav, setActiveNav] = useState('dashboard');
   const [sendingEmail, setSendingEmail] = useState<string | null>(null);
@@ -217,6 +228,18 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
   const [scheduleEvents, setScheduleEvents] = useState<CalendarEvent[]>(calendarEvents);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
 
+  // Fetch calendar on mount to ensure it works in production
+  useEffect(() => {
+    fetchCalendarForDate(new Date());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Fetch action notes for tasks view
+  useEffect(() => {
+    fetchActionNotes();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Meeting countdown alert
   const [upcomingMeeting, setUpcomingMeeting] = useState<{ title: string; minutesUntil: number; meetingLink?: string | null } | null>(null);
 
@@ -245,10 +268,117 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
     return () => clearInterval(interval);
   }, [scheduleEvents]);
 
-  const fetchCalendarForDate = async (date: Date) => {
-    setLoadingSchedule(true);
+  const refreshCalendarToken = async (): Promise<boolean> => {
     try {
-      // Use local date string to avoid timezone issues
+      const provider = new GoogleAuthProvider();
+      provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
+      provider.addScope('https://www.googleapis.com/auth/calendar.events');
+      provider.setCustomParameters({ prompt: 'none' });
+      const result = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      const accessToken = credential?.accessToken;
+      const idToken = await result.user.getIdToken();
+      if (!accessToken) return false;
+      const res = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken, accessToken }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  };
+
+  const fetchAgendaNotes = async (emailId: string) => {
+    try {
+      const res = await fetch(`/api/agenda-notes?emailId=${emailId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setAgendaNotes(prev => ({ ...prev, [emailId]: data.notes || [] }));
+      }
+    } catch (e) {
+      console.error('Failed to fetch agenda notes:', e);
+    }
+  };
+
+  const addAgendaNote = async (emailId: string) => {
+    if (!newNoteText.trim()) return;
+    try {
+      const res = await fetch('/api/agenda-notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email_id: emailId,
+          text: newNoteText.trim(),
+          type: 'note',
+          assignee: null,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAgendaNotes(prev => ({
+          ...prev,
+          [emailId]: [...(prev[emailId] || []), data.note],
+        }));
+        setNewNoteText('');
+        setAddingNoteToId(null);
+      }
+    } catch (e) {
+      console.error('Failed to add agenda note:', e);
+    }
+  };
+
+  const deleteAgendaNote = async (emailId: string, noteId: string) => {
+    try {
+      await fetch(`/api/agenda-notes?id=${noteId}`, { method: 'DELETE' });
+      setAgendaNotes(prev => ({
+        ...prev,
+        [emailId]: (prev[emailId] || []).filter(n => n.id !== noteId),
+      }));
+      setActionNotes(prev => prev.filter(n => n.id !== noteId));
+    } catch (e) {
+      console.error('Failed to delete agenda note:', e);
+    }
+  };
+
+  const fetchActionNotes = async () => {
+    try {
+      const res = await fetch('/api/agenda-notes?type=action');
+      if (res.ok) {
+        const data = await res.json();
+        setActionNotes(data.notes || []);
+      }
+    } catch (e) {
+      console.error('Failed to fetch action notes:', e);
+    }
+  };
+
+  const updateAgendaNote = async (emailId: string, noteId: string, updates: { type?: string; assignee?: string | null }) => {
+    try {
+      const res = await fetch(`/api/agenda-notes?id=${noteId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAgendaNotes(prev => ({
+          ...prev,
+          [emailId]: (prev[emailId] || []).map(n => n.id === noteId ? data.note : n),
+        }));
+        // Refresh action notes so tasks view stays in sync
+        fetchActionNotes();
+      }
+    } catch (e) {
+      console.error('Failed to update agenda note:', e);
+    }
+  };
+
+    const fetchCalendarForDate = async (date: Date, isRetry = false) => {
+    setLoadingSchedule(true);
+    setCalendarAuthError(false);
+    try {
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
@@ -257,6 +387,17 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
       if (res.ok) {
         const data = await res.json();
         setScheduleEvents(data.events || []);
+        setCalendarAuthError(false);
+      } else if (res.status === 401 && !isRetry) {
+        // Token expired — try silent refresh
+        const refreshed = await refreshCalendarToken();
+        if (refreshed) {
+          await fetchCalendarForDate(date, true);
+          return;
+        } else {
+          setCalendarAuthError(true);
+          setScheduleEvents([]);
+        }
       } else {
         console.error('Calendar API returned error:', res.status);
         setScheduleEvents([]);
@@ -322,9 +463,24 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
 
   // Email popup (for viewing from tasks/agenda)
   const [popupEmailId, setPopupEmailId] = useState<string | null>(null);
+  const [popupDraftText, setPopupDraftText] = useState('');
+  const [calendarAuthError, setCalendarAuthError] = useState(false);
   const popupEmail = popupEmailId ? emails.find(e => e.id === popupEmailId) : null;
+  useEffect(() => {
+    if (popupEmail) {
+      setPopupDraftText(popupEmail.edited_draft || popupEmail.draft_reply || '');
+    }
+  }, [popupEmailId]);
 
   // Task creation modal (standalone modal for adding tasks from emails)
+  const [currentAgendaItemId, setCurrentAgendaItemId] = useState<string | null>(null);
+  const [agendaNotes, setAgendaNotes] = useState<Record<string, AgendaNote[]>>({});
+  const [actionNotes, setActionNotes] = useState<AgendaNote[]>([]);
+  const [agendaTab, setAgendaTab] = useState<'all' | 'note' | 'decision' | 'action'>('all');
+  const [addingNoteToId, setAddingNoteToId] = useState<string | null>(null);
+  const [newNoteText, setNewNoteText] = useState('');
+  const [newNoteType, setNewNoteType] = useState<'note' | 'decision' | 'action'>('note');
+  const [newNoteAssignee, setNewNoteAssignee] = useState<'rbk' | 'emily'>('emily');
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [taskModalEmailId, setTaskModalEmailId] = useState<string | null>(null);
   const [taskModalText, setTaskModalText] = useState('');
@@ -430,7 +586,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
   });
 
   // Derived data
-  const tasks = emails
+  const emailTasks = emails
     .filter(e => e.meeting_notes)
     .map(e => {
       const notes = e.meeting_notes || '';
@@ -441,9 +597,23 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
       const isEmily = rawNotes.startsWith('[@EMILY] ');
       const isRbk = rawNotes.startsWith('[@RBK] ');
       const taskText = rawNotes.replace('[@EMILY] ', '').replace('[@RBK] ', '');
-      return { emailId: e.id, subject: e.subject, task: taskText, assignee: isEmily ? 'emily' : isRbk ? 'rbk' : null, isComplete, isDiscussed };
+      return { emailId: e.id, noteId: null as string | null, subject: e.subject, task: taskText, assignee: isEmily ? 'emily' : isRbk ? 'rbk' : null, isComplete, isDiscussed };
     })
     .filter(t => t.assignee && t.task);
+
+  const noteTasks = actionNotes
+    .filter(n => n.assignee)
+    .map(n => ({
+      emailId: null as string | null,
+      noteId: n.id,
+      subject: null as string | null,
+      task: n.text,
+      assignee: n.assignee as string | null,
+      isComplete: false,
+      isDiscussed: false,
+    }));
+
+  const tasks = [...emailTasks, ...noteTasks];
 
   const agendaItems = emails.filter(e => e.flagged_for_meeting);
   const urgentEmails = emails.filter(e => e.priority === 'rbk_action' && e.status !== 'done' && e.status !== 'archived');
@@ -483,20 +653,13 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
   const draftsReady = emails.filter(e => e.draft_status === 'draft_ready' && e.status !== 'done' && e.status !== 'archived' && !isSnoozed(e));
   const draftsApproved = emails.filter(e => e.draft_status === 'approved' && e.status !== 'done' && e.status !== 'archived' && !isSnoozed(e));
 
-  // Filter calendar events to show only current/upcoming (only for today)
+  // Show all events; mark past ones as ended for dimming
   const now = new Date();
-  const upcomingEvents = isToday(selectedDate)
-    ? scheduleEvents.filter(event => {
-        // For all-day events, show until end of day
-        if (event.isAllDay) {
-          const eventDate = new Date(event.endTime);
-          return eventDate >= now;
-        }
-        // For timed events, hide if already ended
-        const endTime = new Date(event.endTime);
-        return endTime > now;
-      })
-    : scheduleEvents; // Show all events for other days
+  const upcomingEvents = scheduleEvents; // Show all events, past ones are dimmed in UI
+  const isEventPast = (event: CalendarEvent) => {
+    if (event.isAllDay) return false;
+    return new Date(event.endTime) < now;
+  };
 
   const formatTime = (time: string, isAllDay: boolean) => {
     if (isAllDay) return 'All day';
@@ -764,10 +927,11 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
     setShowEventModal(true);
   };
 
-  // Badge Component
-  const Badge = ({ config }: { config: { bg: string; text: string; label: string; icon: string } }) => (
-    <span className={`${config.bg} ${config.text} px-2 py-0.5 rounded-full text-xs font-medium inline-flex items-center gap-1`}>
-      {config.icon} {config.label}
+  // Badge Component - minimal dot indicator
+  const Badge = ({ config }: { config: { bg: string; text: string; label: string; icon: string; dot?: string } }) => (
+    <span className="inline-flex items-center gap-1.5">
+      <span className={`w-2 h-2 rounded-full inline-block ${config.dot || config.bg.split(' ')[0]}`}></span>
+      <span className="text-slate-500 text-xs">{config.label}</span>
     </span>
   );
 
@@ -777,231 +941,182 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
     const status = statusConfig[email.status] || statusConfig.pending;
     const isExpanded = expandedEmail === email.id;
 
+    const stripSignature = (text: string): string => {
+      if (!text) return '';
+      const lines = text.split('\n');
+      const cutPatterns = [
+        /^--\s*$/,
+        /^_{3,}/,
+        /principal/i,
+        /head of school/i,
+        /\d{3}[-.\s]\d{3}[-.\s]\d{4}/,
+        /www\./i,
+        /@\w+\.\w+/,
+        /sent from my/i,
+      ];
+      let cutIndex = lines.length;
+      for (let i = 0; i < lines.length; i++) {
+        if (cutPatterns.some(p => p.test(lines[i]))) {
+          cutIndex = i;
+          break;
+        }
+      }
+      return lines.slice(0, cutIndex).join('\n').replace(/^>+\s*/gm, '').replace(/\n{3,}/g, '\n\n').trim();
+    };
+
+    const cleanBody = stripSignature(email.body_text || email.summary);
+    const draftValue = email.edited_draft || email.draft_reply || '';
+
     return (
-      <div
-        className={`bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-150 ${isExpanded ? 'ring-2 ring-sky-500' : ''} ${email.status === 'done' ? 'opacity-60' : ''}`}
-      >
-        <div
-          onClick={() => setExpandedEmail(isExpanded ? null : email.id)}
-          className="p-4 cursor-pointer"
-        >
-          {/* Header Row */}
-          <div className="flex items-center gap-2 mb-2 flex-wrap">
-            <Badge config={priority} />
-            <Badge config={status} />
-            {email.action_status && actionStatusConfig[email.action_status] && (
-              <Badge config={actionStatusConfig[email.action_status]} />
-            )}
-            {email.flagged_for_meeting && (
-              <span className="text-amber-500">⭐</span>
-            )}
-            {email.is_unread && (
-              <span className="w-2 h-2 bg-sky-500 rounded-full"></span>
-            )}
-            <span className="text-xs text-gray-400 ml-auto">
+      <div className={`bg-white border border-slate-200 rounded-xl mb-2 shadow-sm transition-all duration-150 ${priority.borderLeft} ${isExpanded ? 'ring-2 ring-blue-200 ring-offset-1' : 'hover:shadow-md'} ${email.status === 'done' ? 'opacity-60' : ''}`}>
+
+        {/* COLLAPSED / HEADER ROW — always visible */}
+        <div className="p-3 cursor-pointer" onClick={() => setExpandedEmail(isExpanded ? null : email.id)}>
+          <div className="flex items-start justify-between gap-2 mb-0.5">
+            <h3 className={`text-slate-800 text-sm font-semibold leading-snug ${email.status === 'done' ? 'line-through text-slate-400' : ''}`}>
+              {email.subject}
+            </h3>
+            <span className="text-xs text-slate-400 whitespace-nowrap flex-shrink-0">
               {formatDistanceToNow(new Date(email.received_at), { addSuffix: true })}
             </span>
           </div>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-slate-500 text-xs">{email.from_name || email.from_email}</p>
+            <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+              <div className="relative group">
+                <button onClick={() => updateStatus(email.id, 'done')} className={`p-1.5 rounded-md transition-colors hover:bg-green-50 ${email.status === 'done' ? 'text-green-600' : 'text-slate-500 hover:text-green-600'}`}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                </button>
+                <span className="absolute bottom-full right-0 mb-1 px-2 py-0.5 bg-slate-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">Mark Done</span>
+              </div>
+              <div className="relative group">
+                <button onClick={() => updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent')} className={`p-1.5 rounded-md transition-colors hover:bg-red-50 ${email.action_status === 'urgent' ? 'text-red-600' : 'text-slate-500 hover:text-red-500'}`}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
+                </button>
+                <span className="absolute bottom-full right-0 mb-1 px-2 py-0.5 bg-slate-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">Mark Urgent</span>
+              </div>
+              <div className="relative group">
+                <button onClick={() => { setRemindMeEmailId(email.id); const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1); setRemindMeDate(tomorrow.toISOString().split('T')[0]); }} className="p-1.5 rounded-md text-slate-500 hover:text-blue-500 hover:bg-blue-50 transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                </button>
+                <span className="absolute bottom-full right-0 mb-1 px-2 py-0.5 bg-slate-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">Remind Me</span>
+              </div>
+              <div className="w-px h-4 bg-slate-200 mx-1" />
+              <div className="relative group">
+                <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className={`p-1.5 rounded-md transition-colors hover:bg-amber-50 ${email.flagged_for_meeting ? 'text-amber-500' : 'text-slate-500 hover:text-amber-500'}`}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill={email.flagged_for_meeting ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+                </button>
+                <span className="absolute bottom-full right-0 mb-1 px-2 py-0.5 bg-slate-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">Add to Agenda</span>
+              </div>
+              <div className="relative group">
+                <button onClick={() => createEventFromEmail(email)} className="p-1.5 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                </button>
+                <span className="absolute bottom-full right-0 mb-1 px-2 py-0.5 bg-slate-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">Add to Calendar</span>
+              </div>
+              <div className="relative group">
+                <button onClick={() => { setTaskModalEmailId(email.id); setShowTaskModal(true); }} className="p-1.5 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                </button>
+                <span className="absolute bottom-full right-0 mb-1 px-2 py-0.5 bg-slate-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">Add Task</span>
+              </div>
+            </div>
+          </div>
 
-          {/* Subject */}
-          <h3 className={`font-semibold text-gray-900 ${email.status === 'done' ? 'line-through text-gray-400' : ''}`}>
-            {email.subject}
-          </h3>
-
-          {/* From */}
-          <p className="text-sm text-gray-500 mt-1">
-            {email.from_name || email.from_email}
-          </p>
-
-          {/* Preview */}
+          {/* Summary preview — only when collapsed */}
           {!isExpanded && (
-            <p className="text-sm text-gray-400 mt-2 line-clamp-2">
-              {email.summary}
-            </p>
+            <p className="text-slate-400 text-xs leading-relaxed line-clamp-2">{email.summary}</p>
           )}
         </div>
 
-        {/* Expanded Content */}
+        {/* EXPANDED PANEL */}
         {isExpanded && (
-          <div className="px-4 pb-4 border-t border-gray-100 pt-4 space-y-4" onClick={(e) => e.stopPropagation()}>
-            {/* Summary */}
-            <p className="text-gray-600">{email.summary}</p>
+          <div className="px-3 pb-3" onClick={(e) => e.stopPropagation()}>
 
-            {/* Action Needed */}
+            {/* Action needed banner — full width */}
             {email.action_needed && email.action_needed !== 'No action needed' && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                <p className="text-sm font-medium text-amber-800">⚠️ Action Needed</p>
-                <p className="text-sm text-amber-700 mt-1">{email.action_needed}</p>
+              <div className="mb-3 bg-white border border-slate-100 border-l-4 border-l-orange-400 rounded-xl shadow-md px-4 py-3 flex items-start gap-3">
+                <div className="w-2 h-2 rounded-full bg-orange-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-0.5">Action Needed</p>
+                  <p className="text-sm text-slate-700">{email.action_needed}</p>
+                </div>
               </div>
             )}
 
-            {/* Primary Actions Row */}
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Main action buttons */}
-              <button
-                onClick={() => updateStatus(email.id, 'done')}
-                disabled={updating === email.id || email.status === 'done'}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 ${
-                  email.status === 'done'
-                    ? 'bg-green-100 text-green-700 cursor-default'
-                    : 'bg-green-600 text-white hover:bg-green-700 shadow-sm'
-                } ${updating === email.id ? 'opacity-50' : ''}`}
-              >
-                {email.status === 'done' ? '✓ Done' : '✓ Mark Done'}
-              </button>
+            {/* Two column layout */}
+            <div className="flex gap-3">
 
-              <button
-                onClick={() => updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent')}
-                disabled={updating === email.id}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 ${
-                  email.action_status === 'urgent'
-                    ? 'bg-red-600 text-white shadow-sm'
-                    : 'bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-700'
-                } ${updating === email.id ? 'opacity-50' : ''}`}
-              >
-                🚨 {email.action_status === 'urgent' ? 'Urgent' : 'Mark Urgent'}
-              </button>
-
-              <button
-                onClick={() => {
-                  setRemindMeEmailId(email.id);
-                  // Default to tomorrow
-                  const tomorrow = new Date();
-                  tomorrow.setDate(tomorrow.getDate() + 1);
-                  setRemindMeDate(tomorrow.toISOString().split('T')[0]);
-                }}
-                disabled={updating === email.id}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 ${
-                  email.action_status === 'remind_me'
-                    ? 'bg-violet-600 text-white shadow-sm'
-                    : 'bg-gray-100 text-gray-600 hover:bg-violet-100 hover:text-violet-700'
-                } ${updating === email.id ? 'opacity-50' : ''}`}
-              >
-                ⏰ Remind Me
-              </button>
-
-              {/* More actions */}
-              <div className="ml-auto flex items-center gap-2">
-                <button
-                  onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)}
-                  disabled={updating === email.id}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                    email.flagged_for_meeting
-                      ? 'bg-amber-500 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-amber-100 hover:text-amber-700'
-                  }`}
-                  title="Add to meeting agenda"
-                >
-                  {email.flagged_for_meeting ? '⭐' : '☆'}
-                </button>
-                <button
-                  onClick={() => createEventFromEmail(email)}
-                  className="px-3 py-2 rounded-lg text-sm font-medium transition-all bg-gray-100 text-gray-600 hover:bg-sky-100 hover:text-sky-700"
-                  title="Add to calendar"
-                >
-                  📅
-                </button>
-                <button
-                  onClick={() => openTaskModal(email)}
-                  className="px-3 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 bg-gray-100 text-gray-600 hover:bg-purple-100 hover:text-purple-700"
-                  title="Add as task"
-                >
-                  ✓
-                </button>
-              </div>
-            </div>
-
-            {/* Draft Section - Always show */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700">📝 Draft Reply</span>
-                {email.draft_status && draftStatusConfig[email.draft_status] && (
-                  <span className={`${draftStatusConfig[email.draft_status].bg} ${draftStatusConfig[email.draft_status].text} px-2 py-0.5 rounded text-xs`}>
-                    {draftStatusConfig[email.draft_status].label}
-                  </span>
-                )}
+              {/* Left: original email */}
+              <div className="flex-[4] min-w-0">
+                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Original Email</p>
+                <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-600 leading-relaxed max-h-48 overflow-y-auto whitespace-pre-wrap">
+                  {cleanBody || email.summary}
+                </div>
               </div>
 
-              {editingDraftId === email.id ? (
-                <div>
+              {/* Right: draft reply */}
+              <div className="flex-[5] min-w-0">
+                <div className="bg-white rounded-xl shadow-md border border-slate-100 p-3 flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Draft Reply</p>
+                    <span className={`text-xs font-medium ${email.draft_status === 'draft_ready' ? 'text-green-600' : email.draft_status === 'approved' ? 'text-blue-600' : 'text-slate-400'}`}>
+                      {email.draft_status === 'draft_ready' ? '✓ Ready' : email.draft_status === 'approved' ? '✓ Approved' : 'Not Started'}
+                    </span>
+                  </div>
                   <textarea
-                    value={draftText}
+                    className="w-full text-xs text-slate-700 border border-slate-200 rounded-lg p-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white"
+                    rows={6}
+                    placeholder="Draft a reply..."
+                    defaultValue={draftValue}
                     onChange={(e) => setDraftText(e.target.value)}
-                    className="w-full h-32 p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent outline-none text-sm"
-                    placeholder="Write your reply here..."
+                    onBlur={() => saveDraft(email.id, draftText)}
                   />
-                  <div className="flex gap-2 mt-2">
-                    <button onClick={() => saveDraft(email.id, draftText)} className="px-3 py-1.5 bg-gray-600 text-white rounded-lg text-xs font-medium">Save</button>
-                    <button onClick={() => saveDraft(email.id, draftText, true)} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium">Mark Ready</button>
-                    <button onClick={() => setEditingDraftId(null)} className="px-3 py-1.5 text-gray-500 text-xs">Cancel</button>
-                  </div>
-                </div>
-              ) : email.draft_reply && email.draft_reply !== 'No reply needed' ? (
-                <div>
-                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{(email.edited_draft || email.draft_reply)?.substring(0, 300)}...</p>
-                  <div className="flex gap-2 mt-2">
-                    <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="text-xs text-sky-600 hover:text-sky-800">✏️ Edit</button>
-                    <button onClick={() => navigator.clipboard.writeText(email.edited_draft || email.draft_reply || '')} className="text-xs text-sky-600 hover:text-sky-800">📋 Copy</button>
-                    {email.draft_status === 'draft_ready' && <button onClick={() => approveDraft(email.id)} className="text-xs text-green-600 hover:text-green-800">👍 Approve</button>}
-                    {email.draft_status === 'approved' && (
-                      <button
-                        onClick={() => sendEmail(email.id)}
-                        disabled={sendingEmail === email.id}
-                        className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 disabled:opacity-50"
-                      >
-                        {sendingEmail === email.id ? '📤 Sending...' : '📤 Send Email'}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <p className="text-sm text-gray-400 italic mb-2">
-                    {email.draft_reply === 'No reply needed' ? 'AI suggests no reply needed' : 'No draft yet'}
-                  </p>
-                  <button
-                    onClick={() => { setEditingDraftId(email.id); setDraftText(''); }}
-                    className="px-3 py-1.5 bg-sky-500 text-white rounded-lg text-xs font-medium hover:bg-sky-600"
-                  >
-                    + Add Draft Reply
+                  <button onClick={() => saveDraft(email.id, draftText, true)} className="w-full px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition-colors">
+                    Mark Ready
                   </button>
                 </div>
-              )}
+              </div>
+
             </div>
           </div>
         )}
+
       </div>
     );
   };
 
   // Summary Card Component
-  const SummaryCard = ({ icon, title, count, subtitle, gradient, onClick }: {
-    icon: string; title: string; count?: number; subtitle: string; gradient: string; onClick?: () => void;
+  const SummaryCard = ({ icon, title, count, subtitle, gradient, topBorder, onClick }: {
+    icon: string; title: string; count?: number; subtitle: string; gradient: string; topBorder?: string; onClick?: () => void;
   }) => (
     <div
-      className={`${gradient} rounded-xl p-5 text-white shadow-xl border-t border-white/20 ${onClick ? 'cursor-pointer hover:shadow-2xl hover:-translate-y-0.5 transition-all duration-200' : ''}`}
-      style={{ boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255,255,255,0.2)' }}
+      className={`bg-white border border-slate-200 rounded-xl p-5 shadow-sm ${topBorder || ''} ${onClick ? 'cursor-pointer hover:bg-slate-50 transition-colors' : ''}`}
       onClick={onClick}
     >
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-lg font-semibold">{title}</p>
-          {count !== undefined && <p className="text-3xl font-bold mt-1">{count}</p>}
-          <p className="text-sm opacity-90 mt-1">{subtitle}</p>
+          <p className="text-slate-500 text-xs font-medium uppercase tracking-wide">{title}</p>
+          {count !== undefined && <p className="text-slate-900 text-3xl font-bold mt-1">{count}</p>}
+          <p className="text-slate-400 text-sm mt-1">{subtitle}</p>
         </div>
-        <span className="text-3xl opacity-80">{icon}</span>
+        {title === 'Urgent' && count !== undefined && count > 0 ? (
+          <span className="w-3 h-3 bg-red-500 rounded-full mt-1"></span>
+        ) : title === 'Urgent' ? null : (
+          <span className="text-2xl opacity-60">{icon}</span>
+        )}
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-slate-100 flex">
       {/* Sidebar */}
-      <aside className="w-64 bg-gray-900 text-white flex flex-col">
+      <aside className="w-64 bg-slate-900 text-white flex flex-col">
         {/* Logo */}
-        <div className="p-6 border-b border-gray-800">
-          <h1 className="text-xl font-bold">RBK Command Center</h1>
-          <p className="text-xs text-gray-400 mt-1">{format(new Date(), 'EEEE, MMM d')}</p>
+        <div className="p-6 border-b border-slate-800">
+          <h1 className="text-white font-semibold text-lg">RBK Command Center</h1>
+          <p className="text-slate-500 text-xs mt-1">{format(new Date(), 'EEEE, MMM d')}</p>
         </div>
 
         {/* Navigation */}
@@ -1036,21 +1151,21 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
             <button
               key={item.id}
               onClick={() => setActiveNav(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
                 activeNav === item.id
-                  ? 'bg-sky-500 text-white'
-                  : 'text-white hover:bg-gray-800'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'
               }`}
             >
               {item.icon}
               {item.label}
               {item.id === 'inbox' && emails.filter(e => e.is_unread).length > 0 && (
-                <span className="ml-auto bg-sky-400 text-white text-xs px-2 py-0.5 rounded-full">
+                <span className="ml-auto bg-slate-700 text-slate-300 text-xs px-2 py-0.5 rounded-full">
                   {emails.filter(e => e.is_unread).length}
                 </span>
               )}
               {item.id === 'emily' && emilyQueue.length > 0 && (
-                <span className="ml-auto bg-blue-400 text-white text-xs px-2 py-0.5 rounded-full">
+                <span className="ml-auto bg-slate-700 text-slate-300 text-xs px-2 py-0.5 rounded-full">
                   {emilyQueue.length}
                 </span>
               )}
@@ -1059,15 +1174,15 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
         </nav>
 
         {/* User */}
-        {session?.user && (
-          <div className="p-4 border-t border-gray-800">
+        {user && (
+          <div className="p-4 border-t border-slate-800">
             <div className="flex items-center gap-3">
-              {session.user.image && (
-                <img src={session.user.image} alt="" className="w-10 h-10 rounded-full" />
+              {user.photoURL && (
+                <img src={user.photoURL} alt="" className="w-10 h-10 rounded-full" />
               )}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{session.user.name}</p>
-                <button onClick={() => signOut()} className="text-xs text-gray-400 hover:text-white">Sign out</button>
+                <p className="text-sm font-medium text-white truncate">{user.displayName}</p>
+                <button onClick={() => signOut()} className="text-xs text-slate-500 hover:text-white transition-colors">Sign out</button>
               </div>
             </div>
           </div>
@@ -1077,25 +1192,25 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
         {/* Header */}
-        <header className="bg-gradient-to-r from-sky-500 to-sky-600 text-white px-8 py-6">
+        <header className="bg-white border-b border-slate-200 px-8 py-5">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold">Welcome back, {session?.user?.name?.split(' ')[0] || 'RBK'}</h2>
-              <p className="text-sky-100 mt-1">Here's what needs your attention today</p>
+              <h2 className="text-slate-900 font-semibold text-xl">Welcome back, {user?.displayName?.split(' ')[0] || 'RBK'}</h2>
+              <p className="text-slate-500 text-sm mt-0.5">Here's what needs your attention today</p>
             </div>
             <div className="flex items-center gap-3">
               {/* Meeting Countdown Alert */}
               {upcomingMeeting && (
-                <div className="bg-amber-500 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 animate-pulse">
-                  <span>📅</span>
-                  <span className="font-bold truncate max-w-[200px]">{upcomingMeeting.title}</span>
-                  <span className="whitespace-nowrap">in {upcomingMeeting.minutesUntil} min{upcomingMeeting.minutesUntil !== 1 ? 's' : ''}</span>
+                <div className="bg-amber-50 border border-amber-200 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+                  <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></span>
+                  <span className="font-medium text-amber-800 truncate max-w-[200px]">{upcomingMeeting.title}</span>
+                  <span className="whitespace-nowrap text-amber-600">in {upcomingMeeting.minutesUntil} min{upcomingMeeting.minutesUntil !== 1 ? 's' : ''}</span>
                   {upcomingMeeting.meetingLink && (
                     <a
                       href={upcomingMeeting.meetingLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="bg-white text-amber-600 px-3 py-1 rounded font-bold hover:bg-amber-100 transition-colors ml-1"
+                      className="bg-amber-600 text-white px-3 py-1 rounded-lg font-medium hover:bg-amber-700 transition-colors ml-1 text-xs"
                       onClick={(e) => e.stopPropagation()}
                     >
                       Join
@@ -1104,8 +1219,8 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                 </div>
               )}
               {isConnected && (
-                <span className="flex items-center gap-1 text-sm text-sky-100">
-                  <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                <span className="flex items-center gap-1.5 text-sm text-slate-500">
+                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                   Live
                 </span>
               )}
@@ -1116,16 +1231,17 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                     setActiveNav('inbox');
                     setExpandedEmail(urgentAlerts[0].id);
                   }}
-                  className="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg text-sm font-medium transition-all animate-pulse flex items-center gap-2"
+                  className="bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
                 >
-                  🚨 {urgentAlerts.length} Urgent
+                  <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                  {urgentAlerts.length} Urgent
                 </button>
               )}
               <button
                 onClick={refreshEmails}
-                className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                className="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg px-3 py-1.5 text-sm transition-colors"
               >
-                🔄 Refresh
+                Refresh
               </button>
             </div>
           </div>
@@ -1142,24 +1258,24 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   title="Urgent"
                   count={urgentAlerts.length}
                   subtitle={urgentAlerts.length > 0 ? "needs attention now" : "all clear"}
-                  gradient={urgentAlerts.length > 0 ? "bg-gradient-to-b from-red-400 via-red-500 to-red-700" : "bg-gradient-to-b from-gray-400 via-gray-500 to-gray-600"}
+                  gradient={urgentAlerts.length > 0 ? "" : ""}
+                  topBorder="border-t-4 border-t-red-500"
                   onClick={urgentAlerts.length > 0 ? () => setShowUrgentPopup(true) : undefined}
                 />
                 {/* Quick Links Card */}
                 <div
-                  className="bg-gradient-to-b from-sky-400 via-sky-500 to-sky-700 rounded-xl p-5 text-white shadow-xl border-t border-white/20"
-                  style={{ boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255,255,255,0.2)' }}
+                  className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm border-t-4 border-t-blue-500"
                 >
                   <div className="flex items-start justify-between mb-3">
-                    <p className="text-lg font-semibold">Quick Links</p>
-                    <span className="text-2xl opacity-80">📁</span>
+                    <p className="text-slate-500 text-xs font-medium uppercase tracking-wide">Quick Links</p>
+                    <span className="text-lg text-slate-400">📁</span>
                   </div>
                   <div className="space-y-2">
                     <a
                       href="https://drive.google.com/drive/folders/10lSL_ZVTYDEIRnL4mu46J41g-sFaIce9?usp=drive_link"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block bg-white/20 hover:bg-white/30 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                      className="block bg-slate-50 hover:bg-slate-100 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition-colors"
                     >
                       📂 Today's Folder
                     </a>
@@ -1167,7 +1283,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                       href="https://docs.google.com/document/d/1YnnpnzVUylVRNx8f3HsXepSl8xW8y7htQC2wrSwnouo/edit?usp=drive_link"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block bg-white/20 hover:bg-white/30 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                      className="block bg-slate-50 hover:bg-slate-100 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition-colors"
                     >
                       📄 Daily Announcements
                     </a>
@@ -1175,7 +1291,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                       href="https://drive.google.com/drive/folders/1-HDl_sA_9jDZPTEOGPJ7R57O5iU62AwE"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block bg-white/20 hover:bg-white/30 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                      className="block bg-slate-50 hover:bg-slate-100 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition-colors"
                     >
                       📁 Daily Folder
                     </a>
@@ -1186,7 +1302,8 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   title="Important Docs"
                   count={importantDocs.length}
                   subtitle="click to view"
-                  gradient="bg-gradient-to-b from-indigo-400 via-indigo-500 to-indigo-700"
+                  gradient=""
+                  topBorder="border-t-4 border-t-amber-500"
                   onClick={() => setShowImportantDocsPopup(true)}
                 />
                 <SummaryCard
@@ -1194,36 +1311,37 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   title="Meeting Agenda"
                   count={agendaItems.length}
                   subtitle="click to view"
-                  gradient="bg-gradient-to-b from-amber-400 via-amber-500 to-amber-700"
+                  gradient=""
+                  topBorder="border-t-4 border-t-emerald-500"
                   onClick={() => setShowAgendaPopup(true)}
                 />
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Today's Schedule */}
-                <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => navigateDate('prev')}
-                        className="text-gray-400 hover:text-gray-600 p-1"
+                        className="text-slate-400 hover:text-slate-600 p-1"
                       >
                         ◀
                       </button>
-                      <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                        <span className="text-sky-500">📅</span>
+                      <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                        <span className="text-blue-500">📅</span>
                         {isToday(selectedDate) ? "Today's Schedule" : format(selectedDate, 'EEE, MMM d')}
                       </h3>
                       <button
                         onClick={() => navigateDate('next')}
-                        className="text-gray-400 hover:text-gray-600 p-1"
+                        className="text-slate-400 hover:text-slate-600 p-1"
                       >
                         ▶
                       </button>
                       {!isToday(selectedDate) && (
                         <button
                           onClick={() => { setSelectedDate(new Date()); setScheduleEvents(calendarEvents); }}
-                          className="text-xs text-sky-500 hover:text-sky-700 ml-2"
+                          className="text-xs text-blue-600 hover:text-blue-800 ml-2"
                         >
                           Back to Today
                         </button>
@@ -1231,30 +1349,43 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                     </div>
                     <button
                       onClick={() => setShowEventModal(true)}
-                      className="bg-sky-500 hover:bg-sky-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-lg font-bold transition-colors"
+                      className="bg-blue-600 hover:bg-blue-700 text-white w-8 h-8 rounded-full flex items-center justify-center text-lg font-bold transition-colors"
                       title="Add event"
                     >
                       +
                     </button>
                   </div>
                   {loadingSchedule ? (
-                    <p className="text-gray-400 text-sm">Loading...</p>
+                    <p className="text-slate-400 text-sm">Loading...</p>
                   ) : scheduleEvents.length === 0 ? (
-                    <p className="text-gray-400 text-sm">No events {isToday(selectedDate) ? 'today' : 'on this day'}</p>
-                  ) : upcomingEvents.length === 0 && isToday(selectedDate) ? (
-                    <p className="text-gray-400 text-sm">No more events today</p>
+                    calendarAuthError ? (
+                      <div className="text-center py-4">
+                        <p className="text-slate-400 text-xs mb-2">Calendar session expired</p>
+                        <button
+                          onClick={async () => {
+                            const refreshed = await refreshCalendarToken();
+                            if (refreshed) fetchCalendarForDate(selectedDate);
+                          }}
+                          className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700"
+                        >
+                          Reconnect Calendar
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-slate-400 text-sm">No events {isToday(selectedDate) ? 'today' : 'on this day'}</p>
+                    )
                   ) : upcomingEvents.length === 0 ? (
-                    <p className="text-gray-400 text-sm">No events on this day</p>
+                    <p className="text-slate-400 text-sm">No events on this day</p>
                   ) : (
                     <div className="space-y-1">
                       {upcomingEvents.map((event) => (
-                        <div key={event.id} className="flex items-center gap-2 p-2 bg-sky-50 rounded-lg hover:bg-sky-100 transition-colors">
-                          <span className="bg-sky-500 text-white text-xs font-medium px-2 py-0.5 rounded min-w-[60px] text-center">
+                        <div key={event.id} className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
+                          <span className="bg-blue-600 text-white text-xs font-medium px-2 py-0.5 rounded min-w-[60px] text-center">
                             {formatTime(event.startTime, event.isAllDay)}
                           </span>
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-900 text-sm truncate">{event.title}</p>
-                            {event.location && <p className="text-xs text-gray-500 truncate">📍 {event.location}</p>}
+                            <p className="font-medium text-slate-900 text-sm truncate">{event.title}</p>
+                            {event.location && <p className="text-xs text-slate-500 truncate">📍 {event.location}</p>}
                           </div>
                           <div className="flex items-center gap-1">
                             {event.meetingLink && (
@@ -1262,7 +1393,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                 href={event.meetingLink}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="bg-sky-500 hover:bg-sky-600 text-white px-2 py-0.5 rounded text-xs font-medium transition-colors"
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-0.5 rounded text-xs font-medium transition-colors"
                               >
                                 Join
                               </a>
@@ -1272,7 +1403,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                 href={event.calendarLink}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-sky-600 hover:text-sky-800 text-xs"
+                                className="text-blue-600 hover:text-blue-800 text-xs"
                                 title="View in Google Calendar"
                               >
                                 ↗
@@ -1280,7 +1411,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                             )}
                             <button
                               onClick={() => deleteCalendarEvent(event.id)}
-                              className="text-gray-400 hover:text-red-500 text-xs"
+                              className="text-slate-400 hover:text-red-500 text-xs"
                               title="Delete event"
                             >
                               🗑️
@@ -1293,14 +1424,14 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                 </div>
 
                 {/* To-Do Today */}
-                <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                      <span className="text-indigo-500">✅</span> To-Do Today
+                    <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                      <span className="text-blue-500">✅</span> To-Do Today
                     </h3>
                     <button
                       onClick={() => setHideCompletedTasks(!hideCompletedTasks)}
-                      className={`text-xs px-2 py-1 rounded transition-all ${hideCompletedTasks ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'}`}
+                      className={`text-xs px-2 py-1 rounded transition-all ${hideCompletedTasks ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-slate-100 text-slate-500'}`}
                     >
                       {hideCompletedTasks ? 'Show Completed' : 'Hide Completed'}
                     </button>
@@ -1309,16 +1440,16 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   {/* Urgent Items - Always at Top */}
                   {urgentAlerts.length > 0 && (
                     <div className="mb-4">
-                      <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-2">🚨 Urgent</p>
+                      <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-2">Urgent</p>
                       <div className="space-y-2">
                         {urgentAlerts.map((email) => (
                           <div
                             key={email.id}
-                            className="bg-red-50 border border-red-200 rounded-lg p-3 cursor-pointer hover:bg-red-100 transition-colors"
+                            className="bg-white border border-red-200 border-l-4 border-l-red-500 rounded-lg p-3 cursor-pointer hover:bg-red-50 transition-colors shadow-sm"
                             onClick={() => setPopupEmailId(email.id)}
                           >
-                            <p className="text-sm font-medium text-red-900">{email.subject}</p>
-                            <p className="text-xs text-red-600">{email.from_name || email.from_email}</p>
+                            <p className="text-sm font-medium text-slate-900">{email.subject}</p>
+                            <p className="text-xs text-slate-500">{email.from_name || email.from_email}</p>
                           </div>
                         ))}
                       </div>
@@ -1328,31 +1459,31 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   {/* Review Drafts Sub-section */}
                   {draftsReady.length > 0 && (
                     <div className="mb-4">
-                      <p className="text-xs font-semibold text-green-600 uppercase tracking-wide mb-2">📝 Review Drafts ({draftsReady.length})</p>
+                      <p className="text-xs font-semibold text-green-700 uppercase tracking-wide mb-2">Review Drafts ({draftsReady.length})</p>
                       <div className="space-y-2">
                         {draftsReady.slice(0, 3).map((email) => (
-                          <div key={email.id} className="bg-green-50 border border-green-200 rounded-lg p-3">
-                            <p className="text-sm font-medium text-gray-900 truncate">{email.subject}</p>
-                            <p className="text-xs text-gray-500 mb-2">To: {email.from_email}</p>
-                            <p className="text-xs text-gray-600 line-clamp-2 mb-2">{(email.edited_draft || email.draft_reply || '').substring(0, 100)}...</p>
+                          <div key={email.id} className="bg-white border border-green-200 border-l-4 border-l-green-500 rounded-lg p-3 shadow-sm">
+                            <p className="text-sm font-medium text-slate-900 truncate">{email.subject}</p>
+                            <p className="text-xs text-slate-500 mb-2">To: {email.from_email}</p>
+                            <p className="text-xs text-slate-600 line-clamp-2 mb-2">{(email.edited_draft || email.draft_reply || '').substring(0, 100)}...</p>
                             <div className="flex flex-wrap gap-2">
                               <button
                                 onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }}
-                                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-xs font-medium"
+                                className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded text-xs font-medium"
                               >
-                                ✏️ Edit
+                                Edit
                               </button>
                               <button
                                 onClick={() => approveDraft(email.id)}
-                                className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded text-xs font-medium"
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-medium"
                               >
-                                👍 Approve
+                                Approve
                               </button>
                               <button
                                 onClick={() => setRevisionEmailId(email.id)}
-                                className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded text-xs font-medium"
+                                className="border border-amber-200 text-amber-700 hover:bg-amber-50 px-3 py-1.5 rounded text-xs font-medium"
                               >
-                                🔄 Request Revision
+                                Request Revision
                               </button>
                             </div>
                           </div>
@@ -1360,7 +1491,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                         {draftsReady.length > 3 && (
                           <button
                             onClick={() => setActiveNav('inbox')}
-                            className="text-xs text-green-600 hover:text-green-800"
+                            className="text-xs text-blue-600 hover:text-blue-800"
                           >
                             View all {draftsReady.length} drafts →
                           </button>
@@ -1373,7 +1504,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   {draftsApproved.length > 0 && (
                     <div className="mb-4">
                       <div className="flex items-center justify-between mb-2">
-                        <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">📤 Ready to Send ({draftsApproved.length})</p>
+                        <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Ready to Send ({draftsApproved.length})</p>
                         {draftsApproved.length > 1 && (
                           <button
                             onClick={async () => {
@@ -1404,28 +1535,28 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                             disabled={sendingBatch}
                             className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium disabled:opacity-50"
                           >
-                            {sendingBatch ? 'Sending...' : '📤 Send All'}
+                            {sendingBatch ? 'Sending...' : 'Send All'}
                           </button>
                         )}
                       </div>
                       <div className="space-y-2">
                         {draftsApproved.map((email) => (
-                          <div key={email.id} className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                            <p className="text-sm font-medium text-gray-900 truncate">{email.subject}</p>
-                            <p className="text-xs text-gray-500 mb-2">To: {email.from_email}</p>
+                          <div key={email.id} className="bg-white border border-blue-200 border-l-4 border-l-blue-500 rounded-lg p-3 shadow-sm">
+                            <p className="text-sm font-medium text-slate-900 truncate">{email.subject}</p>
+                            <p className="text-xs text-slate-500 mb-2">To: {email.from_email}</p>
                             <div className="flex gap-2">
                               <button
                                 onClick={() => sendEmail(email.id)}
                                 disabled={sendingEmail === email.id}
-                                className="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded text-xs font-medium disabled:opacity-50"
+                                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded text-xs font-medium disabled:opacity-50"
                               >
-                                {sendingEmail === email.id ? 'Sending...' : '📤 Send'}
+                                {sendingEmail === email.id ? 'Sending...' : 'Send'}
                               </button>
                               <button
                                 onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }}
-                                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-xs font-medium"
+                                className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded text-xs font-medium"
                               >
-                                ✏️ Edit
+                                Edit
                               </button>
                             </div>
                           </div>
@@ -1437,85 +1568,94 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   {/* Tasks */}
                   {tasks.filter(t => t.assignee === 'rbk' && (!hideCompletedTasks || !t.isComplete)).length > 0 && (
                     <div>
-                      <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2">📋 Tasks</p>
+                      <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Tasks</p>
                       <div className="space-y-2">
                         {tasks.filter(t => t.assignee === 'rbk' && (!hideCompletedTasks || !t.isComplete)).map((task, idx) => {
-                          const taskEmail = emails.find(e => e.id === task.emailId);
-                          const isExpanded = expandedTask === task.emailId;
+                          const taskEmail = task.emailId ? emails.find(e => e.id === task.emailId) : null;
+                          const taskKey = task.emailId || task.noteId || String(idx);
+                          const isExpanded = expandedTask === taskKey;
                           return (
                             <div
-                              key={idx}
-                              className={`rounded-lg transition-all ${task.isComplete ? 'bg-gray-50' : 'bg-indigo-50'} ${isExpanded ? 'ring-2 ring-indigo-300' : ''}`}
+                              key={taskKey}
+                              className={`rounded-lg transition-all ${task.isComplete ? 'bg-slate-50' : 'bg-white border border-slate-200 shadow-sm'} ${isExpanded ? 'ring-2 ring-blue-200 ring-offset-1' : ''}`}
                             >
                               <div
                                 className="flex items-start gap-3 p-3 cursor-pointer"
-                                onClick={() => setExpandedTask(isExpanded ? null : task.emailId)}
+                                onClick={() => setExpandedTask(isExpanded ? null : taskKey)}
                               >
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.emailId); }}
-                                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-xs flex-shrink-0 ${
-                                    task.isComplete ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 hover:border-indigo-500'
-                                  }`}
-                                >
-                                  {task.isComplete && '✓'}
-                                </button>
+                                {task.emailId ? (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.emailId!); }}
+                                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-xs flex-shrink-0 ${
+                                      task.isComplete ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300 hover:border-blue-500'
+                                    }`}
+                                  >
+                                    {task.isComplete && '✓'}
+                                  </button>
+                                ) : (
+                                  <div className="w-5 h-5 rounded-full border-2 border-amber-300 bg-amber-50 flex-shrink-0 flex items-center justify-center text-[10px] text-amber-500">A</div>
+                                )}
                                 <div className="flex-1 min-w-0">
-                                  <p className={`text-sm font-medium ${task.isComplete ? 'line-through text-gray-400' : 'text-gray-900'}`}>{task.task}</p>
-                                  <p className="text-xs text-gray-400 truncate">Re: {task.subject}</p>
+                                  <p className={`text-sm font-medium ${task.isComplete ? 'line-through text-slate-400' : 'text-slate-900'}`}>{task.task}</p>
+                                  {task.subject ? (
+                                    <p className="text-xs text-slate-400 truncate">Re: {task.subject}</p>
+                                  ) : (
+                                    <p className="text-xs text-amber-500">From agenda notes</p>
+                                  )}
                                 </div>
-                                <span className="text-gray-400 text-xs">{isExpanded ? '▲' : '▼'}</span>
+                                {taskEmail && <span className="text-slate-400 text-xs">{isExpanded ? '▲' : '▼'}</span>}
                               </div>
                               {isExpanded && taskEmail && (
                                 <div className="px-3 pb-3 pt-0">
-                                  <div className="bg-white rounded-lg p-3 border border-indigo-100">
+                                  <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
                                     <div className="flex items-center gap-2 mb-2">
-                                      <span className="text-xs text-gray-500">From:</span>
-                                      <span className="text-xs font-medium text-gray-700">{taskEmail.from_name || taskEmail.from_email}</span>
+                                      <span className="text-xs text-slate-500">From:</span>
+                                      <span className="text-xs font-medium text-slate-700">{taskEmail.from_name || taskEmail.from_email}</span>
                                     </div>
-                                    <p className="text-sm text-gray-600 mb-3">{taskEmail.summary}</p>
+                                    <p className="text-sm text-slate-600 mb-3">{taskEmail.summary}</p>
                                     {/* Draft status indicator */}
                                     {taskEmail.draft_reply && taskEmail.draft_reply !== 'No reply needed' && (
-                                      <div className="mb-3 p-2 bg-gray-50 rounded border border-gray-200">
+                                      <div className="mb-3 p-2 bg-white rounded border border-slate-200">
                                         <div className="flex items-center justify-between mb-1">
-                                          <span className="text-xs font-medium text-gray-600">Draft Reply</span>
+                                          <span className="text-xs font-medium text-slate-600">Draft Reply</span>
                                           {taskEmail.draft_status && draftStatusConfig[taskEmail.draft_status] && (
                                             <span className={`${draftStatusConfig[taskEmail.draft_status].bg} ${draftStatusConfig[taskEmail.draft_status].text} px-2 py-0.5 rounded text-xs`}>
                                               {draftStatusConfig[taskEmail.draft_status].label}
                                             </span>
                                           )}
                                         </div>
-                                        <p className="text-xs text-gray-500 line-clamp-2">{(taskEmail.edited_draft || taskEmail.draft_reply).substring(0, 100)}...</p>
+                                        <p className="text-xs text-slate-500 line-clamp-2">{(taskEmail.edited_draft || taskEmail.draft_reply).substring(0, 100)}...</p>
                                       </div>
                                     )}
                                     <div className="flex flex-wrap gap-2">
                                       <button
                                         onClick={(e) => { e.stopPropagation(); setPopupEmailId(taskEmail.id); }}
-                                        className="bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white px-3 py-1 rounded text-xs font-medium transition-transform"
+                                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
                                       >
                                         View Email
                                       </button>
                                       <button
                                         onClick={(e) => { e.stopPropagation(); setEditingDraftId(taskEmail.id); setDraftText(taskEmail.edited_draft || taskEmail.draft_reply || ''); }}
-                                        className="bg-amber-500 hover:bg-amber-600 active:scale-95 text-white px-3 py-1 rounded text-xs font-medium transition-transform"
+                                        className="border border-slate-200 text-slate-600 hover:bg-slate-50 px-3 py-1 rounded text-xs font-medium transition-colors"
                                       >
-                                        ✏️ Edit Draft
+                                        Edit Draft
                                       </button>
                                       {taskEmail.draft_status === 'approved' && (
                                         <button
                                           onClick={(e) => { e.stopPropagation(); sendEmail(taskEmail.id); }}
                                           disabled={sendingEmail === taskEmail.id}
-                                          className="bg-green-500 hover:bg-green-600 active:scale-95 text-white px-3 py-1 rounded text-xs font-medium transition-transform disabled:opacity-50"
+                                          className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50"
                                         >
-                                          {sendingEmail === taskEmail.id ? 'Sending...' : '📤 Send'}
+                                          {sendingEmail === taskEmail.id ? 'Sending...' : 'Send'}
                                         </button>
                                       )}
                                       {taskEmail.draft_status === 'draft_ready' && (
                                         <button
                                           onClick={(e) => { e.stopPropagation(); approveDraft(taskEmail.id); }}
                                           disabled={updating === taskEmail.id}
-                                          className="bg-blue-500 hover:bg-blue-600 active:scale-95 text-white px-3 py-1 rounded text-xs font-medium transition-transform disabled:opacity-50"
+                                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50"
                                         >
-                                          👍 Approve
+                                          Approve
                                         </button>
                                       )}
                                       {taskEmail.attachments && taskEmail.attachments.length > 0 && getGmailUrl(taskEmail.message_id) && (
@@ -1523,9 +1663,9 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                           href={getGmailUrl(taskEmail.message_id)!}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 px-3 py-1 rounded text-xs font-medium transition-transform"
+                                          className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1 rounded text-xs font-medium transition-colors"
                                         >
-                                          📎 View Attachments
+                                          View Attachments
                                         </a>
                                       )}
                                     </div>
@@ -1541,7 +1681,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
 
                   {/* Empty state */}
                   {urgentAlerts.length === 0 && draftsReady.length === 0 && draftsApproved.length === 0 && tasks.filter(t => t.assignee === 'rbk' && (!hideCompletedTasks || !t.isComplete)).length === 0 && (
-                    <p className="text-gray-400 text-sm text-center py-4">All caught up! Nothing to do right now.</p>
+                    <p className="text-slate-400 text-sm text-center py-4">All caught up! Nothing to do right now.</p>
                   )}
                 </div>
               </div>
@@ -1549,8 +1689,8 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
               {/* RBK Action Emails */}
               {urgentEmails.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <span className="text-sky-500">📧</span> RBK Action Emails
+                  <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+RBK Action Emails
                   </h3>
                   <div className="space-y-4">
                     {urgentEmails.map((email) => (
@@ -1568,13 +1708,13 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
             <div className="space-y-6">
               {/* Urgent Alert Banner */}
               {urgentAlerts.length > 0 && (
-                <div className="bg-gradient-to-r from-red-500 to-orange-500 rounded-xl p-4 shadow-lg animate-pulse">
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 text-white">
-                      <span className="text-2xl">🚨</span>
+                    <div className="flex items-center gap-3">
+                      <span className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
                       <div>
-                        <p className="font-bold text-lg">URGENT: {urgentAlerts.length} email{urgentAlerts.length > 1 ? 's' : ''} need immediate attention</p>
-                        <p className="text-sm opacity-90">{urgentAlerts[0].subject}</p>
+                        <p className="font-semibold text-slate-900">URGENT: {urgentAlerts.length} email{urgentAlerts.length > 1 ? 's' : ''} need immediate attention</p>
+                        <p className="text-sm text-slate-600">{urgentAlerts[0].subject}</p>
                       </div>
                     </div>
                     <button
@@ -1582,7 +1722,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                         setExpandedEmail(urgentAlerts[0].id);
                         updateActionStatus(urgentAlerts[0].id, null);
                       }}
-                      className="bg-white text-red-600 px-4 py-2 rounded-lg font-semibold hover:bg-red-50 transition-all"
+                      className="bg-red-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-700 transition-colors text-sm"
                     >
                       View Now
                     </button>
@@ -1597,15 +1737,15 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   placeholder="Search emails by subject, sender, or content..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full px-4 py-3 pl-10 bg-white border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-sky-500 focus:border-transparent outline-none"
+                  className="w-full px-4 py-3 pl-10 bg-white border border-slate-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                 />
-                <svg className="absolute left-3 top-3.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="absolute left-3 top-3.5 w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-3.5 text-slate-400 hover:text-slate-600"
                   >
                     ✕
                   </button>
@@ -1617,33 +1757,33 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                 {/* Left Column - Action Emails */}
                 <div className="space-y-6">
                   {/* RBK Action Emails */}
-                  <div className="bg-gray-50 rounded-xl p-5 shadow-sm border border-gray-200">
-                    <div className="flex items-center justify-between mb-4 sticky top-0 z-10 bg-gray-50 pb-2">
-                      <h3 className="text-lg font-bold text-gray-900">RBK Action Emails</h3>
+                  <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
+                    <div className="flex items-center justify-between mb-4 sticky top-0 z-10 bg-white pb-2">
+                      <h3 className="text-lg font-semibold text-slate-900">RBK Action Emails</h3>
                       <div className="flex items-center gap-2">
                         {rbkActionEmails.length > 0 && (
                           <button
                             onClick={(e) => { e.stopPropagation(); markSectionDone(rbkActionEmails.map(e => e.id)); }}
                             disabled={bulkUpdating}
-                            className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+                            className="border border-slate-200 hover:bg-slate-50 text-slate-600 px-3 py-1 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
                           >
                             All Done
                           </button>
                         )}
-                        <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold">
+                        <span className={`${rbkActionEmails.length > 0 ? 'bg-red-500 text-white' : 'bg-slate-200 text-slate-500'} px-3 py-1 rounded-full text-xs font-medium`}>
                           {rbkActionEmails.length}
                         </span>
                       </div>
                     </div>
                     <div className="space-y-3">
                       {rbkActionEmails.length === 0 ? (
-                        <p className="text-gray-500 text-sm">No action items</p>
+                        <p className="text-slate-500 text-sm">No action items</p>
                       ) : (
                         rbkActionEmails.map((email) => (
                           <div
                             key={email.id}
                             onClick={() => setExpandedEmail(expandedEmail === email.id ? null : email.id)}
-                            className={`bg-white border-2 border-blue-600 rounded-lg p-3 cursor-pointer transition-all shadow-sm hover:shadow-md ${selectedEmails.has(email.id) ? 'ring-2 ring-blue-400' : ''}`}
+                            className={`bg-white border border-slate-200 border-l-4 border-l-red-600 rounded-lg p-3 cursor-pointer transition-all shadow-sm hover:shadow-md ${selectedEmails.has(email.id) ? 'ring-2 ring-blue-200 ring-offset-1' : ''}`}
                           >
                             <div className="flex items-start gap-2">
                               <input
@@ -1651,22 +1791,22 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                 checked={selectedEmails.has(email.id)}
                                 onChange={(e) => { e.stopPropagation(); toggleEmailSelection(email.id); }}
                                 onClick={(e) => e.stopPropagation()}
-                                className="mt-1 w-4 h-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
+                                className="mt-1 w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                               />
                               <div className="flex-1 min-w-0 flex items-start justify-between">
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-gray-900 font-bold text-sm truncate">{email.subject}</p>
-                                  <p className="text-gray-700 font-semibold text-xs mt-1">{email.from_name || email.from_email}</p>
+                                  <p className="text-slate-900 font-medium text-sm truncate">{email.subject}</p>
+                                  <p className="text-slate-500 text-xs mt-1">{email.from_name || email.from_email}</p>
                                 </div>
                                 {email.attachments && email.attachments.length > 0 && (
-                                  <span className="ml-2 bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1">
+                                  <span className="ml-2 bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1">
                                     📎 {email.attachments.length}
                                   </span>
                                 )}
                               </div>
                             </div>
                             {expandedEmail === email.id && (
-                              <div className="mt-3 pt-3 border-t border-white/40">
+                              <div className="mt-3 pt-3 border-t border-slate-200">
                                 {/* Attachments */}
                                 {email.attachments && email.attachments.length > 0 && (
                                   <div className="bg-amber-50 rounded-lg p-2 mb-3 border border-amber-200">
@@ -1689,7 +1829,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                     {email.attachments && email.attachments.length > 0 && (
                                       <div className="flex flex-wrap gap-1">
                                         {email.attachments.map((att, idx) => (
-                                          <span key={idx} className="bg-white text-gray-700 px-2 py-0.5 rounded text-xs border border-amber-200">
+                                          <span key={idx} className="bg-white text-slate-700 px-2 py-0.5 rounded text-xs border border-amber-200">
                                             {att.name} ({formatFileSize(att.size)})
                                           </span>
                                         ))}
@@ -1697,22 +1837,22 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                     )}
                                   </div>
                                 )}
-                                <div className="bg-white/80 rounded-lg p-3 max-h-60 overflow-y-auto">
-                                  <p className="text-gray-800 text-sm whitespace-pre-wrap">
+                                <div className="bg-slate-50 rounded-lg p-3 max-h-60 overflow-y-auto">
+                                  <p className="text-slate-700 text-sm whitespace-pre-wrap">
                                     {email.body_text || email.summary}
                                   </p>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2 mt-3">
                                   <button
                                     onClick={(e) => { e.stopPropagation(); updateStatus(email.id, 'done'); }}
-                                    className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold border-2 border-green-600 hover:bg-green-700"
+                                    className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-green-700 transition-colors"
                                   >
                                     Done
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent'); }}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border-2 ${
-                                      email.action_status === 'urgent' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-red-600 border-red-600 hover:bg-red-50'
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
+                                      email.action_status === 'urgent' ? 'bg-red-600 text-white' : 'border border-red-200 text-red-600 hover:bg-red-50'
                                     }`}
                                   >
                                     {email.action_status === 'urgent' ? 'Urgent' : 'Urgent'}
@@ -1720,28 +1860,28 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                   <div className="flex items-center gap-1 ml-auto">
                                     <button
                                       onClick={(e) => { e.stopPropagation(); toggleMeetingFlag(email.id, email.flagged_for_meeting); }}
-                                      className={`p-2 rounded-full hover:bg-gray-100 ${email.flagged_for_meeting ? 'text-amber-500' : 'text-gray-400'}`}
+                                      className={`p-2 rounded-full hover:bg-slate-100 ${email.flagged_for_meeting ? 'text-amber-500' : 'text-slate-400'}`}
                                       title="Add to Agenda"
                                     >
                                       {email.flagged_for_meeting ? '⭐' : '☆'}
                                     </button>
                                     <button
                                       onClick={(e) => { e.stopPropagation(); setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }}
-                                      className="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                                      className="p-2 rounded-full hover:bg-slate-100 text-slate-500"
                                       title="Edit Draft"
                                     >
                                       ✏️
                                     </button>
                                     <button
                                       onClick={(e) => { e.stopPropagation(); openEventModalFromEmail(email); }}
-                                      className="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                                      className="p-2 rounded-full hover:bg-slate-100 text-slate-500"
                                       title="Add to Calendar"
                                     >
                                       📅
                                     </button>
                                     <button
                                       onClick={(e) => { e.stopPropagation(); setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }}
-                                      className="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                                      className="p-2 rounded-full hover:bg-slate-100 text-slate-500"
                                       title="Remind Me"
                                     >
                                       ⏰
@@ -1757,33 +1897,33 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   </div>
 
                   {/* Emily Action Emails */}
-                  <div className="bg-gray-50 rounded-xl p-5 shadow-sm border border-gray-200">
-                    <div className="flex items-center justify-between mb-4 sticky top-0 z-10 bg-gray-50 pb-2">
-                      <h3 className="text-lg font-bold text-gray-900">Emily Action Emails</h3>
+                  <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
+                    <div className="flex items-center justify-between mb-4 sticky top-0 z-10 bg-white pb-2">
+                      <h3 className="text-lg font-semibold text-slate-900">Emily Action Emails</h3>
                       <div className="flex items-center gap-2">
                         {emilyActionEmails.length > 0 && (
                           <button
                             onClick={(e) => { e.stopPropagation(); markSectionDone(emilyActionEmails.map(e => e.id)); }}
                             disabled={bulkUpdating}
-                            className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+                            className="border border-slate-200 hover:bg-slate-50 text-slate-600 px-3 py-1 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
                           >
                             All Done
                           </button>
                         )}
-                        <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold">
+                        <span className={`${emilyActionEmails.length > 0 ? 'bg-violet-600 text-white' : 'bg-slate-200 text-slate-500'} px-3 py-1 rounded-full text-xs font-medium`}>
                           {emilyActionEmails.length}
                         </span>
                       </div>
                     </div>
                     <div className="space-y-3">
                       {emilyActionEmails.length === 0 ? (
-                        <p className="text-gray-500 text-sm">No action items</p>
+                        <p className="text-slate-500 text-sm">No action items</p>
                       ) : (
                         emilyActionEmails.map((email) => (
                           <div
                             key={email.id}
                             onClick={() => setExpandedEmail(expandedEmail === email.id ? null : email.id)}
-                            className={`bg-white border-2 border-blue-600 rounded-lg p-3 cursor-pointer transition-all shadow-sm hover:shadow-md ${selectedEmails.has(email.id) ? 'ring-2 ring-blue-400' : ''}`}
+                            className={`bg-white border border-slate-200 border-l-4 border-l-violet-600 rounded-lg p-3 cursor-pointer transition-all shadow-sm hover:shadow-md ${selectedEmails.has(email.id) ? 'ring-2 ring-blue-200 ring-offset-1' : ''}`}
                           >
                             <div className="flex items-start gap-2">
                               <input
@@ -1791,22 +1931,22 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                 checked={selectedEmails.has(email.id)}
                                 onChange={(e) => { e.stopPropagation(); toggleEmailSelection(email.id); }}
                                 onClick={(e) => e.stopPropagation()}
-                                className="mt-1 w-4 h-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
+                                className="mt-1 w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                               />
                               <div className="flex-1 min-w-0 flex items-start justify-between">
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-gray-900 font-bold text-sm truncate">{email.subject}</p>
-                                  <p className="text-gray-700 font-semibold text-xs mt-1">{email.from_name || email.from_email}</p>
+                                  <p className="text-slate-900 font-medium text-sm truncate">{email.subject}</p>
+                                  <p className="text-slate-500 text-xs mt-1">{email.from_name || email.from_email}</p>
                                 </div>
                                 {email.attachments && email.attachments.length > 0 && (
-                                  <span className="ml-2 bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1">
+                                  <span className="ml-2 bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1">
                                     📎 {email.attachments.length}
                                   </span>
                                 )}
                               </div>
                             </div>
                             {expandedEmail === email.id && (
-                              <div className="mt-3 pt-3 border-t border-white/40">
+                              <div className="mt-3 pt-3 border-t border-slate-200">
                                 {/* Attachments */}
                                 {email.attachments && email.attachments.length > 0 && (
                                   <div className="bg-amber-50 rounded-lg p-2 mb-3 border border-amber-200">
@@ -1829,7 +1969,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                     {email.attachments && email.attachments.length > 0 && (
                                       <div className="flex flex-wrap gap-1">
                                         {email.attachments.map((att, idx) => (
-                                          <span key={idx} className="bg-white text-gray-700 px-2 py-0.5 rounded text-xs border border-amber-200">
+                                          <span key={idx} className="bg-white text-slate-700 px-2 py-0.5 rounded text-xs border border-amber-200">
                                             {att.name} ({formatFileSize(att.size)})
                                           </span>
                                         ))}
@@ -1837,22 +1977,22 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                     )}
                                   </div>
                                 )}
-                                <div className="bg-white/80 rounded-lg p-3 max-h-60 overflow-y-auto">
-                                  <p className="text-gray-800 text-sm whitespace-pre-wrap">
+                                <div className="bg-slate-50 rounded-lg p-3 max-h-60 overflow-y-auto">
+                                  <p className="text-slate-700 text-sm whitespace-pre-wrap">
                                     {email.body_text || email.summary}
                                   </p>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2 mt-3">
                                   <button
                                     onClick={(e) => { e.stopPropagation(); updateStatus(email.id, 'done'); }}
-                                    className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold border-2 border-green-600 hover:bg-green-700"
+                                    className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-green-700 transition-colors"
                                   >
                                     Done
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent'); }}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border-2 ${
-                                      email.action_status === 'urgent' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-red-600 border-red-600 hover:bg-red-50'
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
+                                      email.action_status === 'urgent' ? 'bg-red-600 text-white' : 'border border-red-200 text-red-600 hover:bg-red-50'
                                     }`}
                                   >
                                     Urgent
@@ -1860,28 +2000,28 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                   <div className="flex items-center gap-1 ml-auto">
                                     <button
                                       onClick={(e) => { e.stopPropagation(); toggleMeetingFlag(email.id, email.flagged_for_meeting); }}
-                                      className={`p-2 rounded-full hover:bg-gray-100 ${email.flagged_for_meeting ? 'text-amber-500' : 'text-gray-400'}`}
+                                      className={`p-2 rounded-full hover:bg-slate-100 ${email.flagged_for_meeting ? 'text-amber-500' : 'text-slate-400'}`}
                                       title="Add to Agenda"
                                     >
                                       {email.flagged_for_meeting ? '⭐' : '☆'}
                                     </button>
                                     <button
                                       onClick={(e) => { e.stopPropagation(); setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }}
-                                      className="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                                      className="p-2 rounded-full hover:bg-slate-100 text-slate-500"
                                       title="Edit Draft"
                                     >
                                       ✏️
                                     </button>
                                     <button
                                       onClick={(e) => { e.stopPropagation(); openEventModalFromEmail(email); }}
-                                      className="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                                      className="p-2 rounded-full hover:bg-slate-100 text-slate-500"
                                       title="Add to Calendar"
                                     >
                                       📅
                                     </button>
                                     <button
                                       onClick={(e) => { e.stopPropagation(); setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }}
-                                      className="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                                      className="p-2 rounded-full hover:bg-slate-100 text-slate-500"
                                       title="Remind Me"
                                     >
                                       ⏰
@@ -1900,18 +2040,18 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   <div className="flex gap-4">
                     <button
                       onClick={() => setShowDraftsPopup(true)}
-                      className="flex-1 bg-gradient-to-r from-sky-500 to-blue-500 text-white px-4 py-3 rounded-xl font-semibold hover:from-sky-600 hover:to-blue-600 transition-all shadow-lg flex items-center justify-center gap-2"
+                      className="flex-1 bg-blue-600 text-white px-4 py-3 rounded-xl font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
                     >
-                      <span>📝</span> Drafts Ready
+                      Drafts Ready
                       {draftsReady.length > 0 && (
                         <span className="bg-white/20 px-2 py-0.5 rounded-full text-sm">{draftsReady.length}</span>
                       )}
                     </button>
                     <button
                       disabled
-                      className="flex-1 bg-gray-300 text-gray-500 px-4 py-3 rounded-xl font-semibold cursor-not-allowed flex items-center justify-center gap-2"
+                      className="flex-1 bg-slate-100 text-slate-400 px-4 py-3 rounded-xl font-medium cursor-not-allowed border border-slate-200 flex items-center justify-center gap-2"
                     >
-                      <span>📌</span> TBD
+                      TBD
                     </button>
                   </div>
                 </div>
@@ -1919,44 +2059,44 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                 {/* Right Column - Collapsible Categories */}
                 <div className="space-y-4">
                   {/* Important No Action */}
-                  <div className="bg-slate-100 rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <button
                       onClick={() => setExpandedSections(s => ({ ...s, important_no_action: !s.important_no_action }))}
-                      className="w-full bg-slate-200 px-4 py-3 flex items-center justify-between text-slate-800 sticky top-0 z-10"
+                      className="w-full bg-slate-50 px-4 py-3 flex items-center justify-between text-slate-800 sticky top-0 z-10 border-b border-slate-100"
                     >
-                      <span className="font-bold text-lg">Important No Action</span>
+                      <span className="font-semibold text-sm">Important No Action</span>
                       <div className="flex items-center gap-2">
                         {importantNoAction.length > 0 && (
                           <button
                             onClick={(e) => { e.stopPropagation(); markSectionDone(importantNoAction.map(em => em.id)); }}
                             disabled={bulkUpdating}
-                            className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+                            className="border border-slate-200 hover:bg-slate-50 text-slate-600 px-3 py-1 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
                           >
                             All Done
                           </button>
                         )}
-                        <span className="bg-slate-600 text-white px-3 py-1 rounded-full text-xs font-bold">{importantNoAction.length}</span>
+                        <span className={`${importantNoAction.length > 0 ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-500'} px-3 py-1 rounded-full text-xs font-medium`}>{importantNoAction.length}</span>
                         <span className={`transition-transform ${expandedSections.important_no_action ? 'rotate-180' : ''}`}>▼</span>
                       </div>
                     </button>
                     {expandedSections.important_no_action && (
                       <div className="p-4 space-y-3">
                         {importantNoAction.length === 0 ? (
-                          <p className="text-gray-500 text-sm">No emails</p>
+                          <p className="text-slate-500 text-sm">No emails</p>
                         ) : (
                           importantNoAction.map((email) => (
                             <div
                               key={email.id}
-                              className={`bg-white border border-slate-300 rounded-lg p-3 cursor-pointer transition-all shadow-sm hover:shadow-md ${expandedEmail === email.id ? 'ring-2 ring-slate-400' : ''}`}
+                              className={`bg-white border border-slate-200 border-l-4 border-l-amber-400 rounded-lg p-3 cursor-pointer transition-all shadow-sm hover:shadow-md ${expandedEmail === email.id ? 'ring-2 ring-blue-200 ring-offset-1' : ''}`}
                               onClick={() => setExpandedEmail(expandedEmail === email.id ? null : email.id)}
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-bold text-gray-900 text-sm">{email.subject}</p>
-                                  <p className="text-gray-700 font-semibold text-xs mt-1">{email.from_name || email.from_email}</p>
+                                  <p className="font-medium text-slate-900 text-sm">{email.subject}</p>
+                                  <p className="text-slate-500 text-xs mt-1">{email.from_name || email.from_email}</p>
                                 </div>
                                 {email.attachments && email.attachments.length > 0 && (
-                                  <span className="ml-2 bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-xs font-medium">📎 {email.attachments.length}</span>
+                                  <span className="ml-2 bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-medium">📎 {email.attachments.length}</span>
                                 )}
                               </div>
                               {expandedEmail === email.id && (
@@ -1966,7 +2106,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                       <p className="text-xs font-semibold text-amber-800 mb-1">📎 Attachments:</p>
                                       <div className="flex flex-wrap gap-1">
                                         {email.attachments.map((att, idx) => (
-                                          <span key={idx} className="bg-white text-gray-700 px-2 py-0.5 rounded text-xs border border-amber-200">{att.name} ({formatFileSize(att.size)})</span>
+                                          <span key={idx} className="bg-white text-slate-700 px-2 py-0.5 rounded text-xs border border-amber-200">{att.name} ({formatFileSize(att.size)})</span>
                                         ))}
                                       </div>
                                       {getGmailUrl(email.message_id) && (
@@ -1975,17 +2115,17 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                     </div>
                                   )}
                                   <div className="bg-white/80 rounded-lg p-3 max-h-60 overflow-y-auto mb-3">
-                                    <p className="text-gray-800 text-sm whitespace-pre-wrap">
+                                    <p className="text-slate-700 text-sm whitespace-pre-wrap">
                                       {email.body_text || email.summary}
                                     </p>
                                   </div>
                                   <div className="flex flex-wrap items-center gap-2">
-                                    <button onClick={() => updateStatus(email.id, 'done')} className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold border-2 border-green-600 hover:bg-green-700">Done</button>
+                                    <button onClick={() => updateStatus(email.id, 'done')} className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-green-700 transition-colors">Done</button>
                                     <button onClick={() => updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent')} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border-2 ${email.action_status === 'urgent' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-red-600 border-red-600 hover:bg-red-50'}`}>Urgent</button>
                                     <div className="flex items-center gap-1 ml-auto">
-                                      <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className={`p-2 rounded-full hover:bg-gray-100 ${email.flagged_for_meeting ? 'text-amber-500' : 'text-gray-400'}`} title="Add to Agenda">{email.flagged_for_meeting ? '⭐' : '☆'}</button>
-                                      <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="p-2 rounded-full hover:bg-gray-100 text-gray-500" title="Edit Draft">✏️</button>
-                                      <button onClick={() => { setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }} className="p-2 rounded-full hover:bg-gray-100 text-gray-500" title="Remind Me">⏰</button>
+                                      <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className={`p-2 rounded-full hover:bg-slate-100 ${email.flagged_for_meeting ? 'text-amber-500' : 'text-slate-400'}`} title="Add to Agenda">{email.flagged_for_meeting ? '⭐' : '☆'}</button>
+                                      <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="p-2 rounded-full hover:bg-slate-100 text-slate-500" title="Edit Draft">✏️</button>
+                                      <button onClick={() => { setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }} className="p-2 rounded-full hover:bg-slate-100 text-slate-500" title="Remind Me">⏰</button>
                                     </div>
                                   </div>
                                 </div>
@@ -1998,44 +2138,44 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   </div>
 
                   {/* Review */}
-                  <div className="bg-slate-100 rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <button
                       onClick={() => setExpandedSections(s => ({ ...s, review: !s.review }))}
-                      className="w-full bg-slate-200 px-4 py-3 flex items-center justify-between text-slate-800 sticky top-0 z-10"
+                      className="w-full bg-slate-50 px-4 py-3 flex items-center justify-between text-slate-800 sticky top-0 z-10 border-b border-slate-100"
                     >
-                      <span className="font-bold text-lg">Review</span>
+                      <span className="font-semibold text-sm">Review</span>
                       <div className="flex items-center gap-2">
                         {reviewEmails.length > 0 && (
                           <button
                             onClick={(e) => { e.stopPropagation(); markSectionDone(reviewEmails.map(em => em.id)); }}
                             disabled={bulkUpdating}
-                            className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+                            className="border border-slate-200 hover:bg-slate-50 text-slate-600 px-3 py-1 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
                           >
                             All Done
                           </button>
                         )}
-                        <span className="bg-slate-600 text-white px-3 py-1 rounded-full text-xs font-bold">{reviewEmails.length}</span>
+                        <span className={`${reviewEmails.length > 0 ? 'bg-slate-600 text-white' : 'bg-slate-200 text-slate-500'} px-3 py-1 rounded-full text-xs font-medium`}>{reviewEmails.length}</span>
                         <span className={`transition-transform ${expandedSections.review ? 'rotate-180' : ''}`}>▼</span>
                       </div>
                     </button>
                     {expandedSections.review && (
                       <div className="p-4 space-y-3">
                         {reviewEmails.length === 0 ? (
-                          <p className="text-gray-500 text-sm">No emails</p>
+                          <p className="text-slate-500 text-sm">No emails</p>
                         ) : (
                           reviewEmails.map((email) => (
                             <div
                               key={email.id}
-                              className={`bg-white border border-slate-300 rounded-lg p-3 cursor-pointer transition-all shadow-sm hover:shadow-md ${expandedEmail === email.id ? 'ring-2 ring-slate-400' : ''}`}
+                              className={`bg-white border border-slate-200 border-l-4 border-l-amber-400 rounded-lg p-3 cursor-pointer transition-all shadow-sm hover:shadow-md ${expandedEmail === email.id ? 'ring-2 ring-blue-200 ring-offset-1' : ''}`}
                               onClick={() => setExpandedEmail(expandedEmail === email.id ? null : email.id)}
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-bold text-gray-900 text-sm">{email.subject}</p>
-                                  <p className="text-gray-700 font-semibold text-xs mt-1">{email.from_name || email.from_email}</p>
+                                  <p className="font-medium text-slate-900 text-sm">{email.subject}</p>
+                                  <p className="text-slate-500 text-xs mt-1">{email.from_name || email.from_email}</p>
                                 </div>
                                 {email.attachments && email.attachments.length > 0 && (
-                                  <span className="ml-2 bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-xs font-medium">📎 {email.attachments.length}</span>
+                                  <span className="ml-2 bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-medium">📎 {email.attachments.length}</span>
                                 )}
                               </div>
                               {expandedEmail === email.id && (
@@ -2045,7 +2185,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                       <p className="text-xs font-semibold text-amber-800 mb-1">📎 Attachments:</p>
                                       <div className="flex flex-wrap gap-1">
                                         {email.attachments.map((att, idx) => (
-                                          <span key={idx} className="bg-white text-gray-700 px-2 py-0.5 rounded text-xs border border-amber-200">{att.name} ({formatFileSize(att.size)})</span>
+                                          <span key={idx} className="bg-white text-slate-700 px-2 py-0.5 rounded text-xs border border-amber-200">{att.name} ({formatFileSize(att.size)})</span>
                                         ))}
                                       </div>
                                       {getGmailUrl(email.message_id) && (
@@ -2054,17 +2194,17 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                     </div>
                                   )}
                                   <div className="bg-white/80 rounded-lg p-3 max-h-60 overflow-y-auto mb-3">
-                                    <p className="text-gray-800 text-sm whitespace-pre-wrap">
+                                    <p className="text-slate-700 text-sm whitespace-pre-wrap">
                                       {email.body_text || email.summary}
                                     </p>
                                   </div>
                                   <div className="flex flex-wrap items-center gap-2">
-                                    <button onClick={() => updateStatus(email.id, 'done')} className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold border-2 border-green-600 hover:bg-green-700">Done</button>
+                                    <button onClick={() => updateStatus(email.id, 'done')} className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-green-700 transition-colors">Done</button>
                                     <button onClick={() => updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent')} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border-2 ${email.action_status === 'urgent' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-red-600 border-red-600 hover:bg-red-50'}`}>Urgent</button>
                                     <div className="flex items-center gap-1 ml-auto">
-                                      <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className={`p-2 rounded-full hover:bg-gray-100 ${email.flagged_for_meeting ? 'text-amber-500' : 'text-gray-400'}`} title="Add to Agenda">{email.flagged_for_meeting ? '⭐' : '☆'}</button>
-                                      <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="p-2 rounded-full hover:bg-gray-100 text-gray-500" title="Edit Draft">✏️</button>
-                                      <button onClick={() => { setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }} className="p-2 rounded-full hover:bg-gray-100 text-gray-500" title="Remind Me">⏰</button>
+                                      <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className={`p-2 rounded-full hover:bg-slate-100 ${email.flagged_for_meeting ? 'text-amber-500' : 'text-slate-400'}`} title="Add to Agenda">{email.flagged_for_meeting ? '⭐' : '☆'}</button>
+                                      <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="p-2 rounded-full hover:bg-slate-100 text-slate-500" title="Edit Draft">✏️</button>
+                                      <button onClick={() => { setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }} className="p-2 rounded-full hover:bg-slate-100 text-slate-500" title="Remind Me">⏰</button>
                                     </div>
                                   </div>
                                 </div>
@@ -2077,44 +2217,44 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   </div>
 
                   {/* Invitations */}
-                  <div className="bg-slate-100 rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <button
                       onClick={() => setExpandedSections(s => ({ ...s, invitation: !s.invitation }))}
-                      className="w-full bg-slate-200 px-4 py-3 flex items-center justify-between text-slate-800 sticky top-0 z-10"
+                      className="w-full bg-slate-50 px-4 py-3 flex items-center justify-between text-slate-800 sticky top-0 z-10 border-b border-slate-100"
                     >
-                      <span className="font-bold text-lg">Invitations</span>
+                      <span className="font-semibold text-sm">Invitations</span>
                       <div className="flex items-center gap-2">
                         {invitationEmails.length > 0 && (
                           <button
                             onClick={(e) => { e.stopPropagation(); markSectionDone(invitationEmails.map(em => em.id)); }}
                             disabled={bulkUpdating}
-                            className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+                            className="border border-slate-200 hover:bg-slate-50 text-slate-600 px-3 py-1 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
                           >
                             All Done
                           </button>
                         )}
-                        <span className="bg-slate-600 text-white px-3 py-1 rounded-full text-xs font-bold">{invitationEmails.length}</span>
+                        <span className={`${invitationEmails.length > 0 ? 'bg-cyan-600 text-white' : 'bg-slate-200 text-slate-500'} px-3 py-1 rounded-full text-xs font-medium`}>{invitationEmails.length}</span>
                         <span className={`transition-transform ${expandedSections.invitation ? 'rotate-180' : ''}`}>▼</span>
                       </div>
                     </button>
                     {expandedSections.invitation && (
                       <div className="p-4 space-y-3">
                         {invitationEmails.length === 0 ? (
-                          <p className="text-gray-500 text-sm">No emails</p>
+                          <p className="text-slate-500 text-sm">No emails</p>
                         ) : (
                           invitationEmails.map((email) => (
                             <div
                               key={email.id}
-                              className={`bg-white border border-slate-300 rounded-lg p-3 cursor-pointer transition-all shadow-sm hover:shadow-md ${expandedEmail === email.id ? 'ring-2 ring-slate-400' : ''}`}
+                              className={`bg-white border border-slate-200 border-l-4 border-l-cyan-600 rounded-lg p-3 cursor-pointer transition-all shadow-sm hover:shadow-md ${expandedEmail === email.id ? 'ring-2 ring-blue-200 ring-offset-1' : ''}`}
                               onClick={() => setExpandedEmail(expandedEmail === email.id ? null : email.id)}
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-bold text-gray-900 text-sm">{email.subject}</p>
-                                  <p className="text-gray-700 font-semibold text-xs mt-1">{email.from_name || email.from_email}</p>
+                                  <p className="font-medium text-slate-900 text-sm">{email.subject}</p>
+                                  <p className="text-slate-500 text-xs mt-1">{email.from_name || email.from_email}</p>
                                 </div>
                                 {email.attachments && email.attachments.length > 0 && (
-                                  <span className="ml-2 bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-xs font-medium">📎 {email.attachments.length}</span>
+                                  <span className="ml-2 bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-medium">📎 {email.attachments.length}</span>
                                 )}
                               </div>
                               {expandedEmail === email.id && (
@@ -2124,7 +2264,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                       <p className="text-xs font-semibold text-amber-800 mb-1">📎 Attachments:</p>
                                       <div className="flex flex-wrap gap-1">
                                         {email.attachments.map((att, idx) => (
-                                          <span key={idx} className="bg-white text-gray-700 px-2 py-0.5 rounded text-xs border border-amber-200">{att.name} ({formatFileSize(att.size)})</span>
+                                          <span key={idx} className="bg-white text-slate-700 px-2 py-0.5 rounded text-xs border border-amber-200">{att.name} ({formatFileSize(att.size)})</span>
                                         ))}
                                       </div>
                                       {getGmailUrl(email.message_id) && (
@@ -2133,17 +2273,17 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                     </div>
                                   )}
                                   <div className="bg-white/80 rounded-lg p-3 max-h-60 overflow-y-auto mb-3">
-                                    <p className="text-gray-800 text-sm whitespace-pre-wrap">
+                                    <p className="text-slate-700 text-sm whitespace-pre-wrap">
                                       {email.body_text || email.summary}
                                     </p>
                                   </div>
                                   <div className="flex flex-wrap items-center gap-2">
-                                    <button onClick={() => updateStatus(email.id, 'done')} className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold border-2 border-green-600 hover:bg-green-700">Done</button>
+                                    <button onClick={() => updateStatus(email.id, 'done')} className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-green-700 transition-colors">Done</button>
                                     <button onClick={() => updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent')} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border-2 ${email.action_status === 'urgent' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-red-600 border-red-600 hover:bg-red-50'}`}>Urgent</button>
                                     <div className="flex items-center gap-1 ml-auto">
-                                      <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className={`p-2 rounded-full hover:bg-gray-100 ${email.flagged_for_meeting ? 'text-amber-500' : 'text-gray-400'}`} title="Add to Agenda">{email.flagged_for_meeting ? '⭐' : '☆'}</button>
-                                      <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="p-2 rounded-full hover:bg-gray-100 text-gray-500" title="Edit Draft">✏️</button>
-                                      <button onClick={() => { setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }} className="p-2 rounded-full hover:bg-gray-100 text-gray-500" title="Remind Me">⏰</button>
+                                      <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className={`p-2 rounded-full hover:bg-slate-100 ${email.flagged_for_meeting ? 'text-amber-500' : 'text-slate-400'}`} title="Add to Agenda">{email.flagged_for_meeting ? '⭐' : '☆'}</button>
+                                      <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="p-2 rounded-full hover:bg-slate-100 text-slate-500" title="Edit Draft">✏️</button>
+                                      <button onClick={() => { setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }} className="p-2 rounded-full hover:bg-slate-100 text-slate-500" title="Remind Me">⏰</button>
                                     </div>
                                   </div>
                                 </div>
@@ -2156,44 +2296,44 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   </div>
 
                   {/* FYI */}
-                  <div className="bg-slate-100 rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <button
                       onClick={() => setExpandedSections(s => ({ ...s, fyi: !s.fyi }))}
-                      className="w-full bg-slate-200 px-4 py-3 flex items-center justify-between text-slate-800 sticky top-0 z-10"
+                      className="w-full bg-slate-50 px-4 py-3 flex items-center justify-between text-slate-800 sticky top-0 z-10 border-b border-slate-100"
                     >
-                      <span className="font-bold text-lg">FYI</span>
+                      <span className="font-semibold text-sm">FYI</span>
                       <div className="flex items-center gap-2">
                         {fyiEmails.length > 0 && (
                           <button
                             onClick={(e) => { e.stopPropagation(); markSectionDone(fyiEmails.map(em => em.id)); }}
                             disabled={bulkUpdating}
-                            className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+                            className="border border-slate-200 hover:bg-slate-50 text-slate-600 px-3 py-1 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
                           >
                             All Done
                           </button>
                         )}
-                        <span className="bg-slate-600 text-white px-3 py-1 rounded-full text-xs font-bold">{fyiEmails.length}</span>
+                        <span className={`${fyiEmails.length > 0 ? 'bg-slate-400 text-white' : 'bg-slate-200 text-slate-500'} px-3 py-1 rounded-full text-xs font-medium`}>{fyiEmails.length}</span>
                         <span className={`transition-transform ${expandedSections.fyi ? 'rotate-180' : ''}`}>▼</span>
                       </div>
                     </button>
                     {expandedSections.fyi && (
                       <div className="p-4 space-y-3">
                         {fyiEmails.length === 0 ? (
-                          <p className="text-gray-500 text-sm">No emails</p>
+                          <p className="text-slate-500 text-sm">No emails</p>
                         ) : (
                           fyiEmails.map((email) => (
                             <div
                               key={email.id}
-                              className={`bg-white border border-slate-300 rounded-lg p-3 cursor-pointer transition-all shadow-sm hover:shadow-md ${expandedEmail === email.id ? 'ring-2 ring-slate-400' : ''}`}
+                              className={`bg-white border border-slate-200 border-l-4 border-l-slate-300 rounded-lg p-3 cursor-pointer transition-all shadow-sm hover:shadow-md ${expandedEmail === email.id ? 'ring-2 ring-blue-200 ring-offset-1' : ''}`}
                               onClick={() => setExpandedEmail(expandedEmail === email.id ? null : email.id)}
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-bold text-gray-900 text-sm">{email.subject}</p>
-                                  <p className="text-gray-700 font-semibold text-xs mt-1">{email.from_name || email.from_email}</p>
+                                  <p className="font-medium text-slate-900 text-sm">{email.subject}</p>
+                                  <p className="text-slate-500 text-xs mt-1">{email.from_name || email.from_email}</p>
                                 </div>
                                 {email.attachments && email.attachments.length > 0 && (
-                                  <span className="ml-2 bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-xs font-medium">📎 {email.attachments.length}</span>
+                                  <span className="ml-2 bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-medium">📎 {email.attachments.length}</span>
                                 )}
                               </div>
                               {expandedEmail === email.id && (
@@ -2203,7 +2343,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                       <p className="text-xs font-semibold text-amber-800 mb-1">📎 Attachments:</p>
                                       <div className="flex flex-wrap gap-1">
                                         {email.attachments.map((att, idx) => (
-                                          <span key={idx} className="bg-white text-gray-700 px-2 py-0.5 rounded text-xs border border-amber-200">{att.name} ({formatFileSize(att.size)})</span>
+                                          <span key={idx} className="bg-white text-slate-700 px-2 py-0.5 rounded text-xs border border-amber-200">{att.name} ({formatFileSize(att.size)})</span>
                                         ))}
                                       </div>
                                       {getGmailUrl(email.message_id) && (
@@ -2212,17 +2352,17 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                     </div>
                                   )}
                                   <div className="bg-white/80 rounded-lg p-3 max-h-60 overflow-y-auto mb-3">
-                                    <p className="text-gray-800 text-sm whitespace-pre-wrap">
+                                    <p className="text-slate-700 text-sm whitespace-pre-wrap">
                                       {email.body_text || email.summary}
                                     </p>
                                   </div>
                                   <div className="flex flex-wrap items-center gap-2">
-                                    <button onClick={() => updateStatus(email.id, 'done')} className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold border-2 border-green-600 hover:bg-green-700">Done</button>
+                                    <button onClick={() => updateStatus(email.id, 'done')} className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-green-700 transition-colors">Done</button>
                                     <button onClick={() => updateActionStatus(email.id, email.action_status === 'urgent' ? null : 'urgent')} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border-2 ${email.action_status === 'urgent' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-red-600 border-red-600 hover:bg-red-50'}`}>Urgent</button>
                                     <div className="flex items-center gap-1 ml-auto">
-                                      <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className={`p-2 rounded-full hover:bg-gray-100 ${email.flagged_for_meeting ? 'text-amber-500' : 'text-gray-400'}`} title="Add to Agenda">{email.flagged_for_meeting ? '⭐' : '☆'}</button>
-                                      <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="p-2 rounded-full hover:bg-gray-100 text-gray-500" title="Edit Draft">✏️</button>
-                                      <button onClick={() => { setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }} className="p-2 rounded-full hover:bg-gray-100 text-gray-500" title="Remind Me">⏰</button>
+                                      <button onClick={() => toggleMeetingFlag(email.id, email.flagged_for_meeting)} className={`p-2 rounded-full hover:bg-slate-100 ${email.flagged_for_meeting ? 'text-amber-500' : 'text-slate-400'}`} title="Add to Agenda">{email.flagged_for_meeting ? '⭐' : '☆'}</button>
+                                      <button onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }} className="p-2 rounded-full hover:bg-slate-100 text-slate-500" title="Edit Draft">✏️</button>
+                                      <button onClick={() => { setRemindMeEmailId(email.id); const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); setRemindMeDate(t.toISOString().slice(0, 16)); }} className="p-2 rounded-full hover:bg-slate-100 text-slate-500" title="Remind Me">⏰</button>
                                     </div>
                                   </div>
                                 </div>
@@ -2239,32 +2379,32 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
               {/* Drafts Ready Popup */}
               {showDraftsPopup && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowDraftsPopup(false)}>
-                  <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
-                    <div className="bg-gradient-to-r from-sky-500 to-blue-600 px-6 py-4 flex items-center justify-between">
-                      <h3 className="text-xl font-bold text-white">📝 Drafts Ready for Review</h3>
-                      <button onClick={() => setShowDraftsPopup(false)} className="text-white/80 hover:text-white text-2xl">&times;</button>
+                  <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[80vh] overflow-hidden border border-slate-200" onClick={(e) => e.stopPropagation()}>
+                    <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-slate-900">Drafts Ready for Review</h3>
+                      <button onClick={() => setShowDraftsPopup(false)} className="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
                     </div>
                     <div className="p-6 space-y-4 max-h-96 overflow-y-auto">
                       {draftsReady.length === 0 ? (
-                        <p className="text-gray-500 text-center py-8">No drafts ready for review</p>
+                        <p className="text-slate-500 text-center py-8">No drafts ready for review</p>
                       ) : (
                         draftsReady.map((email) => (
-                          <div key={email.id} className="border border-gray-200 rounded-xl p-4">
+                          <div key={email.id} className="border border-slate-200 rounded-xl p-4">
                             <div className="flex items-start justify-between mb-2">
                               <div>
-                                <p className="font-semibold text-gray-900">{email.subject}</p>
-                                <p className="text-sm text-gray-500">To: {email.from_email}</p>
+                                <p className="font-medium text-slate-900">{email.subject}</p>
+                                <p className="text-sm text-slate-500">To: {email.from_email}</p>
                               </div>
                               <button
                                 onClick={() => sendEmail(email.id)}
                                 disabled={sendingEmail === email.id}
-                                className="bg-green-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-600 disabled:opacity-50"
+                                className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50"
                               >
                                 {sendingEmail === email.id ? 'Sending...' : 'Send'}
                               </button>
                             </div>
-                            <div className="bg-gray-50 rounded-lg p-3 mt-2">
-                              <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                            <div className="bg-slate-50 rounded-lg p-3 mt-2">
+                              <p className="text-sm text-slate-700 whitespace-pre-wrap">
                                 {(email.edited_draft || email.draft_reply)?.substring(0, 200)}...
                               </p>
                             </div>
@@ -2273,7 +2413,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                       )}
                     </div>
                     {draftsApproved.length > 0 && (
-                      <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
+                      <div className="border-t border-slate-200 px-6 py-4 bg-slate-50">
                         <button
                           onClick={async () => {
                             if (!confirm(`Send all ${draftsApproved.length} approved drafts?`)) return;
@@ -2303,7 +2443,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                             setShowDraftsPopup(false);
                           }}
                           disabled={sendingBatch}
-                          className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white py-3 rounded-xl font-bold hover:from-green-600 hover:to-emerald-600 disabled:opacity-50"
+                          className="w-full bg-green-600 text-white py-3 rounded-xl font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
                         >
                           {sendingBatch ? 'Sending All...' : `Send All Approved (${draftsApproved.length})`}
                         </button>
@@ -2317,20 +2457,20 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
 
             {/* Floating Selection Action Bar */}
             {selectedEmails.size > 0 && (
-              <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-4 z-40">
-                <span className="font-medium">{selectedEmails.size} selected</span>
+              <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-4 z-40">
+                <span className="font-medium text-sm">{selectedEmails.size} selected</span>
                 <button
                   onClick={markSelectedDone}
                   disabled={bulkUpdating}
-                  className="bg-green-500 hover:bg-green-600 px-4 py-1.5 rounded-full text-sm font-medium transition-colors disabled:opacity-50"
+                  className="bg-green-600 hover:bg-green-700 px-4 py-1.5 rounded-full text-sm font-medium transition-colors disabled:opacity-50"
                 >
-                  {bulkUpdating ? 'Updating...' : '✓ Mark Done'}
+                  {bulkUpdating ? 'Updating...' : 'Mark Done'}
                 </button>
                 <button
                   onClick={clearSelection}
-                  className="text-gray-400 hover:text-white transition-colors"
+                  className="text-slate-400 hover:text-white transition-colors text-sm"
                 >
-                  ✕ Clear
+                  Clear
                 </button>
               </div>
             )}
@@ -2339,157 +2479,360 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
 
           {/* Agenda View */}
           {activeNav === 'agenda' && (
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-6">⭐ Meeting Agenda</h3>
-              {agendaItems.length === 0 ? (
-                <div className="bg-white rounded-xl shadow-sm p-8 text-center">
-                  <p className="text-gray-400">No items on the agenda</p>
-                  <p className="text-sm text-gray-400 mt-1">Star emails to add them here</p>
+            <div className="flex gap-6">
+              {/* Schedule Sidebar */}
+              <div className="w-56 flex-shrink-0">
+                <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 sticky top-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Today's Schedule</h4>
+                    <span className="text-xs text-slate-400">{format(selectedDate, 'MMM d')}</span>
+                  </div>
+                  {loadingSchedule ? (
+                    <p className="text-xs text-slate-400">Loading...</p>
+                  ) : scheduleEvents.length === 0 ? (
+                    <p className="text-xs text-slate-400">No events today</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {scheduleEvents.map((event) => {
+                        const startTime = event.isAllDay ? 'All day' : format(new Date(event.startTime), 'h:mm a');
+                        return (
+                          <div key={event.id} className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                            <p className="text-xs font-medium text-slate-800 leading-tight">{event.title}</p>
+                            <p className="text-xs text-slate-400 mt-0.5">{startTime}</p>
+                            {event.meetingLink && (
+                              <a href={event.meetingLink} target="_blank" rel="noopener noreferrer"
+                                className="text-xs text-blue-600 hover:underline mt-0.5 block">
+                                Join
+                              </a>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {agendaItems.map((email) => {
-                    const isDiscussed = email.meeting_notes?.startsWith('[DISCUSSED]');
-                    return (
-                      <div key={email.id} className={`bg-white rounded-xl shadow-sm p-4 ${isDiscussed ? 'opacity-60' : ''}`}>
-                        <div className="flex items-start gap-3">
-                          <button
-                            onClick={() => {
-                              const notes = email.meeting_notes || '';
-                              if (isDiscussed) updateMeetingNotes(email.id, notes.replace('[DISCUSSED] ', ''));
-                              else updateMeetingNotes(email.id, '[DISCUSSED] ' + notes);
-                            }}
-                            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs ${
-                              isDiscussed ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 hover:border-amber-500'
-                            }`}
-                          >
-                            {isDiscussed && '✓'}
-                          </button>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Badge config={priorityConfig[email.priority] || priorityConfig.fyi} />
-                            </div>
-                            <p className={`font-medium ${isDiscussed ? 'line-through text-gray-400' : 'text-gray-900'}`}>{email.subject}</p>
-                            <p className="text-sm text-gray-500">{email.from_name || email.from_email}</p>
+              </div>
 
-                            {/* Action Item */}
-                            <div className="mt-3">
-                              {editingNotesId === email.id ? (
-                                <div className="space-y-2">
+              {/* Agenda Main */}
+              <div className="flex-1 min-w-0">
+                {/* Header + Tab Strip */}
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    Meeting Agenda
+                    <span className="ml-2 text-sm font-normal text-slate-400">{agendaItems.length} items</span>
+                  </h3>
+                  {currentAgendaItemId && (
+                    <button onClick={() => setCurrentAgendaItemId(null)} className="text-xs text-slate-400 hover:text-slate-600">
+                      Clear current
+                    </button>
+                  )}
+                </div>
+
+                {/* Tab Strip */}
+                <div className="flex gap-1 mb-4 bg-slate-100 rounded-lg p-1 w-fit">
+                  {(['all', 'note', 'decision', 'action'] as const).map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setAgendaTab(tab)}
+                      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                        agendaTab === tab ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      {tab === 'all' ? 'All' : tab === 'note' ? 'Notes' : tab === 'decision' ? 'Decisions' : 'Actions'}
+                    </button>
+                  ))}
+                </div>
+
+                {agendaItems.length === 0 ? (
+                  <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-12 text-center">
+                    <p className="text-2xl mb-2">⭐</p>
+                    <p className="text-slate-500 font-medium">No items on the agenda</p>
+                    <p className="text-sm text-slate-400 mt-1">Star emails from any view to add them here</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {agendaItems.map((email, idx) => {
+                      const isDiscussed = email.meeting_notes?.startsWith('[DISCUSSED]');
+                      const isCurrent = currentAgendaItemId === email.id;
+                      const notes = agendaNotes[email.id] || [];
+                      const filteredNotes = agendaTab === 'all' ? notes : notes.filter(n => n.type === agendaTab);
+
+                      // Load notes when item first appears
+                      if (!agendaNotes[email.id]) {
+                        fetchAgendaNotes(email.id);
+      agendaNotes[email.id] = []; // prevent duplicate fetches
+                      }
+
+                      return (
+                        <div
+                          key={email.id}
+                          className={`bg-white border border-slate-200 rounded-xl shadow-sm transition-all ${
+                            isCurrent ? 'border-l-4 border-l-blue-500 ring-1 ring-blue-100' : ''
+                          } ${isDiscussed ? 'opacity-60' : ''}`}
+                        >
+                          <div className="p-4">
+                            <div className="flex items-start gap-3">
+                              {/* Number + Check */}
+                              <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                                <span className="text-xs text-slate-400 font-medium w-5 text-center">{idx + 1}</span>
+                                <button
+                                  onClick={() => {
+                                    const n = email.meeting_notes || '';
+                                    if (isDiscussed) updateMeetingNotes(email.id, n.replace('[DISCUSSED] ', ''));
+                                    else updateMeetingNotes(email.id, '[DISCUSSED] ' + n);
+                                  }}
+                                  className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs transition-colors ${
+                                    isDiscussed ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300 hover:border-green-400'
+                                  }`}
+                                  title={isDiscussed ? 'Mark undiscussed' : 'Mark discussed'}
+                                >
+                                  {isDiscussed && '✓'}
+                                </button>
+                              </div>
+
+                              {/* Content */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div>
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                      <Badge config={priorityConfig[email.priority] || priorityConfig.fyi} />
+                                      {isCurrent && (
+                                        <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">CURRENT</span>
+                                      )}
+                                    </div>
+                                    <p className={`font-semibold text-sm ${isDiscussed ? 'line-through text-slate-400' : 'text-slate-900'}`}>
+                                      {email.subject}
+                                    </p>
+                                    <p className="text-xs text-slate-400 mt-0.5">{email.from_name || email.from_email}</p>
+                                  </div>
+                                  <button
+                                    onClick={() => toggleMeetingFlag(email.id, true)}
+                                    className="text-slate-300 hover:text-red-400 text-lg leading-none flex-shrink-0"
+                                    title="Remove from agenda"
+                                  >✕</button>
+                                </div>
+
+                                {/* Notes thread */}
+                                {filteredNotes.length > 0 && (
+                                  <div className="mt-3 space-y-2">
+                                    {filteredNotes.map((note) => (
+                                      <div key={note.id} className="flex items-start gap-2 group">
+                                        <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                                          note.type === 'decision' ? 'bg-blue-500' : note.type === 'action' ? 'bg-amber-500' : 'bg-slate-400'
+                                        }`} />
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-1.5 flex-wrap">
+                                            <p className="text-sm text-slate-700">{note.text}</p>
+                                            <div className="flex items-center gap-1 ml-auto flex-shrink-0">
+                                              {(['note', 'decision', 'action'] as const).map((t) => (
+                                                <button
+                                                  key={t}
+                                                  onClick={() => {
+                                                    if (note.type !== t) updateAgendaNote(email.id, note.id, { type: t, assignee: t === 'action' ? (note.assignee || 'emily') : null });
+                                                  }}
+                                                  className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                                                    note.type === t
+                                                      ? t === 'decision' ? 'bg-blue-100 text-blue-700' : t === 'action' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-700'
+                                                      : 'text-slate-300 hover:text-slate-500'
+                                                  }`}
+                                                >
+                                                  {t === 'note' ? 'Note' : t === 'decision' ? 'Decision' : 'Action'}
+                                                </button>
+                                              ))}
+                                              {note.type === 'action' && (
+                                                <div className="flex items-center gap-0.5 ml-1 border-l border-slate-200 pl-1.5">
+                                                  <button
+                                                    onClick={() => updateAgendaNote(email.id, note.id, { assignee: 'emily' })}
+                                                    className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                                                      note.assignee === 'emily' ? 'bg-blue-100 text-blue-700' : 'text-slate-300 hover:text-slate-500'
+                                                    }`}
+                                                  >Emily</button>
+                                                  <button
+                                                    onClick={() => updateAgendaNote(email.id, note.id, { assignee: 'rbk' })}
+                                                    className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                                                      note.assignee === 'rbk' ? 'bg-violet-100 text-violet-700' : 'text-slate-300 hover:text-slate-500'
+                                                    }`}
+                                                  >RBK</button>
+                                                </div>
+                                              )}
+                                              <button
+                                                onClick={() => deleteAgendaNote(email.id, note.id)}
+                                                className="ml-1 text-slate-200 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                                              >✕</button>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {/* Inline add note input */}
+                                <div className="mt-3 flex items-center gap-2">
                                   <input
                                     type="text"
-                                    value={notesText}
-                                    onChange={(e) => setNotesText(e.target.value)}
-                                    placeholder="Add action item..."
-                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none"
+                                    value={addingNoteToId === email.id ? newNoteText : ''}
+                                    onFocus={() => { setAddingNoteToId(email.id); }}
+                                    onChange={(e) => { setAddingNoteToId(email.id); setNewNoteText(e.target.value); }}
                                     onKeyDown={(e) => {
-                                      if (e.key === 'Enter' && notesText.trim()) {
-                                        const prefix = isDiscussed ? '[DISCUSSED] ' : '';
-                                        updateMeetingNotes(email.id, prefix + `[@${notesAssignee.toUpperCase()}] ` + notesText);
-                                        setEditingNotesId(null);
-                                      }
+                                      if (e.key === 'Enter' && newNoteText.trim()) addAgendaNote(email.id);
+                                      if (e.key === 'Escape') { setAddingNoteToId(null); setNewNoteText(''); }
                                     }}
+                                    placeholder="Add a note..."
+                                    className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                                   />
-                                  <div className="flex gap-2">
-                                    <button onClick={() => setNotesAssignee('emily')} className={`px-3 py-1 rounded text-xs ${notesAssignee === 'emily' ? 'bg-teal-500 text-white' : 'bg-gray-100'}`}>Emily</button>
-                                    <button onClick={() => setNotesAssignee('rbk')} className={`px-3 py-1 rounded text-xs ${notesAssignee === 'rbk' ? 'bg-indigo-500 text-white' : 'bg-gray-100'}`}>RBK</button>
-                                    <button onClick={() => setEditingNotesId(null)} className="text-xs text-gray-400">Cancel</button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="flex items-center gap-2">
-                                  {(() => {
-                                    const rawNotes = (email.meeting_notes || '').replace('[DISCUSSED] ', '');
-                                    const isE = rawNotes.startsWith('[@EMILY] ');
-                                    const isR = rawNotes.startsWith('[@RBK] ');
-                                    const text = rawNotes.replace('[@EMILY] ', '').replace('[@RBK] ', '').replace('[DONE] ', '');
-                                    if (text) return (
-                                      <span className="bg-amber-50 text-amber-700 px-2 py-1 rounded text-sm">
-                                        {isE && '🔵 Emily: '}{isR && '🟣 RBK: '}{text}
-                                      </span>
-                                    );
-                                    return null;
-                                  })()}
-                                  <button onClick={() => { setEditingNotesId(email.id); setNotesText(''); }} className="text-sm text-sky-600 hover:text-sky-800">
-                                    {email.meeting_notes ? '✏️ Edit' : '➕ Add action'}
+                                  <button
+                                    onClick={() => { if (newNoteText.trim()) addAgendaNote(email.id); }}
+                                    disabled={addingNoteToId !== email.id || !newNoteText.trim()}
+                                    className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-40 transition-colors"
+                                  >
+                                    Add
                                   </button>
                                 </div>
-                              )}
+
+                                {/* Action buttons */}
+                                <div className="flex gap-2 flex-wrap mt-3 pt-3 border-t border-slate-50">
+                                  <button
+                                    onClick={() => setCurrentAgendaItemId(isCurrent ? null : email.id)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                      isCurrent ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-700'
+                                    }`}
+                                  >
+                                    {isCurrent ? '▶ Current' : 'Set as Current'}
+                                  </button>
+                                  <button
+                                    onClick={() => setPopupEmailId(email.id)}
+                                    className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-medium hover:bg-slate-200"
+                                  >
+                                    View Email
+                                  </button>
+                                </div>
+                              </div>
                             </div>
                           </div>
-                          <button onClick={() => toggleMeetingFlag(email.id, true)} className="text-gray-300 hover:text-red-500">✕</button>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
           {/* Tasks View */}
           {activeNav === 'tasks' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* RBK Tasks */}
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <span className="text-indigo-500">🟣</span> RBK's Tasks
-                  <span className="ml-auto text-sm font-normal text-gray-400">
-                    {tasks.filter(t => t.assignee === 'rbk' && !t.isComplete).length} pending
-                  </span>
-                </h3>
-                <div className="space-y-2">
-                  {tasks.filter(t => t.assignee === 'rbk').map((task, idx) => (
-                    <div key={idx} className={`flex items-start gap-3 p-3 rounded-lg ${task.isComplete ? 'bg-gray-50' : 'bg-indigo-50'}`}>
-                      <button
-                        onClick={() => toggleTaskComplete(task.emailId)}
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-xs ${
-                          task.isComplete ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 hover:border-indigo-500'
-                        }`}
-                      >
-                        {task.isComplete && '✓'}
-                      </button>
-                      <div>
-                        <p className={`text-sm font-medium ${task.isComplete ? 'line-through text-gray-400' : 'text-gray-900'}`}>{task.task}</p>
-                        <p className="text-xs text-gray-400">Re: {task.subject}</p>
-                      </div>
-                    </div>
-                  ))}
-                  {tasks.filter(t => t.assignee === 'rbk').length === 0 && (
-                    <p className="text-gray-400 text-sm">No tasks assigned</p>
-                  )}
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">Tasks</h3>
+                  <p className="text-sm text-slate-400 mt-0.5">{tasks.filter(t => !t.isComplete).length} pending</p>
                 </div>
               </div>
 
-              {/* Emily Tasks */}
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <span className="text-teal-500">🔵</span> Emily's Tasks
-                  <span className="ml-auto text-sm font-normal text-gray-400">
-                    {tasks.filter(t => t.assignee === 'emily' && !t.isComplete).length} pending
-                  </span>
-                </h3>
-                <div className="space-y-2">
-                  {tasks.filter(t => t.assignee === 'emily').map((task, idx) => (
-                    <div key={idx} className={`flex items-start gap-3 p-3 rounded-lg ${task.isComplete ? 'bg-gray-50' : 'bg-teal-50'}`}>
-                      <button
-                        onClick={() => toggleTaskComplete(task.emailId)}
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-xs ${
-                          task.isComplete ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 hover:border-teal-500'
-                        }`}
-                      >
-                        {task.isComplete && '✓'}
-                      </button>
-                      <div>
-                        <p className={`text-sm font-medium ${task.isComplete ? 'line-through text-gray-400' : 'text-gray-900'}`}>{task.task}</p>
-                        <p className="text-xs text-gray-400">Re: {task.subject}</p>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                {/* RBK Tasks */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-2 h-2 rounded-full bg-violet-500" />
+                    <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">RBK</h4>
+                    <span className="ml-auto text-xs text-slate-400">{tasks.filter(t => t.assignee === 'rbk' && !t.isComplete).length} pending</span>
+                  </div>
+                  <div className="space-y-2">
+                    {tasks.filter(t => t.assignee === 'rbk').length === 0 ? (
+                      <div className="bg-white border border-slate-200 rounded-xl p-6 text-center">
+                        <p className="text-slate-400 text-sm">No tasks assigned</p>
                       </div>
-                    </div>
-                  ))}
-                  {tasks.filter(t => t.assignee === 'emily').length === 0 && (
-                    <p className="text-gray-400 text-sm">No tasks assigned</p>
-                  )}
+                    ) : (
+                      tasks.filter(t => t.assignee === 'rbk').map((task, idx) => (
+                        <div key={task.emailId || task.noteId || idx} className={`bg-white border border-slate-200 rounded-xl shadow-sm p-3 flex items-start gap-3 transition-all ${task.isComplete ? 'opacity-50' : ''}`}>
+                          {task.emailId ? (
+                            <button
+                              onClick={() => toggleTaskComplete(task.emailId!)}
+                              className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center text-xs mt-0.5 transition-colors ${
+                                task.isComplete ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300 hover:border-green-400'
+                              }`}
+                            >
+                              {task.isComplete && '✓'}
+                            </button>
+                          ) : (
+                            <div className="w-5 h-5 rounded-full border-2 border-amber-300 bg-amber-50 flex-shrink-0 flex items-center justify-center text-[10px] text-amber-500 mt-0.5">A</div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-medium ${task.isComplete ? 'line-through text-slate-400' : 'text-slate-800'}`}>{task.task}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              {task.subject ? (
+                                <>
+                                  <p className="text-xs text-slate-400 truncate">Re: {task.subject}</p>
+                                  <button
+                                    onClick={() => setPopupEmailId(task.emailId!)}
+                                    className="text-xs text-blue-500 hover:text-blue-700 font-medium flex-shrink-0 transition-colors"
+                                  >
+                                    View →
+                                  </button>
+                                </>
+                              ) : (
+                                <p className="text-xs text-amber-500">From agenda notes</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
+
+                {/* Emily Tasks */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-2 h-2 rounded-full bg-blue-500" />
+                    <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Emily</h4>
+                    <span className="ml-auto text-xs text-slate-400">{tasks.filter(t => t.assignee === 'emily' && !t.isComplete).length} pending</span>
+                  </div>
+                  <div className="space-y-2">
+                    {tasks.filter(t => t.assignee === 'emily').length === 0 ? (
+                      <div className="bg-white border border-slate-200 rounded-xl p-6 text-center">
+                        <p className="text-slate-400 text-sm">No tasks assigned</p>
+                      </div>
+                    ) : (
+                      tasks.filter(t => t.assignee === 'emily').map((task, idx) => (
+                        <div key={task.emailId || task.noteId || idx} className={`bg-white border border-slate-200 rounded-xl shadow-sm p-3 flex items-start gap-3 transition-all ${task.isComplete ? 'opacity-50' : ''}`}>
+                          {task.emailId ? (
+                            <button
+                              onClick={() => toggleTaskComplete(task.emailId!)}
+                              className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center text-xs mt-0.5 transition-colors ${
+                                task.isComplete ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300 hover:border-green-400'
+                              }`}
+                            >
+                              {task.isComplete && '✓'}
+                            </button>
+                          ) : (
+                            <div className="w-5 h-5 rounded-full border-2 border-amber-300 bg-amber-50 flex-shrink-0 flex items-center justify-center text-[10px] text-amber-500 mt-0.5">A</div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-medium ${task.isComplete ? 'line-through text-slate-400' : 'text-slate-800'}`}>{task.task}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              {task.subject ? (
+                                <>
+                                  <p className="text-xs text-slate-400 truncate">Re: {task.subject}</p>
+                                  <button
+                                    onClick={() => setPopupEmailId(task.emailId!)}
+                                    className="text-xs text-blue-500 hover:text-blue-700 font-medium flex-shrink-0 transition-colors"
+                                  >
+                                    View →
+                                  </button>
+                                </>
+                              ) : (
+                                <p className="text-xs text-amber-500">From agenda notes</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
               </div>
             </div>
           )}
@@ -2498,9 +2841,9 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
           {activeNav === 'emily' && (
             <div>
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <span className="text-blue-500">🔵</span> Emily's Queue
-                  <span className="ml-2 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-sm font-medium">
+                <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                  Emily's Queue
+                  <span className="ml-2 bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full text-sm font-medium">
                     {emilyQueue.length}
                   </span>
                 </h3>
@@ -2516,46 +2859,46 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
               </div>
 
               {emilyQueue.length === 0 ? (
-                <div className="bg-white rounded-xl shadow-sm p-8 text-center">
-                  <p className="text-gray-400">No emails in Emily's queue</p>
-                  <p className="text-sm text-gray-400 mt-1">All caught up!</p>
+                <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-8 text-center">
+                  <p className="text-slate-400">No emails in Emily's queue</p>
+                  <p className="text-sm text-slate-400 mt-1">All caught up!</p>
                 </div>
               ) : (
                 <div className="space-y-6">
                   {/* Needs Revision Section */}
                   {needsRevisionEmails.length > 0 && (
                     <div>
-                      <h4 className="text-sm font-semibold text-orange-600 uppercase tracking-wide mb-3 flex items-center gap-2">
-                        🔄 Needs Revision ({needsRevisionEmails.length})
+                      <h4 className="text-sm font-semibold text-amber-700 uppercase tracking-wide mb-3 flex items-center gap-2">
+                        Needs Revision ({needsRevisionEmails.length})
                       </h4>
                       <div className="space-y-3">
                         {needsRevisionEmails.map((email) => (
-                          <div key={email.id} className="bg-orange-50 border-2 border-orange-200 rounded-xl p-4">
+                          <div key={email.id} className="bg-white border border-amber-200 border-l-4 border-l-amber-500 rounded-xl p-4 shadow-sm">
                             <div className="flex items-start justify-between mb-2">
                               <div>
-                                <p className="font-medium text-gray-900">{email.subject}</p>
-                                <p className="text-sm text-gray-500">{email.from_name || email.from_email}</p>
+                                <p className="font-medium text-slate-900">{email.subject}</p>
+                                <p className="text-sm text-slate-500">{email.from_name || email.from_email}</p>
                               </div>
-                              <span className="bg-orange-500 text-white px-2 py-1 rounded text-xs font-medium">
+                              <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-1 rounded text-xs font-medium">
                                 Needs Revision
                               </span>
                             </div>
                             {email.revision_comment && (
-                              <div className="bg-white rounded-lg p-3 mt-2 border border-orange-200">
-                                <p className="text-xs font-medium text-orange-700 mb-1">Comment from RBK:</p>
-                                <p className="text-sm text-gray-700">{email.revision_comment}</p>
+                              <div className="bg-slate-50 rounded-lg p-3 mt-2 border border-slate-100">
+                                <p className="text-xs font-medium text-amber-700 mb-1">Comment from RBK:</p>
+                                <p className="text-sm text-slate-700">{email.revision_comment}</p>
                               </div>
                             )}
                             <div className="flex gap-2 mt-3">
                               <button
                                 onClick={() => { setEditingDraftId(email.id); setDraftText(email.edited_draft || email.draft_reply || ''); }}
-                                className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                                className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
                               >
-                                ✏️ Edit Draft
+                                Edit Draft
                               </button>
                               <button
                                 onClick={() => setExpandedEmail(expandedEmail === email.id ? null : email.id)}
-                                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium"
+                                className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium"
                               >
                                 View Email
                               </button>
@@ -2570,7 +2913,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   {emilyQueue.filter(e => e.draft_status !== 'needs_revision').length > 0 && (
                     <div>
                       {needsRevisionEmails.length > 0 && (
-                        <h4 className="text-sm font-semibold text-blue-600 uppercase tracking-wide mb-3">
+                        <h4 className="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-3">
                           Other Emails
                         </h4>
                       )}
@@ -2591,34 +2934,34 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
       {/* Draft Editor Modal - Global */}
       {editingDraftId && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setEditingDraftId(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-white">✏️ Edit Draft Response</h3>
-              <button onClick={() => setEditingDraftId(null)} className="text-white/80 hover:text-white text-2xl">&times;</button>
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[80vh] overflow-hidden border border-slate-200" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-slate-900">Edit Draft Response</h3>
+              <button onClick={() => setEditingDraftId(null)} className="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
             </div>
             {(() => {
               const email = emails.find(e => e.id === editingDraftId);
               if (!email) return null;
               return (
                 <div className="p-6 space-y-4">
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="font-semibold text-gray-900">{email.subject}</p>
-                    <p className="text-sm text-gray-500">To: {email.from_email}</p>
+                  <div className="bg-slate-50 rounded-lg p-4">
+                    <p className="font-medium text-slate-900">{email.subject}</p>
+                    <p className="text-sm text-slate-500">To: {email.from_email}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Draft Response</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Draft Response</label>
                     <textarea
                       value={draftText}
                       onChange={(e) => setDraftText(e.target.value)}
                       rows={10}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none resize-none"
+                      className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
                       placeholder="Type your response here..."
                     />
                   </div>
                   <div className="flex gap-3 justify-end">
                     <button
                       onClick={() => setEditingDraftId(null)}
-                      className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                      className="px-4 py-2 text-slate-600 hover:text-slate-800"
                     >
                       Cancel
                     </button>
@@ -2628,7 +2971,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                         setEditingDraftId(null);
                       }}
                       disabled={updating === editingDraftId}
-                      className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-medium hover:bg-gray-300 disabled:opacity-50"
+                      className="border border-slate-200 text-slate-700 px-4 py-2 rounded-lg font-medium hover:bg-slate-50 disabled:opacity-50"
                     >
                       Save Draft
                     </button>
@@ -2638,7 +2981,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                         setEditingDraftId(null);
                       }}
                       disabled={updating === editingDraftId}
-                      className="bg-green-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-600 disabled:opacity-50"
+                      className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50"
                     >
                       Mark Ready for Review
                     </button>
@@ -2653,40 +2996,40 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
       {/* Request Revision Modal */}
       {revisionEmailId && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setRevisionEmailId(null)}>
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <span className="text-orange-500">🔄</span> Request Revision
+          <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6 w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-slate-900 mb-4">
+              Request Revision
             </h3>
             {(() => {
               const email = emails.find(e => e.id === revisionEmailId);
               if (!email) return null;
               return (
                 <div className="space-y-4">
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="font-medium text-gray-900 text-sm">{email.subject}</p>
-                    <p className="text-xs text-gray-500">To: {email.from_email}</p>
+                  <div className="bg-slate-50 rounded-lg p-3">
+                    <p className="font-medium text-slate-900 text-sm">{email.subject}</p>
+                    <p className="text-xs text-slate-500">To: {email.from_email}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Comment for Emily</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Comment for Emily</label>
                     <textarea
                       value={revisionComment}
                       onChange={(e) => setRevisionComment(e.target.value)}
                       rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none resize-none"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
                       placeholder="What changes are needed?"
                     />
                   </div>
                   <div className="flex gap-3 justify-end">
                     <button
                       onClick={() => setRevisionEmailId(null)}
-                      className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                      className="px-4 py-2 text-slate-600 hover:text-slate-800"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={() => requestRevision(revisionEmailId, revisionComment)}
                       disabled={updating === revisionEmailId}
-                      className="bg-orange-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-orange-600 disabled:opacity-50"
+                      className="bg-amber-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-amber-700 disabled:opacity-50"
                     >
                       Send to Emily
                     </button>
@@ -2701,9 +3044,9 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
       {/* Remind Me Modal */}
       {remindMeEmailId && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setRemindMeEmailId(null)}>
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <span className="text-violet-500">⏰</span> Set Reminder
+          <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6 w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-slate-900 mb-4">
+              Set Reminder
             </h3>
             {(() => {
               const email = emails.find(e => e.id === remindMeEmailId);
@@ -2733,47 +3076,47 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
 
               return (
                 <div className="space-y-4">
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="font-medium text-gray-900 text-sm truncate">{email.subject}</p>
+                  <div className="bg-slate-50 rounded-lg p-3">
+                    <p className="font-medium text-slate-900 text-sm truncate">{email.subject}</p>
                   </div>
 
                   {/* Quick time options */}
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Quick Options</label>
+                    <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Quick Options</label>
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         onClick={() => setQuickReminder(1)}
-                        className="px-3 py-2 bg-violet-50 hover:bg-violet-100 rounded-lg text-sm font-medium text-violet-700 border border-violet-200"
+                        className="px-3 py-2 bg-blue-50 hover:bg-blue-100 rounded-lg text-sm font-medium text-blue-700 border border-blue-200"
                       >
                         In 1 hour
                       </button>
                       <button
                         onClick={() => setQuickReminder(2)}
-                        className="px-3 py-2 bg-violet-50 hover:bg-violet-100 rounded-lg text-sm font-medium text-violet-700 border border-violet-200"
+                        className="px-3 py-2 bg-blue-50 hover:bg-blue-100 rounded-lg text-sm font-medium text-blue-700 border border-blue-200"
                       >
                         In 2 hours
                       </button>
                       <button
                         onClick={() => setReminderForTime(14)}
-                        className="px-3 py-2 bg-violet-50 hover:bg-violet-100 rounded-lg text-sm font-medium text-violet-700 border border-violet-200"
+                        className="px-3 py-2 bg-blue-50 hover:bg-blue-100 rounded-lg text-sm font-medium text-blue-700 border border-blue-200"
                       >
                         This afternoon
                       </button>
                       <button
                         onClick={() => setReminderForTime(17)}
-                        className="px-3 py-2 bg-violet-50 hover:bg-violet-100 rounded-lg text-sm font-medium text-violet-700 border border-violet-200"
+                        className="px-3 py-2 bg-blue-50 hover:bg-blue-100 rounded-lg text-sm font-medium text-blue-700 border border-blue-200"
                       >
                         End of day
                       </button>
                       <button
                         onClick={() => setReminderForDay(1)}
-                        className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700"
+                        className="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm font-medium text-slate-700"
                       >
                         Tomorrow 9am
                       </button>
                       <button
                         onClick={() => setReminderForDay(7)}
-                        className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700"
+                        className="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm font-medium text-slate-700"
                       >
                         Next week
                       </button>
@@ -2782,27 +3125,27 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
 
                   {/* Custom date/time */}
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Or pick a date & time</label>
+                    <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Or pick a date & time</label>
                     <input
                       type="datetime-local"
                       value={remindMeDate ? remindMeDate.slice(0, 16) : ''}
                       onChange={(e) => setRemindMeDate(new Date(e.target.value).toISOString())}
                       min={new Date().toISOString().slice(0, 16)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 outline-none text-sm"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
                     />
                   </div>
 
                   <div className="flex gap-3 justify-end pt-2">
                     <button
                       onClick={() => setRemindMeEmailId(null)}
-                      className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                      className="px-4 py-2 text-slate-600 hover:text-slate-800"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={() => setReminder(remindMeEmailId, remindMeDate)}
                       disabled={updating === remindMeEmailId || !remindMeDate}
-                      className="bg-violet-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-violet-600 disabled:opacity-50"
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
                     >
                       Set Reminder
                     </button>
@@ -2817,66 +3160,66 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
       {/* Create Event Modal */}
       {showEventModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <span className="text-sky-500">📅</span> Create Calendar Event
+          <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold text-slate-900 mb-4">
+              Create Calendar Event
             </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Title *</label>
                 <input
                   type="text"
                   value={eventFormData.title}
                   onChange={(e) => setEventFormData({ ...eventFormData, title: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 outline-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   placeholder="Event title"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Date *</label>
                 <input
                   type="date"
                   value={eventFormData.date}
                   onChange={(e) => setEventFormData({ ...eventFormData, date: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 outline-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Start Time *</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Start Time *</label>
                   <input
                     type="time"
                     value={eventFormData.startTime}
                     onChange={(e) => setEventFormData({ ...eventFormData, startTime: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 outline-none"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">End Time *</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">End Time *</label>
                   <input
                     type="time"
                     value={eventFormData.endTime}
                     onChange={(e) => setEventFormData({ ...eventFormData, endTime: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 outline-none"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Location</label>
                 <input
                   type="text"
                   value={eventFormData.location}
                   onChange={(e) => setEventFormData({ ...eventFormData, location: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 outline-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   placeholder="Optional"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
                 <textarea
                   value={eventFormData.description}
                   onChange={(e) => setEventFormData({ ...eventFormData, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 outline-none resize-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
                   rows={3}
                   placeholder="Optional"
                 />
@@ -2885,14 +3228,14 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setShowEventModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium"
+                className="flex-1 px-4 py-2 border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 font-medium"
               >
                 Cancel
               </button>
               <button
                 onClick={createCalendarEvent}
                 disabled={!eventFormData.title || creatingEvent}
-                className="flex-1 px-4 py-2 bg-sky-500 text-white rounded-lg hover:bg-sky-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {creatingEvent ? 'Creating...' : 'Create Event'}
               </button>
@@ -2904,29 +3247,29 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
       {/* Urgent Actions Popup */}
       {showUrgentPopup && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl mx-4 max-h-[80vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6 w-full max-w-2xl mx-4 max-h-[80vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <span className="text-red-500">🚨</span> Urgent ({urgentAlerts.length})
+              <h3 className="text-lg font-semibold text-slate-900">
+                Urgent ({urgentAlerts.length})
               </h3>
               <button
                 onClick={() => setShowUrgentPopup(false)}
-                className="text-gray-400 hover:text-gray-600 text-xl"
+                className="text-slate-400 hover:text-slate-600 text-xl"
               >
                 ✕
               </button>
             </div>
             <div className="overflow-y-auto flex-1 space-y-3">
               {urgentAlerts.length === 0 ? (
-                <p className="text-gray-400 text-center py-8">No urgent items</p>
+                <p className="text-slate-400 text-center py-8">No urgent items</p>
               ) : (
                 urgentAlerts.map((email) => (
-                  <div key={email.id} className="bg-red-50 rounded-lg p-4 border border-red-100">
+                  <div key={email.id} className="bg-white border border-red-200 border-l-4 border-l-red-500 rounded-lg p-4 shadow-sm">
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900">{email.subject}</p>
-                        <p className="text-sm text-gray-500 mt-1">{email.from_name || email.from_email}</p>
-                        <p className="text-sm text-gray-600 mt-2">{email.summary}</p>
+                        <p className="font-medium text-slate-900">{email.subject}</p>
+                        <p className="text-sm text-slate-500 mt-1">{email.from_name || email.from_email}</p>
+                        <p className="text-sm text-slate-600 mt-2">{email.summary}</p>
                       </div>
                     </div>
                     <div className="flex gap-2 mt-3">
@@ -2936,13 +3279,13 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                           setActiveNav('inbox');
                           setExpandedEmail(email.id);
                         }}
-                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium"
+                        className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium"
                       >
                         View & Respond
                       </button>
                       <button
                         onClick={() => updateStatus(email.id, 'done')}
-                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium"
+                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium"
                       >
                         ✓ Done
                       </button>
@@ -2951,9 +3294,9 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                           href={getGmailUrl(email.message_id)!}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium"
+                          className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium"
                         >
-                          📎 View Attachments
+                          View Attachments
                         </a>
                       )}
                     </div>
@@ -2968,26 +3311,26 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
       {/* Meeting Agenda Popup */}
       {showAgendaPopup && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl mx-4 max-h-[80vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6 w-full max-w-2xl mx-4 max-h-[80vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <span className="text-amber-500">⭐</span> Meeting Agenda ({agendaItems.length})
+              <h3 className="text-lg font-semibold text-slate-900">
+                Meeting Agenda ({agendaItems.length})
               </h3>
               <button
                 onClick={() => setShowAgendaPopup(false)}
-                className="text-gray-400 hover:text-gray-600 text-xl"
+                className="text-slate-400 hover:text-slate-600 text-xl"
               >
                 ✕
               </button>
             </div>
             <div className="overflow-y-auto flex-1 space-y-3">
               {agendaItems.length === 0 ? (
-                <p className="text-gray-400 text-center py-8">No items on the agenda. Star emails to add them.</p>
+                <p className="text-slate-400 text-center py-8">No items on the agenda. Star emails to add them.</p>
               ) : (
                 agendaItems.map((email) => {
                   const isDiscussed = email.meeting_notes?.startsWith('[DISCUSSED]');
                   return (
-                    <div key={email.id} className={`bg-amber-50 rounded-lg p-4 border border-amber-100 ${isDiscussed ? 'opacity-60' : ''}`}>
+                    <div key={email.id} className={`bg-white border border-slate-200 rounded-lg p-4 shadow-sm ${isDiscussed ? 'opacity-60' : ''}`}>
                       <div className="flex items-start gap-3">
                         <button
                           onClick={() => {
@@ -2996,21 +3339,21 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                             else updateMeetingNotes(email.id, '[DISCUSSED] ' + notes);
                           }}
                           className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs flex-shrink-0 ${
-                            isDiscussed ? 'bg-green-500 border-green-500 text-white' : 'border-amber-400 hover:border-amber-600'
+                            isDiscussed ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300 hover:border-blue-500'
                           }`}
                         >
                           {isDiscussed && '✓'}
                         </button>
                         <div className="flex-1 min-w-0">
-                          <p className={`font-medium ${isDiscussed ? 'line-through text-gray-400' : 'text-gray-900'}`}>{email.subject}</p>
-                          <p className="text-sm text-gray-500 mt-1">{email.from_name || email.from_email}</p>
+                          <p className={`font-medium ${isDiscussed ? 'line-through text-slate-400' : 'text-slate-900'}`}>{email.subject}</p>
+                          <p className="text-sm text-slate-500 mt-1">{email.from_name || email.from_email}</p>
                           {editingAgendaId === email.id ? (
                             <div className="mt-2">
                               <textarea
                                 value={agendaNoteText}
                                 onChange={(e) => setAgendaNoteText(e.target.value)}
                                 placeholder="Add notes for this agenda item..."
-                                className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                                 rows={2}
                                 autoFocus
                               />
@@ -3020,13 +3363,13 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                     updateMeetingNotes(email.id, (isDiscussed ? '[DISCUSSED] ' : '') + agendaNoteText);
                                     setEditingAgendaId(null);
                                   }}
-                                  className="bg-amber-500 hover:bg-amber-600 text-white px-3 py-1 rounded text-xs font-medium"
+                                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-medium"
                                 >
                                   Save
                                 </button>
                                 <button
                                   onClick={() => setEditingAgendaId(null)}
-                                  className="text-gray-500 hover:text-gray-700 px-2 py-1 text-xs"
+                                  className="text-slate-500 hover:text-slate-700 px-2 py-1 text-xs"
                                 >
                                   Cancel
                                 </button>
@@ -3047,7 +3390,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                             setShowAgendaPopup(false);
                             setPopupEmailId(email.id);
                           }}
-                          className="bg-amber-500 hover:bg-amber-600 active:scale-95 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-transform"
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
                         >
                           View Email
                         </button>
@@ -3057,13 +3400,13 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                             setEditingAgendaId(email.id);
                             setAgendaNoteText(currentNote);
                           }}
-                          className="bg-amber-100 hover:bg-amber-200 active:scale-95 text-amber-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-transform"
+                          className="border border-slate-200 hover:bg-slate-50 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
                         >
-                          ✏️ Edit Notes
+                          Edit Notes
                         </button>
                         <button
                           onClick={() => toggleMeetingFlag(email.id, true)}
-                          className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium"
+                          className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium"
                         >
                           Remove
                         </button>
@@ -3080,21 +3423,21 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
       {/* Important Docs Popup */}
       {showImportantDocsPopup && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 max-h-[80vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6 w-full max-w-md mx-4 max-h-[80vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <span className="text-indigo-500">📄</span> Important Docs
+              <h3 className="text-lg font-semibold text-slate-900">
+                Important Docs
               </h3>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setEditingImportantDocs(!editingImportantDocs)}
-                  className="text-gray-400 hover:text-gray-600 text-sm"
+                  className="text-slate-400 hover:text-slate-600 text-sm"
                 >
                   {editingImportantDocs ? 'Done' : '✏️ Edit'}
                 </button>
                 <button
                   onClick={() => setShowImportantDocsPopup(false)}
-                  className="text-gray-400 hover:text-gray-600 text-xl"
+                  className="text-slate-400 hover:text-slate-600 text-xl"
                 >
                   ✕
                 </button>
@@ -3102,9 +3445,9 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
             </div>
             <div className="overflow-y-auto flex-1 space-y-2">
               {loadingDocs ? (
-                <p className="text-gray-400 text-center py-4">Loading...</p>
+                <p className="text-slate-400 text-center py-4">Loading...</p>
               ) : importantDocs.length === 0 ? (
-                <p className="text-gray-400 text-center py-4">No documents added yet</p>
+                <p className="text-slate-400 text-center py-4">No documents added yet</p>
               ) : (
                 importantDocs.map((doc) => (
                   <div key={doc.id} className="flex items-center gap-2">
@@ -3114,7 +3457,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                           type="text"
                           value={editingDocTitle}
                           onChange={(e) => setEditingDocTitle(e.target.value)}
-                          className="flex-1 px-3 py-2 border border-indigo-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                          className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                           autoFocus
                         />
                         <button
@@ -3125,7 +3468,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                         </button>
                         <button
                           onClick={() => { setEditingDocId(null); setEditingDocTitle(''); }}
-                          className="text-gray-400 hover:text-gray-600 p-1"
+                          className="text-slate-400 hover:text-slate-600 p-1"
                         >
                           ✕
                         </button>
@@ -3136,7 +3479,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                           href={doc.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex-1 bg-indigo-50 hover:bg-indigo-100 rounded-lg px-4 py-3 text-indigo-700 font-medium transition-colors"
+                          className="flex-1 bg-slate-50 hover:bg-slate-100 rounded-lg px-4 py-3 text-slate-700 font-medium transition-colors"
                         >
                           📎 {doc.title}
                         </a>
@@ -3144,7 +3487,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                           <>
                             <button
                               onClick={() => { setEditingDocId(doc.id); setEditingDocTitle(doc.title); }}
-                              className="text-indigo-400 hover:text-indigo-600 p-2"
+                              className="text-slate-400 hover:text-slate-600 p-2"
                             >
                               ✏️
                             </button>
@@ -3163,22 +3506,22 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
               )}
             </div>
             {editingImportantDocs && (
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <p className="text-sm font-medium text-gray-700 mb-2">Add New Document</p>
+              <div className="mt-4 pt-4 border-t border-slate-200">
+                <p className="text-sm font-medium text-slate-700 mb-2">Add New Document</p>
                 <div className="space-y-2">
                   <input
                     type="text"
                     placeholder="Title"
                     value={newDocTitle}
                     onChange={(e) => setNewDocTitle(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                   <input
                     type="url"
                     placeholder="URL"
                     value={newDocUrl}
                     onChange={(e) => setNewDocUrl(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                   <button
                     onClick={async () => {
@@ -3189,7 +3532,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                       }
                     }}
                     disabled={!newDocTitle || !newDocUrl}
-                    className="w-full bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
                   >
                     Add Document
                   </button>
@@ -3202,77 +3545,109 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
 
       {/* Email Popup (for viewing from tasks/agenda) */}
       {popupEmail && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setPopupEmailId(null)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[85vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-gradient-to-r from-sky-500 to-blue-600 px-6 py-4 flex items-center justify-between">
-              <div className="text-white">
-                <p className="font-bold text-lg truncate">{popupEmail.subject}</p>
-                <p className="text-sm text-sky-100">From: {popupEmail.from_name || popupEmail.from_email}</p>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setPopupEmailId(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+
+            {/* Header */}
+            <div className="px-6 pt-5 pb-4 border-b border-slate-100 flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <h2 className="font-semibold text-slate-900 text-base leading-snug truncate">{popupEmail.subject}</h2>
+                <p className="text-sm text-slate-400 mt-0.5">{popupEmail.from_name || popupEmail.from_email}</p>
               </div>
-              <button onClick={() => setPopupEmailId(null)} className="text-white/80 hover:text-white text-2xl">&times;</button>
+              <button onClick={() => setPopupEmailId(null)} className="text-slate-400 hover:text-slate-600 flex-shrink-0 mt-0.5">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
             </div>
-            <div className="p-6 overflow-y-auto flex-1">
-              <div className="flex items-center gap-2 mb-4">
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-4">
+
+              {/* Meta row */}
+              <div className="flex items-center gap-3">
                 {popupEmail.priority && priorityConfig[popupEmail.priority] && (
-                  <span className={`${priorityConfig[popupEmail.priority].bg} ${priorityConfig[popupEmail.priority].text} px-2 py-0.5 rounded text-xs font-medium`}>
-                    {priorityConfig[popupEmail.priority].icon} {priorityConfig[popupEmail.priority].label}
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${priorityConfig[popupEmail.priority].bg} ${priorityConfig[popupEmail.priority].text}`}>
+                    {priorityConfig[popupEmail.priority].label}
                   </span>
                 )}
-                <span className="text-xs text-gray-400">{formatDistanceToNow(parseISO(popupEmail.received_at), { addSuffix: true })}</span>
+                <span className="text-xs text-slate-400">{formatDistanceToNow(parseISO(popupEmail.received_at), { addSuffix: true })}</span>
               </div>
 
-              <div className="bg-sky-50 rounded-lg p-4 mb-4">
-                <p className="text-sm font-medium text-gray-700 mb-1">Summary</p>
-                <p className="text-gray-600">{popupEmail.summary}</p>
+              {/* Summary */}
+              <div className="bg-slate-50 rounded-xl p-4">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Summary</p>
+                <p className="text-sm text-slate-700 leading-relaxed">{popupEmail.summary}</p>
               </div>
 
-              {popupEmail.action_needed && popupEmail.action_needed !== 'None' && (
-                <div className="bg-amber-50 rounded-lg p-4 mb-4">
-                  <p className="text-sm font-medium text-amber-800 mb-1">Action Needed</p>
-                  <p className="text-amber-700">{popupEmail.action_needed}</p>
+              {/* Action needed */}
+              {popupEmail.action_needed && popupEmail.action_needed !== 'None' && popupEmail.action_needed !== 'No action needed' && (
+                <div className="bg-white border border-slate-100 border-l-4 border-l-orange-400 rounded-xl shadow-md px-4 py-3 flex items-start gap-3">
+                  <div className="w-2 h-2 rounded-full bg-orange-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-0.5">Action Needed</p>
+                    <p className="text-sm text-slate-700">{popupEmail.action_needed}</p>
+                  </div>
                 </div>
               )}
 
-              <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                <p className="text-sm font-medium text-gray-700 mb-1">Full Email</p>
-                <p className="text-gray-600 text-sm whitespace-pre-wrap max-h-60 overflow-y-auto">{popupEmail.body_text}</p>
+              {/* Original email */}
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Full Email</p>
+                <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-600 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
+                  {(popupEmail.body_text || '').replace(/^>+\s*/gm, '').replace(/\n{3,}/g, '\n\n').trim()}
+                </div>
               </div>
 
-              {(popupEmail.draft_reply && popupEmail.draft_reply !== 'No reply needed') && (
-                <div className="bg-green-50 rounded-lg p-4 mb-4">
-                  <p className="text-sm font-medium text-green-800 mb-1">Draft Reply</p>
-                  <p className="text-green-700 text-sm whitespace-pre-wrap">{popupEmail.edited_draft || popupEmail.draft_reply}</p>
+              {/* Draft reply */}
+              <div className="bg-white rounded-xl shadow-md border border-slate-100 p-4 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Draft Reply</p>
+                  <span className={`text-xs font-medium ${popupEmail.draft_status === 'draft_ready' ? 'text-green-600' : popupEmail.draft_status === 'approved' ? 'text-blue-600' : 'text-slate-400'}`}>
+                    {popupEmail.draft_status === 'draft_ready' ? '✓ Ready' : popupEmail.draft_status === 'approved' ? '✓ Approved' : 'Editing'}
+                  </span>
                 </div>
-              )}
+                <textarea
+                  className="w-full text-sm text-slate-700 border border-slate-200 rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white leading-relaxed"
+                  rows={6}
+                  placeholder="Draft a reply..."
+                  value={popupDraftText}
+                  onChange={(e) => setPopupDraftText(e.target.value)}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => saveDraft(popupEmail.id, popupDraftText, false)}
+                    className="px-4 py-1.5 border border-slate-200 text-slate-600 rounded-lg text-xs font-medium hover:bg-slate-50 transition-colors"
+                  >
+                    Save Draft
+                  </button>
+                  <button
+                    onClick={() => saveDraft(popupEmail.id, popupDraftText, true)}
+                    className="flex-1 px-4 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition-colors"
+                  >
+                    Mark Ready for Review
+                  </button>
+                </div>
+              </div>
+
             </div>
-            <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex gap-3">
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between gap-3">
               <button
-                onClick={() => {
-                  setPopupEmailId(null);
-                  setExpandedEmail(popupEmail.id);
-                  setActiveNav('inbox');
-                }}
-                className="bg-sky-500 hover:bg-sky-600 active:scale-95 text-white px-4 py-2 rounded-lg text-sm font-medium transition-transform"
+                onClick={() => { setPopupEmailId(null); setExpandedEmail(popupEmail.id); setActiveNav('inbox'); }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors"
               >
                 Open Full View
               </button>
               {popupEmail.attachments && popupEmail.attachments.length > 0 && getGmailUrl(popupEmail.message_id) && (
-                <a
-                  href={getGmailUrl(popupEmail.message_id)!}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-transform"
-                >
-                  📎 View Attachments
+                <a href={getGmailUrl(popupEmail.message_id)!} target="_blank" rel="noopener noreferrer" className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors">
+                  View in Gmail
                 </a>
               )}
-              <button
-                onClick={() => setPopupEmailId(null)}
-                className="ml-auto text-gray-500 hover:text-gray-700 px-4 py-2 text-sm"
-              >
+              <button onClick={() => setPopupEmailId(null)} className="ml-auto text-sm text-slate-400 hover:text-slate-600 transition-colors">
                 Close
               </button>
             </div>
+
           </div>
         </div>
       )}
@@ -3280,27 +3655,27 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
       {/* Task Creation Modal */}
       {showTaskModal && taskModalEmailId && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowTaskModal(false)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-gradient-to-r from-purple-500 to-indigo-600 px-6 py-4 flex items-center justify-between rounded-t-xl">
-              <h3 className="text-lg font-bold text-white">Add Task</h3>
-              <button onClick={() => setShowTaskModal(false)} className="text-white/80 hover:text-white text-2xl">&times;</button>
+          <div className="bg-white rounded-xl shadow-lg border border-slate-200 w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between rounded-t-xl">
+              <h3 className="text-lg font-semibold text-slate-900">Add Task</h3>
+              <button onClick={() => setShowTaskModal(false)} className="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
             </div>
             {(() => {
               const email = emails.find(e => e.id === taskModalEmailId);
               if (!email) return null;
               return (
                 <div className="p-6 space-y-4">
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-500">Related to email:</p>
-                    <p className="font-medium text-gray-900 truncate">{email.subject}</p>
+                  <div className="bg-slate-50 rounded-lg p-3">
+                    <p className="text-xs text-slate-500">Related to email:</p>
+                    <p className="font-medium text-slate-900 truncate">{email.subject}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Task Description</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Task Description</label>
                     <input
                       type="text"
                       value={taskModalText}
                       onChange={(e) => setTaskModalText(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                      className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                       placeholder="Enter task description..."
                       autoFocus
                       onKeyDown={(e) => {
@@ -3311,14 +3686,14 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Assign to</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Assign to</label>
                     <div className="flex gap-3">
                       <button
                         onClick={() => setTaskModalAssignee('emily')}
                         className={`flex-1 py-2 rounded-lg font-medium transition-all ${
                           taskModalAssignee === 'emily'
-                            ? 'bg-teal-500 text-white'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                         }`}
                       >
                         Emily
@@ -3327,8 +3702,8 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                         onClick={() => setTaskModalAssignee('rbk')}
                         className={`flex-1 py-2 rounded-lg font-medium transition-all ${
                           taskModalAssignee === 'rbk'
-                            ? 'bg-indigo-500 text-white'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                         }`}
                       >
                         RBK
@@ -3338,14 +3713,14 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   <div className="flex gap-3 pt-2">
                     <button
                       onClick={() => setShowTaskModal(false)}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium"
+                      className="flex-1 px-4 py-2 border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 font-medium"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={saveTaskFromModal}
                       disabled={!taskModalText.trim()}
-                      className="flex-1 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-transform"
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       Add Task
                     </button>
