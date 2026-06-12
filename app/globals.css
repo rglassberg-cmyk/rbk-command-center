@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./styles/design-tokens.css";
+@plugin "@tailwindcss/typography";
 
 :root {
   --background: #f8fafc;
@@ -21,4 +22,16 @@ body {
 
 * {
   box-sizing: border-box;
+}
+
+/* Tiptap editor styles */
+.tiptap-editor .ProseMirror {
+  outline: none;
+}
+.tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #94a3b8;
+  pointer-events: none;
+  height: 0;
 }

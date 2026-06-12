@@ -1,11 +1,11 @@
 {
-  "name": "RBK Command Center",
-  "short_name": "RBK",
-  "description": "Email Triage Dashboard for RBK",
-  "start_url": "/",
+  "name": "Command Center by Lhasa",
+  "short_name": "Command Center",
+  "description": "SAR Academy principal dashboard",
+  "start_url": "/home",
   "display": "standalone",
-  "background_color": "#f9fafb",
-  "theme_color": "#1f2937",
+  "background_color": "#ffffff",
+  "theme_color": "#1B3A6B",
   "orientation": "portrait-primary",
   "icons": [
     {

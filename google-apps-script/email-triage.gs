@@ -3,7 +3,7 @@
  *
  * Changes from v2.4:
  * - Updated to send to RBK Command Center instead of Zapier
- * - Webhook URL: https://rbk-command-center.vercel.app/api/webhook/email
+ * - Webhook URL: https://rbk-cmd-center.web.app/api/webhook/email
  *
  * Features preserved:
  * - STAR RULE: Starred emails = RBK Action (New emails only)
@@ -23,7 +23,7 @@ function getPrincipalTriageConfig() {
   return {
     openaiApiKey: scriptProperties.getProperty('OPENAI_API_KEY'),
     // NEW: RBK Command Center webhook (replaces Zapier)
-    commandCenterWebhookUrl: 'https://rbk-command-center.vercel.app/api/webhook/email',
+    commandCenterWebhookUrl: 'https://rbk-cmd-center.web.app/api/webhook/email',
     webhookSecret: scriptProperties.getProperty('WEBHOOK_SECRET'),
     principalEmail: 'kraussb@saracademy.org',
     assistantEmail: scriptProperties.getProperty('ASSISTANT_EMAIL') || 'egray@saracademy.org',
@@ -557,7 +557,7 @@ function testCommandCenterConnection() {
 
     if (responseCode === 200) {
       Logger.log('SUCCESS! Connection to RBK Command Center is working.');
-      Logger.log('Check your dashboard at https://rbk-command-center.vercel.app to see the test email.');
+      Logger.log('Check your dashboard at https://rbk-cmd-center.web.app to see the test email.');
     } else if (responseCode === 401) {
       Logger.log('ERROR: Unauthorized. Your WEBHOOK_SECRET does not match.');
       Logger.log('Make sure WEBHOOK_SECRET in Script Properties matches the one in Vercel.');
@@ -611,5 +611,123 @@ function deletePrincipalTriageTrigger() {
  *
  * 5. Run createPrincipalTriageTrigger() to start automatic processing
  *
+ * 6. Run createDraftsReadyTrigger() to start syncing "Drafts Ready" labeled emails
+ *
  * NOTE: You can remove ZAPIER_WEBHOOK_URL from Script Properties - it's no longer used.
  */
+
+// ============================================================================
+// DRAFTS READY LABEL SYNC
+// ============================================================================
+
+/**
+ * Syncs emails with the "Drafts Ready" Gmail label to the Command Center.
+ * Emily applies this label when she has prepared a draft reply for RBK to review.
+ * After syncing, the label is swapped to "Drafts Synced" to avoid reprocessing.
+ */
+function syncDraftsReadyLabel() {
+  var config = getPrincipalTriageConfig();
+
+  if (!config.webhookSecret) {
+    Logger.log('ERROR: WEBHOOK_SECRET not configured');
+    return;
+  }
+
+  Logger.log('Starting Drafts Ready sync...');
+
+  var label = GmailApp.getUserLabelByName('Drafts Ready');
+  if (!label) {
+    Logger.log('No "Drafts Ready" label found — nothing to sync');
+    return;
+  }
+
+  var threads = label.getThreads(0, 50);
+  if (threads.length === 0) {
+    Logger.log('No threads with "Drafts Ready" label');
+    return;
+  }
+
+  Logger.log('Found ' + threads.length + ' threads with "Drafts Ready" label');
+
+  var syncedLabel = GmailApp.getUserLabelByName('Drafts Synced') || GmailApp.createLabel('Drafts Synced');
+  var stats = { processed: 0, errors: 0 };
+
+  for (var i = 0; i < threads.length; i++) {
+    try {
+      var messages = threads[i].getMessages();
+      var lastMessage = messages[messages.length - 1];
+
+      var emailData = {
+        from: lastMessage.getFrom(),
+        subject: lastMessage.getSubject(),
+        body: lastMessage.getPlainBody().substring(0, 8000),
+        to: lastMessage.getTo(),
+        id: lastMessage.getId(),
+        threadId: lastMessage.getThread().getId(),
+        date: lastMessage.getDate()
+      };
+
+      var payload = {
+        message_id: emailData.id,
+        thread_id: emailData.threadId,
+        from: emailData.from,
+        to: emailData.to,
+        subject: emailData.subject,
+        body: emailData.body,
+        date: emailData.date.toISOString(),
+        // Defaults if email wasn't already triaged
+        priority: 'rbk_action',
+        category: 'drafts_ready',
+        summary: 'Draft reply prepared by Emily — review needed',
+        action_needed: 'Review draft reply',
+        draft_reply: '',
+        assigned_to: 'rbk',
+        // Key field: tells webhook to set draft_status
+        draft_status: 'draft_ready'
+      };
+
+      var options = {
+        method: 'post',
+        contentType: 'application/json',
+        headers: {
+          'Authorization': 'Bearer ' + config.webhookSecret
+        },
+        payload: JSON.stringify(payload),
+        muteHttpExceptions: true
+      };
+
+      var response = UrlFetchApp.fetch(config.commandCenterWebhookUrl, options);
+      var responseCode = response.getResponseCode();
+
+      if (responseCode === 200) {
+        Logger.log('Synced: ' + emailData.subject);
+        stats.processed++;
+      } else {
+        Logger.log('ERROR syncing "' + emailData.subject + '": ' + response.getContentText());
+        stats.errors++;
+      }
+
+      // Swap label: remove "Drafts Ready", add "Drafts Synced"
+      threads[i].removeLabel(label);
+      threads[i].addLabel(syncedLabel);
+
+      if (i < threads.length - 1) Utilities.sleep(300);
+    } catch (e) {
+      Logger.log('Error processing thread: ' + e.toString());
+      stats.errors++;
+    }
+  }
+
+  Logger.log('Drafts Ready sync complete. Stats: ' + JSON.stringify(stats));
+}
+
+function createDraftsReadyTrigger() {
+  var triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(function(t) {
+    if (t.getHandlerFunction() === 'syncDraftsReadyLabel') {
+      ScriptApp.deleteTrigger(t);
+    }
+  });
+  ScriptApp.newTrigger('syncDraftsReadyLabel').timeBased().everyMinutes(15).create();
+  Logger.log('Drafts Ready trigger created: runs every 15 minutes');
+}

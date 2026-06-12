@@ -2,14 +2,37 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import {
+  GoogleAuthProvider,
+  signInWithPopup,
+  setPersistence,
+  browserLocalPersistence,
+  indexedDBLocalPersistence,
+} from 'firebase/auth';
 import { auth } from '@/lib/firebase-client';
+
+// True when running as a Home-Screen-installed PWA on iOS. iOS Safari
+// in standalone mode partitions sessionStorage across browsing contexts,
+// which breaks Firebase's default popup flow (it stores OAuth state in
+// sessionStorage between window.open and the redirect back). Switching
+// persistence to IndexedDB makes the state survive that partition.
+function isIosPwa(): boolean {
+  if (typeof window === 'undefined') return false;
+  return (
+    // Legacy Safari standalone flag — still set on iOS PWAs as of iOS 18.
+    (window.navigator as unknown as { standalone?: boolean }).standalone === true ||
+    (window.matchMedia('(display-mode: standalone)').matches &&
+     /iPhone|iPad|iPod/.test(window.navigator.userAgent))
+  );
+}
 
 const provider = new GoogleAuthProvider();
 provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
 provider.addScope('https://www.googleapis.com/auth/calendar.events');
+provider.addScope('https://www.googleapis.com/auth/gmail.readonly');
 provider.addScope('https://www.googleapis.com/auth/gmail.send');
 provider.addScope('https://www.googleapis.com/auth/gmail.modify');
+provider.setCustomParameters({ prompt: 'select_account' });
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,6 +44,14 @@ export default function LoginPage() {
     setError(null);
 
     try {
+      // Set persistence before the popup opens. IndexedDB survives the
+      // sessionStorage partition that iOS standalone mode applies between
+      // the PWA window and the OAuth popup; browserLocalPersistence is
+      // the default everywhere else.
+      await setPersistence(
+        auth,
+        isIosPwa() ? indexedDBLocalPersistence : browserLocalPersistence,
+      );
       const result = await signInWithPopup(auth, provider);
       const credential = GoogleAuthProvider.credentialFromResult(result);
       const idToken = await result.user.getIdToken();

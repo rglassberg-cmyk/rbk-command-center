@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm uninstall:)",
+      "Bash(npm run:)",
+      "Bash(which firebase && firebase --version 2>&1)",
+      "Bash(firebase deploy:*)",
+      "Bash(firebase functions:secrets:get:*)",
+      "Bash(firebase functions:log:*)",
+      "Bash(gcloud functions logs read ssrrbkcmdcenter --region=us-east1 --project=rbk-cmd-center --limit=10 2>&1 || firebase functions:log --only ssrrbkcmdcenter --limit=10 2>&1)",
+      "Bash(sleep 30 && gcloud functions logs read ssrrbkcmdcenter --region=us-east1 --project=rbk-cmd-center --limit=5 2>&1)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm run:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx firebase:*)",
+      "Bash(npx tsx:*)",
+      "Bash(./deploy.sh)",
+      "Bash(curl:*)",
+      "Bash(gcloud run:*)",
+      "Bash(gcloud logging:*)",
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}

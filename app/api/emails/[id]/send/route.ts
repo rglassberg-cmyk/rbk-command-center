@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getValidGoogleToken } from '@/lib/googleToken';
+import { getSenderIdentity, type SenderIdentity } from '@/lib/emailIdentity';
 
 interface EmailRecord {
   id: string;
@@ -14,34 +16,14 @@ interface EmailRecord {
   message_id: string | null;
 }
 
-// Rabbi Krauss' email signature (HTML)
-const EMAIL_SIGNATURE = `
-<br><br>
-<div style="font-family: Arial, sans-serif; font-size: 14px; color: #333;">
-  <p style="margin: 0; color: #0066cc; font-weight: bold;">Rabbi Binyamin Krauss</p>
-  <p style="margin: 0; color: #0066cc;">Principal</p>
-  <p style="margin: 8px 0 0 0;">
-    <span style="color: #666;">p</span> | <a href="tel:7185481717" style="color: #333; text-decoration: none;">718.548.1717 ext. 1206</a>
-  </p>
-  <p style="margin: 0;">
-    <span style="color: #666;">e</span> | <a href="mailto:kraussb@saracademy.org" style="color: #0066cc; text-decoration: none;">kraussb@saracademy.org</a>
-  </p>
-  <p style="margin: 4px 0 8px 0;">
-    <a href="https://www.linkedin.com/in/bini-krauss/" style="color: #0066cc; text-decoration: none;">LinkedIn</a>
-  </p>
-  <img src="https://rbk-command-center.vercel.app/sar-logo.jpg" alt="SAR Academy" style="max-width: 200px; height: auto;">
-</div>
-`;
-
-// Create a MIME message for Gmail API (HTML format with signature)
-function createMimeMessage(to: string, subject: string, body: string, threadId?: string | null): string {
-  const fromEmail = 'kraussb@saracademy.org';
-  const fromName = 'Rabbi Binyamin Krauss';
-
-  // Convert plain text body to HTML (preserve line breaks)
+function createMimeMessage(
+  to: string,
+  subject: string,
+  body: string,
+  identity: SenderIdentity,
+): string {
   const htmlBody = body.replace(/\n/g, '<br>');
 
-  // Build HTML content with signature
   const htmlContent = `
 <!DOCTYPE html>
 <html>
@@ -50,14 +32,13 @@ function createMimeMessage(to: string, subject: string, body: string, threadId?:
 </head>
 <body style="font-family: Arial, sans-serif; font-size: 14px; color: #333;">
 ${htmlBody}
-${EMAIL_SIGNATURE}
+${identity.signatureHtml}
 </body>
 </html>
 `;
 
-  // Build MIME message with HTML content type
   const messageParts = [
-    `From: ${fromName} <${fromEmail}>`,
+    `From: ${identity.fromName} <${identity.fromEmail}>`,
     `To: ${to}`,
     `Subject: Re: ${subject}`,
     'MIME-Version: 1.0',
@@ -66,16 +47,11 @@ ${EMAIL_SIGNATURE}
     htmlContent,
   ];
 
-  const message = messageParts.join('\r\n');
-
-  // Encode to base64url (Gmail API requirement)
-  const encodedMessage = Buffer.from(message)
+  return Buffer.from(messageParts.join('\r\n'))
     .toString('base64')
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=+$/, '');
-
-  return encodedMessage;
 }
 
 export async function POST(
@@ -84,20 +60,31 @@ export async function POST(
 ) {
   const session = await getAuthSession();
 
-  if (!session?.user?.email || !session.accessToken) {
+  if (!session?.user?.email) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const workspaceId = session.workspaceId;
+  if (!workspaceId) {
+    return NextResponse.json({ error: 'No workspace' }, { status: 401 });
+  }
+
+  const accessToken = await getValidGoogleToken(workspaceId, session.user.email);
+  if (!accessToken) {
     return NextResponse.json(
-      { error: 'Unauthorized or missing access token' },
-      { status: 401 }
+      { error: 'Google account not connected. Please sign in again.' },
+      { status: 401 },
     );
   }
 
+  const identity = await getSenderIdentity(workspaceId, session.user.email);
+
   const { id } = await params;
 
-  // Get the email record from database
   const { data: email, error: fetchError } = await supabaseAdmin
     .from('emails')
     .select('id, from_email, from_name, subject, edited_draft, draft_reply, draft_status, thread_id, message_id')
     .eq('id', id)
+    .eq('workspace_id', workspaceId)
     .single();
 
   if (fetchError || !email) {
@@ -108,8 +95,6 @@ export async function POST(
   }
 
   const typedEmail = email as EmailRecord;
-
-  // Get the draft content (prefer edited draft over original)
   const draftContent = typedEmail.edited_draft || typedEmail.draft_reply;
 
   if (!draftContent) {
@@ -119,40 +104,25 @@ export async function POST(
     );
   }
 
-  // Check if draft is approved
-  if (typedEmail.draft_status !== 'approved') {
-    return NextResponse.json(
-      { error: 'Draft must be approved before sending' },
-      { status: 400 }
-    );
-  }
-
-  // Create MIME message
   const rawMessage = createMimeMessage(
     typedEmail.from_email,
     typedEmail.subject,
     draftContent,
-    typedEmail.thread_id
+    identity,
   );
 
   try {
-    // Build the Gmail API request body
-    const requestBody: { raw: string; threadId?: string } = {
-      raw: rawMessage,
-    };
-
-    // If we have a thread ID, include it to keep the conversation threaded
+    const requestBody: { raw: string; threadId?: string } = { raw: rawMessage };
     if (typedEmail.thread_id) {
       requestBody.threadId = typedEmail.thread_id;
     }
 
-    // Send via Gmail API
     const gmailResponse = await fetch(
       'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.accessToken}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(requestBody),
@@ -163,10 +133,9 @@ export async function POST(
       const errorData = await gmailResponse.json();
       console.error('Gmail API error:', errorData);
 
-      // Handle specific errors
       if (gmailResponse.status === 403) {
         return NextResponse.json(
-          { error: 'Permission denied. Make sure you have Send As permissions for kraussb@saracademy.org' },
+          { error: `Permission denied. Make sure you have Send As permissions for ${identity.fromEmail}` },
           { status: 403 }
         );
       }
@@ -179,7 +148,6 @@ export async function POST(
 
     const sentMessage = await gmailResponse.json();
 
-    // Update the email record to mark as sent
     const { error: updateError } = await supabaseAdmin
       .from('emails')
       .update({
@@ -189,11 +157,11 @@ export async function POST(
         sent_by: session.user.email,
         sent_message_id: sentMessage.id,
       })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('workspace_id', workspaceId);
 
     if (updateError) {
       console.error('Error updating email status:', updateError);
-      // Email was sent but status update failed - not critical
     }
 
     return NextResponse.json({

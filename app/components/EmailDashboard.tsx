@@ -36,8 +36,8 @@ interface Stats {
 }
 
 const priorityColors: Record<string, string> = {
-  rbk_action: 'bg-red-100 text-red-800 border-red-200',
-  eg_action: 'bg-blue-100 text-blue-800 border-blue-200',
+  owner_action: 'bg-red-100 text-red-800 border-red-200',
+  assistant_action: 'bg-blue-100 text-blue-800 border-blue-200',
   invitation: 'bg-purple-100 text-purple-800 border-purple-200',
   meeting_invite: 'bg-green-100 text-green-800 border-green-200',
   important_no_action: 'bg-orange-100 text-orange-800 border-orange-200',
@@ -46,8 +46,8 @@ const priorityColors: Record<string, string> = {
 };
 
 const priorityLabels: Record<string, string> = {
-  rbk_action: 'RBK Action',
-  eg_action: 'EG Action',
+  owner_action: 'RBK Action',
+  assistant_action: 'EG Action',
   invitation: 'Invitation',
   meeting_invite: 'Meeting',
   important_no_action: 'Important',

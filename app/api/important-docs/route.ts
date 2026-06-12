@@ -1,11 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAuthSession } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 
+async function requireWorkspace() {
+  const session = await getAuthSession();
+  if (!session?.user?.email || !session.workspaceId) return null;
+  return session;
+}
+
 export async function GET() {
+  const session = await requireWorkspace();
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const workspaceId = session.workspaceId!;
+
   try {
     const { data, error } = await supabaseAdmin
       .from('important_docs')
       .select('*')
+      .eq('workspace_id', workspaceId)
       .order('sort_order', { ascending: true });
 
     if (error) {
@@ -21,6 +35,12 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const session = await requireWorkspace();
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const workspaceId = session.workspaceId!;
+
   try {
     const { title, url } = await request.json();
 
@@ -32,6 +52,7 @@ export async function POST(request: NextRequest) {
     const { data: maxData } = await supabaseAdmin
       .from('important_docs')
       .select('sort_order')
+      .eq('workspace_id', workspaceId)
       .order('sort_order', { ascending: false })
       .limit(1);
 
@@ -39,7 +60,7 @@ export async function POST(request: NextRequest) {
 
     const { data, error } = await supabaseAdmin
       .from('important_docs')
-      .insert({ title, url, sort_order: nextOrder })
+      .insert({ title, url, sort_order: nextOrder, workspace_id: workspaceId })
       .select()
       .single();
 
@@ -56,6 +77,12 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const session = await requireWorkspace();
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const workspaceId = session.workspaceId!;
+
   try {
     const { id, title } = await request.json();
 
@@ -67,6 +94,7 @@ export async function PUT(request: NextRequest) {
       .from('important_docs')
       .update({ title })
       .eq('id', id)
+      .eq('workspace_id', workspaceId)
       .select()
       .single();
 
@@ -83,6 +111,12 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const session = await requireWorkspace();
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const workspaceId = session.workspaceId!;
+
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -94,7 +128,8 @@ export async function DELETE(request: NextRequest) {
     const { error } = await supabaseAdmin
       .from('important_docs')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('workspace_id', workspaceId);
 
     if (error) {
       console.error('Error deleting doc:', error);

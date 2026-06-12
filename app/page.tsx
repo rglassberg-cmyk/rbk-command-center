@@ -1,17 +1,23 @@
 import { redirect } from 'next/navigation';
 import { getAuthSession } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
+import { getValidGoogleToken } from '@/lib/googleToken';
 import Dashboard from './components/Dashboard';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-async function getEmails() {
+async function getEmails(workspaceId: string | null | undefined) {
+  // Never fetch emails without a workspace_id — prevents cross-workspace data leaks
+  if (!workspaceId) {
+    return [];
+  }
   const { data, error } = await supabase
     .from('emails')
     .select('*')
+    .eq('workspace_id', workspaceId)
     .order('received_at', { ascending: false })
-    .limit(100);
+    .limit(500);
 
   if (error) {
     console.error('Error fetching emails:', error);
@@ -21,13 +27,22 @@ async function getEmails() {
   return data || [];
 }
 
-async function getCalendarEvents(accessToken: string) {
+// SSR-fetch today's calendar events for the authenticated user. Uses
+// 'primary' (the user's default calendar) instead of the legacy
+// hardcoded RBK calendar ID. Token comes from user_google_tokens via
+// getValidGoogleToken (auto-refresh) instead of the short-lived
+// session.accessToken popup token. Returns [] for users without a
+// connected Google account — the client-side TodayScheduleCard
+// already handles the not-connected case via /api/calendar/today.
+async function getCalendarEvents(workspaceId: string, userEmail: string) {
+  const accessToken = await getValidGoogleToken(workspaceId, userEmail);
+  if (!accessToken) return [];
+
   const now = new Date();
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
 
-  const rbkCalendarId = 'kraussb@saracademy.org';
-  const calendarUrl = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(rbkCalendarId)}/events`);
+  const calendarUrl = new URL('https://www.googleapis.com/calendar/v3/calendars/primary/events');
   calendarUrl.searchParams.set('timeMin', startOfDay.toISOString());
   calendarUrl.searchParams.set('timeMax', endOfDay.toISOString());
   calendarUrl.searchParams.set('singleEvents', 'true');
@@ -106,16 +121,25 @@ async function getCalendarEvents(accessToken: string) {
   }
 }
 
-export default async function Home() {
+export default async function Home({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const session = await getAuthSession();
 
   if (!session) {
     redirect('/login');
   }
 
+  // All users land on /home by default — UNLESS they have ?nav= or ?projectPanel= params
+  // (those come from sidebar/tile clicks and need Dashboard to process them)
+  const params = await searchParams;
+  if (!params.nav && !params.projectPanel) {
+    redirect('/home');
+  }
+
   const [emails, calendarEvents] = await Promise.all([
-    getEmails(),
-    session.accessToken ? getCalendarEvents(session.accessToken) : Promise.resolve([]),
+    getEmails(session.workspaceId),
+    session.workspaceId && session.user?.email
+      ? getCalendarEvents(session.workspaceId, session.user.email)
+      : Promise.resolve([]),
   ]);
 
   return <Dashboard emails={emails} calendarEvents={calendarEvents} />;

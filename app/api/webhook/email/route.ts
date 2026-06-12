@@ -18,7 +18,7 @@ interface EmailWebhookPayload {
   body: string;
   body_html?: string;
   date: string;
-  priority: 'rbk_action' | 'eg_action' | 'invitation' | 'meeting_invite' | 'important_no_action' | 'review' | 'fyi';
+  priority: 'owner_action' | 'assistant_action' | 'invitation' | 'meeting_invite' | 'important_no_action' | 'review' | 'fyi' | 'drafts_ready';
   category: string;
   summary: string;
   action_needed?: string;
@@ -28,6 +28,7 @@ interface EmailWebhookPayload {
   attachments?: Attachment[];
   is_starred?: boolean;
   is_unread?: boolean;
+  draft_status?: 'not_started' | 'editing' | 'draft_ready' | 'approved' | 'needs_revision' | null;
 }
 
 export async function POST(request: NextRequest) {
@@ -55,12 +56,26 @@ export async function POST(request: NextRequest) {
     // Parse request body
     const payload: EmailWebhookPayload = await request.json();
 
+    console.log('[Webhook] Incoming payload:', JSON.stringify({
+      priority: payload.priority,
+      draft_status: payload.draft_status,
+      message_id: payload.message_id,
+      subject: payload.subject?.substring(0, 50),
+      has_draft_reply: !!payload.draft_reply,
+    }));
+
     // Validate required fields
     if (!payload.thread_id || !payload.message_id || !payload.from || !payload.subject) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
+    }
+
+    // Remap 'drafts_ready' priority to valid DB value + set draft_status
+    if (payload.priority === 'drafts_ready') {
+      payload.priority = 'owner_action';
+      payload.draft_status = 'draft_ready';
     }
 
     // Extract email and name from "Name <email@domain.com>" format
@@ -71,6 +86,9 @@ export async function POST(request: NextRequest) {
     // Parse received date
     const receivedAt = new Date(payload.date);
     const processedAt = new Date(); // Current time
+
+    // Resolve workspace_id — use RBK's seed workspace (only workspace for now)
+    const RBK_WORKSPACE_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
 
     // Insert email into database
     const { data, error } = await supabaseAdmin
@@ -97,6 +115,8 @@ export async function POST(request: NextRequest) {
         is_unread: payload.is_unread !== false, // Default to true
         received_at: receivedAt.toISOString(),
         processed_at: processedAt.toISOString(),
+        workspace_id: RBK_WORKSPACE_ID,
+        ...(payload.draft_status ? { draft_status: payload.draft_status } : {}),
       })
       .select()
       .single();
@@ -104,7 +124,32 @@ export async function POST(request: NextRequest) {
     if (error) {
       // Check if it's a duplicate message_id
       if (error.code === '23505') {
-        console.log(`Duplicate email ignored: ${payload.message_id}`);
+        // If draft_status or draft_reply provided, update the existing email
+        console.log('[Webhook] Duplicate detected (23505), updating draft fields:', {
+          draft_status: payload.draft_status,
+          has_draft_reply: !!payload.draft_reply,
+          message_id: payload.message_id,
+        });
+        if (payload.draft_status || payload.draft_reply) {
+          const updateFields: Record<string, string> = {};
+          if (payload.draft_status) updateFields.draft_status = payload.draft_status;
+          if (payload.draft_reply) updateFields.draft_reply = payload.draft_reply;
+
+          const { data: updateData, error: updateError } = await supabaseAdmin
+            .from('emails')
+            .update(updateFields)
+            .eq('message_id', payload.message_id)
+            .select('id, draft_status, message_id')
+            .single();
+
+          if (updateError) {
+            console.error('[Webhook] Failed to update on duplicate:', updateError);
+          } else {
+            console.log('[Webhook] Duplicate update success:', JSON.stringify(updateData));
+          }
+        } else {
+          console.log('[Webhook] Duplicate ignored — no draft fields to update:', payload.message_id);
+        }
         return NextResponse.json(
           { status: 'duplicate', message: 'Email already processed' },
           { status: 200 }
@@ -118,7 +163,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`Email stored successfully: ${data.id} (${payload.subject})`);
+    console.log('[Webhook] Email stored successfully:', JSON.stringify({ id: data.id, draft_status: data.draft_status, priority: data.priority, subject: payload.subject?.substring(0, 50) }));
 
     // Return success response
     return NextResponse.json({

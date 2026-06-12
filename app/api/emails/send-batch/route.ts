@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getValidGoogleToken } from '@/lib/googleToken';
+import { getSenderIdentity, type SenderIdentity } from '@/lib/emailIdentity';
 
 interface EmailRecord {
   id: string;
@@ -21,33 +23,9 @@ interface SendResult {
   gmail_message_id?: string;
 }
 
-// Rabbi Krauss' email signature (HTML)
-const EMAIL_SIGNATURE = `
-<br><br>
-<div style="font-family: Arial, sans-serif; font-size: 14px; color: #333;">
-  <p style="margin: 0; color: #0066cc; font-weight: bold;">Rabbi Binyamin Krauss</p>
-  <p style="margin: 0; color: #0066cc;">Principal</p>
-  <p style="margin: 8px 0 0 0;">
-    <span style="color: #666;">p</span> | <a href="tel:7185481717" style="color: #333; text-decoration: none;">718.548.1717 ext. 1206</a>
-  </p>
-  <p style="margin: 0;">
-    <span style="color: #666;">e</span> | <a href="mailto:kraussb@saracademy.org" style="color: #0066cc; text-decoration: none;">kraussb@saracademy.org</a>
-  </p>
-  <p style="margin: 4px 0 8px 0;">
-    <a href="https://www.linkedin.com/in/bini-krauss/" style="color: #0066cc; text-decoration: none;">LinkedIn</a>
-  </p>
-  <img src="https://rbk-command-center.vercel.app/sar-logo.jpg" alt="SAR Academy" style="max-width: 200px; height: auto;">
-</div>
-`;
-
-function createMimeMessage(to: string, subject: string, body: string): string {
-  const fromEmail = 'kraussb@saracademy.org';
-  const fromName = 'Rabbi Binyamin Krauss';
-
-  // Convert plain text body to HTML (preserve line breaks)
+function createMimeMessage(to: string, subject: string, body: string, identity: SenderIdentity): string {
   const htmlBody = body.replace(/\n/g, '<br>');
 
-  // Build HTML content with signature
   const htmlContent = `
 <!DOCTYPE html>
 <html>
@@ -56,13 +34,13 @@ function createMimeMessage(to: string, subject: string, body: string): string {
 </head>
 <body style="font-family: Arial, sans-serif; font-size: 14px; color: #333;">
 ${htmlBody}
-${EMAIL_SIGNATURE}
+${identity.signatureHtml}
 </body>
 </html>
 `;
 
   const messageParts = [
-    `From: ${fromName} <${fromEmail}>`,
+    `From: ${identity.fromName} <${identity.fromEmail}>`,
     `To: ${to}`,
     `Subject: Re: ${subject}`,
     'MIME-Version: 1.0',
@@ -71,9 +49,7 @@ ${EMAIL_SIGNATURE}
     htmlContent,
   ];
 
-  const message = messageParts.join('\r\n');
-
-  return Buffer.from(message)
+  return Buffer.from(messageParts.join('\r\n'))
     .toString('base64')
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
@@ -83,12 +59,23 @@ ${EMAIL_SIGNATURE}
 export async function POST(request: NextRequest) {
   const session = await getAuthSession();
 
-  if (!session?.user?.email || !session.accessToken) {
+  if (!session?.user?.email) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const workspaceId = session.workspaceId;
+  if (!workspaceId) {
+    return NextResponse.json({ error: 'No workspace' }, { status: 401 });
+  }
+
+  const accessToken = await getValidGoogleToken(workspaceId, session.user.email);
+  if (!accessToken) {
     return NextResponse.json(
-      { error: 'Unauthorized or missing access token' },
-      { status: 401 }
+      { error: 'Google account not connected. Please sign in again.' },
+      { status: 401 },
     );
   }
+
+  const identity = await getSenderIdentity(workspaceId, session.user.email);
 
   const body = await request.json();
   const { email_ids } = body;
@@ -107,11 +94,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Fetch all emails
   const { data: emails, error: fetchError } = await supabaseAdmin
     .from('emails')
     .select('id, from_email, from_name, subject, edited_draft, draft_reply, draft_status, thread_id, message_id')
-    .in('id', email_ids);
+    .in('id', email_ids)
+    .eq('workspace_id', workspaceId);
 
   if (fetchError) {
     return NextResponse.json(
@@ -122,26 +109,19 @@ export async function POST(request: NextRequest) {
 
   const results: SendResult[] = [];
 
-  // Process each email
   for (const email of (emails as EmailRecord[])) {
     const draftContent = email.edited_draft || email.draft_reply;
 
-    // Validate each email
     if (!draftContent) {
       results.push({ id: email.id, success: false, error: 'No draft content' });
       continue;
     }
 
-    if (email.draft_status !== 'approved') {
-      results.push({ id: email.id, success: false, error: 'Draft not approved' });
-      continue;
-    }
-
-    // Create and send the message
     const rawMessage = createMimeMessage(
       email.from_email,
       email.subject,
-      draftContent
+      draftContent,
+      identity,
     );
 
     const requestBody: { raw: string; threadId?: string } = { raw: rawMessage };
@@ -155,7 +135,7 @@ export async function POST(request: NextRequest) {
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${session.accessToken}`,
+            'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(requestBody),
@@ -174,7 +154,6 @@ export async function POST(request: NextRequest) {
 
       const sentMessage = await gmailResponse.json();
 
-      // Update the email record
       await supabaseAdmin
         .from('emails')
         .update({
@@ -184,7 +163,8 @@ export async function POST(request: NextRequest) {
           sent_by: session.user.email,
           sent_message_id: sentMessage.id,
         })
-        .eq('id', email.id);
+        .eq('id', email.id)
+        .eq('workspace_id', workspaceId);
 
       results.push({
         id: email.id,
@@ -201,7 +181,6 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Check for any emails not found
   const foundIds = emails?.map(e => e.id) || [];
   for (const id of email_ids) {
     if (!foundIds.includes(id)) {

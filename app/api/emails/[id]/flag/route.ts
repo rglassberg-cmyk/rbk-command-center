@@ -10,6 +10,10 @@ export async function PATCH(
   if (!session?.user?.email) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  const workspaceId = session.workspaceId;
+  if (!workspaceId) {
+    return NextResponse.json({ error: 'No workspace' }, { status: 401 });
+  }
 
   const { id } = await params;
   const body = await request.json();
@@ -36,6 +40,7 @@ export async function PATCH(
     .from('emails')
     .update(updateData)
     .eq('id', id)
+    .eq('workspace_id', workspaceId)
     .select()
     .single();
 

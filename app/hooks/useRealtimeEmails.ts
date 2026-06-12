@@ -35,6 +35,9 @@ interface Email {
   attachments?: Attachment[] | null;
   reminder_date?: string | null;
   revision_comment?: string | null;
+  tbd_suggestion?: string | null;
+  tbd_notes?: string | null;
+  thread_id?: string | null;
 }
 
 type RealtimePayload = {
@@ -43,7 +46,7 @@ type RealtimePayload = {
   old: { id: string };
 };
 
-export function useRealtimeEmails(initialEmails: Email[]) {
+export function useRealtimeEmails(initialEmails: Email[], workspaceId?: string | null) {
   const [emails, setEmails] = useState<Email[]>(initialEmails);
   const [isConnected, setIsConnected] = useState(false);
 
@@ -74,15 +77,22 @@ export function useRealtimeEmails(initialEmails: Email[]) {
   }, []);
 
   useEffect(() => {
-    // Subscribe to realtime changes on the emails table
+    // Never subscribe without a workspace_id — prevents cross-workspace data leaks
+    if (!workspaceId) {
+      setIsConnected(false);
+      return;
+    }
+
+    // Subscribe to realtime changes on the emails table, filtered by workspace
     const channel = supabase
-      .channel('emails-changes')
+      .channel(`emails-${workspaceId}`)
       .on<Email>(
         'postgres_changes' as const,
         {
           event: '*',
           schema: 'public',
           table: 'emails',
+          filter: `workspace_id=eq.${workspaceId}`,
         },
         (payload) => {
           handleRealtimeEvent(payload as unknown as RealtimePayload);
@@ -101,20 +111,22 @@ export function useRealtimeEmails(initialEmails: Email[]) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [handleRealtimeEvent]);
+  }, [handleRealtimeEvent, workspaceId]);
 
-  // Manual refresh function
+  // Manual refresh function — never fetch without workspace_id
   const refreshEmails = useCallback(async () => {
+    if (!workspaceId) return;
     const { data, error } = await supabase
       .from('emails')
       .select('*')
+      .eq('workspace_id', workspaceId)
       .order('received_at', { ascending: false })
-      .limit(100);
+      .limit(500);
 
     if (!error && data) {
       setEmails(data as Email[]);
     }
-  }, []);
+  }, [workspaceId]);
 
   return {
     emails,

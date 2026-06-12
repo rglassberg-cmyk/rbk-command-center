@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getValidGoogleToken } from '@/lib/googleToken';
 
 export async function POST(
   request: NextRequest,
@@ -8,8 +9,20 @@ export async function POST(
 ) {
   try {
     const session = await getAuthSession();
-    if (!session?.accessToken) {
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const workspaceId = session.workspaceId;
+    if (!workspaceId) {
+      return NextResponse.json({ error: 'No workspace' }, { status: 401 });
+    }
+
+    const accessToken = await getValidGoogleToken(workspaceId, session.user.email);
+    if (!accessToken) {
+      return NextResponse.json(
+        { error: 'Google account not connected. Please sign in again.' },
+        { status: 401 },
+      );
     }
 
     const { id } = await params;
@@ -19,6 +32,7 @@ export async function POST(
       .from('emails')
       .select('message_id')
       .eq('id', id)
+      .eq('workspace_id', workspaceId)
       .single();
 
     if (dbError || !email) {
@@ -36,7 +50,7 @@ export async function POST(
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.accessToken}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
