@@ -11,6 +11,7 @@ import dynamic from 'next/dynamic';
 import { hasSubPermission } from '@/lib/modules';
 import Sidebar from './Sidebar';
 import DevelopmentPage from './development/DevelopmentPage';
+import AfterSchoolTab from './AfterSchoolTab';
 // GuardianCirclePage now lives inside DevelopmentPage as a tab — the
 // top-level `guardian-circle` nav route was retired on 2026-05-15.
 import SimchasSendNoteModal, { type SimchasSendNotePayload } from './SimchasSendNoteModal';
@@ -386,7 +387,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
   // fixed overlay.
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const VALID_NAV_IDS = ['dashboard', 'inbox', 'agenda', 'tasks', 'gemara', 'communications', 'projects', 'absences', 'admissions', 'simchas', 'student-logs', 'lever', 'development', 'emily'];
+  const VALID_NAV_IDS = ['dashboard', 'inbox', 'agenda', 'tasks', 'gemara', 'communications', 'projects', 'absences', 'after_school', 'admissions', 'simchas', 'student-logs', 'lever', 'development', 'emily'];
   const [activeNav, setActiveNav] = useState(() => {
     if (typeof window !== 'undefined') {
       // Check ?nav= search param first (from /home navigation)
@@ -10216,6 +10217,9 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
               })()}
             </div>
           )}
+
+          {/* After School Programs View */}
+          {activeNav === 'after_school' && <AfterSchoolTab />}
 
           {/* Development View — Guardian Circle is now a tab inside this page (position 3 of 5). */}
           {activeNav === 'development' && <DevelopmentPage onNavigate={setActiveNav} />}

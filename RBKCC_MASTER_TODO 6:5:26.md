@@ -2,11 +2,15 @@
 
 > ⚠️ THIS IS THE ONLY TODO FILE. Update this after every session. Do not create new TODO or action item files. Archive any other planning docs by adding an ARCHIVED header. Phase build plans are reference-only.
 
-*Last updated: June 14, 2026*
+*Last updated: June 15, 2026*
 
 For the longer roadmap + horizon items + architecture history, see `RBKCC_VISION_AND_ROADMAP.md`. For implementation detail, see `CLAUDE_CONTEXT.md` ("Recent Changes" section).
 
 ---
+
+## ✅ Shipped (June 15, 2026)
+
+- ✅ **After School Programs page — new module + Veracross programs API** (rev `ssrrbkcmdcenter-00670-97n`, deployed + site verified UP HTTP 307). New standalone Academics page (nav item after Student Absences, book-open icon) showing after-school enrollment from the Veracross **programs** API. New OAuth app creds `VERACROSS_PROGRAMS_CLIENT_ID/SECRET` (existing clients lack `programs.*` scopes — confirmed via `scripts/discoverProgramsApi.ts`); added to `.env.local` + `deploy.sh` Cloud Run env. Two cache tables (`after_school_classes_cache`, `after_school_enrollments_cache`, RLS on, server-only) created via `scripts/migrations/after-school-tables.sql`. Secret-auth sync route `POST /api/after-school/sync` (header-paginated; allow-lists the exact course names; classifies tzaharon / ms_extracurriculars / after_school; upserts classes **without** touching `capacity`; delete+reinsert enrollments so withdrawals drop out) — first run **595 classes / 5,417 enrollments**. Data route `GET /api/after-school?school_year=2026` (Supabase-only, `after_school`-module gated). UI `AfterSchoolTab.tsx`: year toggle 2025–26 / 2026–27 (default 26-27), 3 summary cards, per-group collapsible tables (enrolled color-coding, fill bars, grade chips), right slide-in per-class drilldown (grade breakdown + `Student #{person_id}` list — names stubbed). Daily 7am Cloud Function `syncAfterSchoolPrograms` (scheduler ENABLED). Module enabled on the SAR workspace; granted to Debra May (`debra@saracademy.org` — task said `debramay@`, which doesn't exist) and Becca (owner, sees it automatically). **Key learnings:** Veracross `school_year` = FALL year (2026 = AY 26-27); programs API paginates by `X-Page-Size`/`X-Page-Number` headers (default 2/page), no `X-Total-Count`; classes have no `capacity` field; enrollments have no names (only `person_id`); `meeting_times` needs a class id in the path. **Caveat:** owners/assistants (RBK, Emily) also see the page — inherent to the module model; per-user hiding would need a testing_features-style flag. tsc (app + functions) + build clean.
 
 ## ✅ Shipped (June 14, 2026)
 

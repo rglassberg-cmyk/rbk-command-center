@@ -119,6 +119,30 @@ exports.syncDailyAttendance = functions.pubsub
   });
 
 // ---------------------------------------------------------------------------
+// After School Programs sync — daily at 7am ET. Pulls Veracross programs
+// courses/classes/enrollments into the after_school_*_cache tables.
+// ---------------------------------------------------------------------------
+exports.syncAfterSchoolPrograms = functions.pubsub
+  .schedule('0 7 * * *')
+  .timeZone('America/New_York')
+  .onRun(async () => {
+    const res = await fetch(
+      'https://ssrrbkcmdcenter-429508710310.us-east1.run.app/api/after-school/sync',
+      {
+        method: 'POST',
+        headers: {
+          'X-Internal-Secret': process.env.INTERNAL_SYNC_SECRET || '',
+          'X-Workspace-Id': 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const data = await res.json();
+    console.log('After School sync:', data);
+    return null;
+  });
+
+// ---------------------------------------------------------------------------
 // Gifts sync — hourly on weekdays, daily on weekends
 // ---------------------------------------------------------------------------
 
