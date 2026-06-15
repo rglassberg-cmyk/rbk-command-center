@@ -33,6 +33,7 @@ interface Member {
 const DASHBOARD_COLUMNS = [
   { key: 'admissions', label: 'Admissions' },
   { key: 'absences', label: 'Absences' },
+  { key: 'after_school', label: 'After School' },
   { key: 'lever', label: 'Recruiting' },
   { key: 'faculty_absences', label: 'Faculty Attendance' },
   { key: 'simchas', label: 'Simchas' },
@@ -47,6 +48,7 @@ const DASHBOARD_COLUMNS = [
 const ALL_MODULE_OPTIONS: { key: string; label: string }[] = [
   { key: 'admissions',       label: 'Admissions & Enrollment' },
   { key: 'absences',         label: 'Student Absences' },
+  { key: 'after_school',     label: 'After School Programs' },
   { key: 'faculty_absences', label: 'Faculty Attendance' },
   { key: 'projects',         label: 'Projects' },
   { key: 'lever',            label: 'Recruiting' },
