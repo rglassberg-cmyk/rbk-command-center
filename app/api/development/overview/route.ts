@@ -26,6 +26,15 @@ import { getEffectiveWorkspaceId } from '@/lib/impersonate';
 //     Soft credits affect ONLY the segment cards — NOT the headline
 //     Total Raised, the per-fund campaign table, or the donor/
 //     lapsed/new counts.
+//   - 2026-06-14: soft credits now GAP-FILL only. Per constituent, the
+//     segment `received` is the type-1 sum when they have ANY direct
+//     gift; soft credits are ignored for them (Veracross writes a
+//     type-3 soft-credit twin for every type-1 gift, so adding both
+//     double-counted every direct donor). A constituent with NO type-1
+//     row counts their type-3 rows where soft_credit_type IN (1, 2) —
+//     this is the ONLY case soft credits contribute, and it surfaces
+//     DAF/org- and household-only donors (soft_credit_type = 2) who
+//     were previously dropped from segments entirely.
 //   - FY bucket = the exact campaign string (`Operating 2025-2026`
 //     vs `Operating 2024-2025`), NOT the gift date. Pledge-payment
 //     gifts retroactively tagged to a prior campaign now stay in
@@ -63,10 +72,16 @@ const FY26_CUTOFF = '2025-07-01';
 
 const GIFT_TYPE_DONATION = 1;
 const GIFT_TYPE_PLEDGE = 2;
-// Veracross Donation Soft Credit: gift_type = 3 AND soft_credit_type = 1.
-// Counted toward SEGMENT cards only (see scope note above).
+// Veracross soft credits: gift_type = 3. soft_credit_type 1 = Donation Soft
+// Credit (DAF/org gave on the constituent's behalf), 2 = household soft
+// credit (spouse/household attribution). Counted toward SEGMENT cards only,
+// and ONLY for constituents with no direct (type-1) gift — see the
+// gap-fill rule in the scope note above. Veracross writes a soft-credit
+// twin for every direct gift, so stacking soft credits on a constituent
+// who already has a type-1 row double-counts.
 const GIFT_TYPE_SOFT_CREDIT = 3;
 const SOFT_CREDIT_TYPE_DONATION = 1;
+const SOFT_CREDIT_TYPE_HOUSEHOLD = 2;
 
 // Eight donor segments, in priority order — each constituent lands in
 // exactly ONE bucket (first match wins). Classification reads the raw
@@ -126,12 +141,14 @@ interface OverviewResponse {
     raisedFY25: number;
     donorsFY25: number;
   };
-  // Per-segment FY26 giving. `donationsReceived` = SUM(amount) on
-  // type-1 gifts PLUS type-3 Donation Soft Credits; `outstandingPledges`
-  // = SUM(pledge_balance) on type-2 gifts; `total` = the two combined.
-  // `donors` = DISTINCT constituents with any type-1, type-2, OR type-3
+  // Per-segment FY26 giving. `donationsReceived` per constituent =
+  // SUM(amount) on type-1 gifts when they gave directly, otherwise
+  // SUM(amount) on their qualifying type-3 soft credits (gap-fill — see
+  // scope note); `outstandingPledges` = SUM(pledge_balance) on type-2
+  // gifts; `total` = the two combined. `donors` = DISTINCT constituents
+  // with any type-1, type-2, OR (absent a type-1) qualifying type-3
   // soft-credit Operating gift in FY26 (so pledge-only and soft-credit-
-  // only donors still count toward their segment). YoY segment
+  // only donors still count once toward their segment). YoY segment
   // comparison is intentionally dropped — roles shift annually in
   // Veracross.
   segments: Array<{
@@ -229,16 +246,25 @@ export async function GET() {
   // Per-fund + per-FY raised. fund=null/empty bucketed as '(No fund)'.
   const fundFY26 = new Map<string, number>();
   const fundFY25 = new Map<string, number>();
-  // Per-donor FY26 giving for segment aggregation: `received` =
-  // SUM(amount) on type-1 gifts + type-3 Donation Soft Credits,
-  // `pledged` = SUM(pledge_balance) on type-2 gifts. Segment totals =
-  // received + pledged, so a donor's outstanding pledge (money expected
-  // to arrive) is reflected in their segment. `fy26SegmentDonors` is
-  // every constituent with a type-1, type-2, or type-3 soft-credit FY26
-  // gift (pledge-only and soft-credit-only donors count toward their
-  // segment).
-  const fy26ByDonor = new Map<number, { received: number; pledged: number }>();
-  const fy26SegmentDonors = new Set<number>();
+  // Per-donor FY26 giving for segment aggregation. We accumulate the
+  // three pools separately so the gap-fill rule can be applied AFTER the
+  // single pass (we can't know whether a donor has a direct gift until
+  // every row is seen): `type1` = SUM(amount) on type-1 gifts, `soft` =
+  // SUM(amount) on qualifying type-3 soft credits (soft_credit_type 1/2),
+  // `pledged` = SUM(pledge_balance) on type-2 gifts. Final segment
+  // `received` = type1 when `hasType1`, else `soft`. Segment totals =
+  // received + pledged. `fy26SegmentDonors` (built after the loop) is
+  // every constituent who gave directly (type-1), pledged (type-2), or —
+  // absent a direct gift — has a qualifying soft credit.
+  const fy26ByDonor = new Map<number, {
+    type1: number;
+    soft: number;
+    pledged: number;
+    hasType1: boolean;
+    hasType2: boolean;
+    hasSoft: boolean;
+  }>();
+  let fy26SegmentDonors = new Set<number>();
   // Last FY25 type-1 gift per donor — feeds the lapsed-donor table.
   const lastFy25GiftByDonor = new Map<number, { amount: number; date: string }>();
   const nameByDonor = new Map<number, string>();
@@ -249,9 +275,12 @@ export async function GET() {
     const activity = g.fundraising_activity ?? '';
     const isType1 = g.gift_type === GIFT_TYPE_DONATION;
     const isType2 = g.gift_type === GIFT_TYPE_PLEDGE;
-    // Donation Soft Credit only (gift_type 3 AND soft_credit_type 1) —
-    // other type-3 variants (e.g. pledge soft credits) are ignored.
-    const isSoftCredit = g.gift_type === GIFT_TYPE_SOFT_CREDIT && g.soft_credit_type === SOFT_CREDIT_TYPE_DONATION;
+    // Qualifying soft credit (gift_type 3 AND soft_credit_type 1 or 2) —
+    // other type-3 variants (e.g. pledge soft credits) are ignored. These
+    // only fill the gap for constituents with no direct gift (decided
+    // after the loop).
+    const isSoftCredit = g.gift_type === GIFT_TYPE_SOFT_CREDIT &&
+      (g.soft_credit_type === SOFT_CREDIT_TYPE_DONATION || g.soft_credit_type === SOFT_CREDIT_TYPE_HOUSEHOLD);
     const amt = Number(g.amount || 0);
     const pledgeBal = Number(g.pledge_balance || 0);
     const fund = (g.fund && g.fund.trim()) || '(No fund)';
@@ -261,28 +290,30 @@ export async function GET() {
     }
 
     if (activity === FY26_CAMPAIGN) {
-      const seg = fy26ByDonor.get(cid) ?? { received: 0, pledged: 0 };
+      const seg = fy26ByDonor.get(cid) ?? {
+        type1: 0, soft: 0, pledged: 0, hasType1: false, hasType2: false, hasSoft: false,
+      };
       if (isType1) {
         raisedFY26 += amt;
         fy26Type1Donors.add(cid);
         fundFY26.set(fund, (fundFY26.get(fund) || 0) + amt);
-        seg.received += amt;
+        seg.type1 += amt;
+        seg.hasType1 = true;
         fy26ByDonor.set(cid, seg);
-        fy26SegmentDonors.add(cid);
       } else if (isType2) {
         raisedFY26 += pledgeBal;
         fundFY26.set(fund, (fundFY26.get(fund) || 0) + pledgeBal);
         seg.pledged += pledgeBal;
+        seg.hasType2 = true;
         fy26ByDonor.set(cid, seg);
-        fy26SegmentDonors.add(cid);
       } else if (isSoftCredit) {
         // Segment math ONLY — soft credits do NOT touch raisedFY26, the
         // per-fund campaign table, or the type-1 donor/lapsed/new sets.
-        // They land in `received`, and a soft-credit-only constituent
-        // still counts as a donor in their segment.
-        seg.received += amt;
+        // Accumulated here but only used as `received` when the donor has
+        // no direct gift (resolved after the loop).
+        seg.soft += amt;
+        seg.hasSoft = true;
         fy26ByDonor.set(cid, seg);
-        fy26SegmentDonors.add(cid);
       }
     } else if (activity === FY25_CAMPAIGN) {
       if (isType1) {
@@ -304,6 +335,16 @@ export async function GET() {
     if (isType1 && g.date < FY26_CUTOFF) {
       priorOperatingType1Donors.add(cid);
     }
+  }
+
+  // A constituent counts toward a segment if they gave directly (type-1),
+  // pledged (type-2), or — only when they have NO direct gift — carry a
+  // qualifying soft credit. This excludes constituents whose sole FY26
+  // attribution was a non-qualifying type-3 row (e.g. a pledge soft
+  // credit), which would otherwise be a $0 donor.
+  fy26SegmentDonors = new Set<number>();
+  for (const [cid, v] of fy26ByDonor) {
+    if (v.hasType1 || v.hasType2 || v.hasSoft) fy26SegmentDonors.add(cid);
   }
 
   // Pull role + roles_raw from constituents_cache for every donor we
@@ -346,8 +387,13 @@ export async function GET() {
     segmentMap.set(seg, { donationsReceived: 0, outstandingPledges: 0, donors: new Set() });
   }
   for (const [cid, v] of fy26ByDonor) {
+    if (!fy26SegmentDonors.has(cid)) continue; // drop non-qualifying $0 donors
+    // Gap-fill: direct donors count their type-1 sum (soft credits are
+    // their Veracross twins and ignored); donors with no direct gift
+    // count their qualifying soft credits.
+    const received = v.hasType1 ? v.type1 : v.soft;
     const s = segmentMap.get(segmentOf(cid))!;
-    s.donationsReceived += v.received;
+    s.donationsReceived += received;
     s.outstandingPledges += v.pledged;
     s.donors.add(cid);
   }

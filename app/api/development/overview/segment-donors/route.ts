@@ -15,16 +15,20 @@ import { classifySegment } from '../route';
 //
 // Filters mirror the overview route:
 //   fundraising_activity = 'Operating 2025-2026', gift_type IN (1,2,3).
-// donationsReceived = SUM(amount) on type-1 + type-3 Donation Soft
-// Credits; outstandingPledges = SUM(pledge_balance) on type-2; total =
-// the two combined. Grouped by constituent, sorted by total DESC. (Soft
-// credits are included in segment cards per the 2026-06-11 spec.)
+// donationsReceived per constituent = SUM(amount) on type-1 gifts when
+// they gave directly, else SUM(amount) on qualifying type-3 soft credits
+// (soft_credit_type 1 or 2) — soft credits GAP-FILL only, never stacking
+// on a direct donor (Veracross writes a soft-credit twin for every direct
+// gift, so adding both double-counts). outstandingPledges =
+// SUM(pledge_balance) on type-2; total = the two combined. Grouped by
+// constituent, sorted by total DESC. (2026-06-14 gap-fill spec.)
 
 const FY26_CAMPAIGN = 'Operating 2025-2026';
 const GIFT_TYPE_DONATION = 1;
 const GIFT_TYPE_PLEDGE = 2;
 const GIFT_TYPE_SOFT_CREDIT = 3;
 const SOFT_CREDIT_TYPE_DONATION = 1;
+const SOFT_CREDIT_TYPE_HOUSEHOLD = 2;
 
 const VALID_SEGMENTS = new Set([
   'Board Members',
@@ -112,19 +116,33 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to load gifts' }, { status: 500 });
   }
 
-  // 2. Aggregate per constituent.
-  const byDonor = new Map<number, { name: string; received: number; pledged: number; lastGiftDate: string | null }>();
+  // 2. Aggregate per constituent. Pools are kept separate so the gap-fill
+  // rule can be applied after the pass (received = type1 when the donor
+  // gave directly, else qualifying soft credits).
+  const byDonor = new Map<number, {
+    name: string;
+    type1: number;
+    soft: number;
+    pledged: number;
+    hasType1: boolean;
+    hasType2: boolean;
+    hasSoft: boolean;
+    lastGiftDate: string | null;
+  }>();
   for (const g of gifts) {
     if (g.constituent_id == null) continue;
-    // Only Donation Soft Credits (type 3 + soft_credit_type 1) count;
-    // skip any other type-3 row so it doesn't create a $0 donor entry.
-    if (g.gift_type === GIFT_TYPE_SOFT_CREDIT && g.soft_credit_type !== SOFT_CREDIT_TYPE_DONATION) continue;
+    const isSoft = g.gift_type === GIFT_TYPE_SOFT_CREDIT &&
+      (g.soft_credit_type === SOFT_CREDIT_TYPE_DONATION || g.soft_credit_type === SOFT_CREDIT_TYPE_HOUSEHOLD);
+    // Skip any non-qualifying type-3 row so it doesn't create a $0 donor.
+    if (g.gift_type === GIFT_TYPE_SOFT_CREDIT && !isSoft) continue;
     const cid = g.constituent_id;
-    const entry = byDonor.get(cid) ?? { name: '', received: 0, pledged: 0, lastGiftDate: null };
+    const entry = byDonor.get(cid) ?? {
+      name: '', type1: 0, soft: 0, pledged: 0, hasType1: false, hasType2: false, hasSoft: false, lastGiftDate: null,
+    };
     if (g.constituent_name && !entry.name) entry.name = g.constituent_name;
-    if (g.gift_type === GIFT_TYPE_DONATION) entry.received += Number(g.amount || 0);
-    else if (g.gift_type === GIFT_TYPE_PLEDGE) entry.pledged += Number(g.pledge_balance || 0);
-    else if (g.gift_type === GIFT_TYPE_SOFT_CREDIT) entry.received += Number(g.amount || 0);
+    if (g.gift_type === GIFT_TYPE_DONATION) { entry.type1 += Number(g.amount || 0); entry.hasType1 = true; }
+    else if (g.gift_type === GIFT_TYPE_PLEDGE) { entry.pledged += Number(g.pledge_balance || 0); entry.hasType2 = true; }
+    else if (isSoft) { entry.soft += Number(g.amount || 0); entry.hasSoft = true; }
     if (g.date && (!entry.lastGiftDate || g.date > entry.lastGiftDate)) entry.lastGiftDate = g.date;
     byDonor.set(cid, entry);
   }
@@ -158,13 +176,18 @@ export async function GET(request: NextRequest) {
   // 4. Filter to the requested segment + shape the response.
   const donors: SegmentDonor[] = [];
   for (const [cid, v] of byDonor) {
+    // Drop constituents with no qualifying attribution (would be $0).
+    if (!(v.hasType1 || v.hasType2 || v.hasSoft)) continue;
     if (classifySegment(rolesRawByDonor.get(cid) ?? null, roleByDonor.get(cid) ?? null) !== segment) continue;
+    // Gap-fill: direct donors count type-1 (their soft credits are
+    // Veracross twins, ignored); donors with no direct gift count soft.
+    const received = v.hasType1 ? v.type1 : v.soft;
     donors.push({
       constituentId: String(cid),
       constituentName: v.name || `Donor ${cid}`,
-      donationsReceived: v.received,
+      donationsReceived: received,
       outstandingPledges: v.pledged,
-      total: v.received + v.pledged,
+      total: received + v.pledged,
       lastGiftDate: v.lastGiftDate,
       primaryDevelopmentRole: roleByDonor.get(cid) ?? 'Other',
     });

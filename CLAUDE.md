@@ -1,10 +1,15 @@
+# RBK Command Center — Claude Context
+> Full ecosystem context: ~/Desktop/DevProjects/_context/LHASA_CONTEXT.md
+> Workflow preferences: ~/Desktop/DevProjects/_context/BECCA_WORKFLOW.md
+> Last updated: June 12, 2026
+
 # RBK Command Center — Project Context
 
 ## Overview
 
 Next.js 16 app serving as a unified operations dashboard for Rebecca (RBK) and Emily. Deployed to Firebase Hosting at **https://rbk-cmd-center.web.app**, with Supabase as the database and Firebase Auth (Google OAuth) for authentication.
 
-**Latest Cloud Run revision:** `ssrrbkcmdcenter-00657-lpv`. **Latest deploy:** June 11, 2026.
+**Latest Cloud Run revision:** `ssrrbkcmdcenter-00668-w2w`. **Latest deploy:** June 14, 2026.
 
 **Tech stack:** Next.js 16 + React 19 + Tailwind CSS (v4, `@tailwindcss/typography`) + Tiptap (rich text) + Supabase + Firebase (Auth, Hosting, Cloud Functions). Fonts: Geist (UI), Source Serif 4 (home greeting). ALL authenticated users auto-redirect from `/` to `/home` unless `?nav=` or `?projectPanel=` params are present. The old Dashboard at `/` is only accessible via sidebar nav items that pass `?nav=` params. ALL users see "Home" in sidebar (no more "Dashboard" item for anyone). `shouldRedirectHome` is always true.
 
@@ -715,7 +720,21 @@ Phase F per-workspace integration credentials. **Service-role only** — RLS den
 
 ## Recent Changes
 
-**Latest revision:** `ssrrbkcmdcenter-00665-94w` (deployed 2026-06-11). Latest: **Add-Task "urgent" flag now sticks on creation** — the modal's urgent toggle was writing the flag under the wrong key (`note-<id>`) and never persisting to localStorage, so new tasks lost their urgent state (entry directly below). Earlier same-day: Buzz AI error-fallback fix (`00664-7s9`), Lapsed Donors drill-down excludes orgs (`00661-2hs`), Board Members segment + soft credits (`00659-9l8`), Israel Fund "Total Raised" de-inflation (`00657-lpv`).
+**Latest revision:** `ssrrbkcmdcenter-00668-w2w` (deployed 2026-06-14). Latest: **Development Overview segment totals — soft credits now gap-fill only (double-count fix)** — last week's change added type-3 soft credits to every constituent's segment `received`, but Veracross writes a soft-credit twin for every direct (type-1) gift, so every direct donor was counted twice; soft credits now contribute ONLY for constituents with no direct gift, and household soft credits (`soft_credit_type = 2`) now surface DAF/org- and household-only donors (e.g. Cory Greenbaum) who were previously dropped (entry directly below). Earlier: Add-Task "urgent" flag sticks (`00665-94w`), Buzz AI error-fallback fix (`00664-7s9`), Lapsed Donors drill-down excludes orgs (`00661-2hs`), Board Members segment + soft credits (`00659-9l8`), Israel Fund "Total Raised" de-inflation (`00657-lpv`).
+
+### Development Overview — segment soft credits gap-fill only (double-count fix) (2026-06-14)
+
+Cloud Run revision `ssrrbkcmdcenter-00668-w2w`. The Development **Overview** tab's "Giving by Segment · FY26" cards (and the segment drill-down) were double-counting donors and dropping household-attributed donors. Fix is in `app/api/development/overview/route.ts` + `app/api/development/overview/segment-donors/route.ts` only. **Nothing else changed** — the headline Total Raised / Total Donors (still `gift_type IN (1,2)`, type-1 donor count), the per-fund campaign table, the Lapsed/New/Retained pills, the "Pledged" sublines (still type-2 `pledge_balance`), the Board Members→Trustee priority order, every other Development tab, and `lib/syncGifts.ts` were all left untouched.
+
+**The bug.** The 2026-06-11 deploy (`00659-9l8`) started adding type-3 Donation Soft Credits (`soft_credit_type = 1`) to each constituent's segment `received`. But Veracross writes a matching `gift_type = 3 / soft_credit_type = 1` soft-credit row for EVERY direct `gift_type = 1` gift a constituent makes — so any constituent with a direct gift was counted twice (once for their type-1 row, once for the soft-credit twin), inflating segment totals. Separately, donors whose ONLY FY26 attribution was a `gift_type = 3 / soft_credit_type = 2` household soft credit (e.g. Cory Greenbaum) were excluded from segments entirely, because the old code only recognized `soft_credit_type = 1`.
+
+**The corrected rule (gap-fill).** Per constituent, applied AFTER a single pass over all FY26 Operating rows (we can't know whether a donor gave directly until every row is seen):
+1. Constituent has ANY `gift_type = 1` row → segment `received` = SUM(type-1 `amount`); their soft-credit rows are ignored (they're Veracross twins). `pledged` = SUM(type-2 `pledge_balance`) as before.
+2. Constituent has NO `gift_type = 1` row → segment `received` = SUM(`amount`) on their `gift_type = 3` rows where `soft_credit_type IN (1, 2)` — DAF/org Donation Soft Credit OR household soft credit. This is the ONLY case soft credits contribute, and it surfaces the DAF/org- and household-only donors that were missing.
+
+Implementation: the per-donor map now accumulates three pools separately (`type1`, `soft`, `pledged`) plus `hasType1`/`hasType2`/`hasSoft` flags; final `received = hasType1 ? type1 : soft`. A constituent counts as a segment donor (once, in one segment) iff `hasType1 || hasType2 || hasSoft` — so non-qualifying type-3-only rows (e.g. pledge soft credits) no longer create $0 donor entries. The drill-down route (`segment-donors`) mirrors the exact same priority + qualifying logic so its donor list reconciles with the card totals. `SOFT_CREDIT_TYPE_HOUSEHOLD = 2` added to both routes. `npx tsc --noEmit` + `npm run build` clean.
+
+**Deploy note.** First `./deploy.sh` attempt failed: the Firebase frameworks SSR function tried to update the live Cloud Run service (which carries `--no-cpu-throttling` from the Buzz fix) with the default 256Mi, and Cloud Run rejects `memory < 512Mi` with CPU always-allocated. Fixed by pinning `frameworksBackend.memory = "512MiB"` in `firebase.json` (matches the `--memory=512Mi` the deploy script's `gcloud run services update` step already applies). Re-ran clean; revision `00668-w2w` serving 100% traffic, site verified UP (HTTP 307).
 
 ### Add-Task modal — "urgent" flag sticks on creation (2026-06-11)
 

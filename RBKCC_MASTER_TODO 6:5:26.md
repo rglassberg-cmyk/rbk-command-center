@@ -2,11 +2,15 @@
 
 > ⚠️ THIS IS THE ONLY TODO FILE. Update this after every session. Do not create new TODO or action item files. Archive any other planning docs by adding an ARCHIVED header. Phase build plans are reference-only.
 
-*Last updated: June 11, 2026*
+*Last updated: June 14, 2026*
 
 For the longer roadmap + horizon items + architecture history, see `RBKCC_VISION_AND_ROADMAP.md`. For implementation detail, see `CLAUDE_CONTEXT.md` ("Recent Changes" section).
 
 ---
+
+## ✅ Shipped (June 14, 2026)
+
+- ✅ **Development Overview — segment soft credits now gap-fill only (double-count fix)** (rev `ssrrbkcmdcenter-00668-w2w`, deployed + site verified UP HTTP 307). Last week's change (`00659-9l8`) added type-3 soft credits to **every** constituent's segment `received`, but Veracross writes a `gift_type=3 / soft_credit_type=1` soft-credit twin for **every** direct `gift_type=1` gift — so every direct donor was counted twice, inflating all segment totals. Separately, donors whose only FY26 attribution was a household soft credit (`gift_type=3 / soft_credit_type=2`, e.g. Cory Greenbaum) were dropped from segments entirely. **Corrected rule (gap-fill), per constituent:** (1) has ANY type-1 row → segment `received` = SUM(type-1 amount), soft credits ignored (they're twins); (2) NO type-1 row → `received` = SUM(amount) on type-3 rows where `soft_credit_type IN (1,2)`. Soft credits ONLY fill the gap for non-direct donors; this also surfaces DAF/org- and household-only donors that were missing. Applies to segment totals, donor counts (a constituent counts once, in one segment, iff type-1 OR type-2 OR qualifying soft credit), and the drill-down lists (mirrored in `segment-donors/route.ts` so they reconcile). Files: `app/api/development/overview/route.ts`, `.../overview/segment-donors/route.ts` only. **Untouched** per spec: headline Total Raised / Total Donors (still `gift_type IN (1,2)`, type-1 count), per-fund campaign table, Lapsed/New/Retained pills, "Pledged" sublines (type-2 `pledge_balance`), Board Members→Trustee priority, all other tabs, `lib/syncGifts.ts`. **Deploy fix:** pinned `frameworksBackend.memory = "512MiB"` in `firebase.json` — the SSR function deploy was rejected because Cloud Run forbids `memory < 512Mi` with the live `--no-cpu-throttling` (CPU always-allocated) setting; now matches the `--memory=512Mi` the deploy script's gcloud step applies. tsc + build clean.
 
 ## ✅ Shipped (June 11, 2026)
 

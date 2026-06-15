@@ -54,3 +54,7 @@ client_secret*.json
 # Backup files
 *.backup-*
 *.save
+
+# Nested build/dependency artifacts (added for backup hygiene)
+functions/node_modules/
+build/
