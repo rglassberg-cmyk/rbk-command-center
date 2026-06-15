@@ -51,10 +51,14 @@ import { getEffectiveWorkspaceId } from '@/lib/impersonate';
 // (hard credits only). Pledge-only donors (no payment yet) aren't
 // counted as donors until they pay.
 //
-// Lapsed = type-1 donors in 'Operating 2024-2025' who don't appear
-//          as type-1 donors in 'Operating 2025-2026'.
-// New    = type-1 donors in 'Operating 2025-2026' who have no
-//          'Operating %' type-1 gift dated before 2025-07-01.
+// Lapsed / New / Retained use "gave" = ANY gift_type IN (1, 2) in that
+// campaign (2026-06-15 fix). A pledge (type-2) counts as having given —
+// the donor committed — so a FY26 pledge keeps a constituent OUT of
+// lapsed and IN retained.
+//   Lapsed   = gave FY25 (Operating 2024-2025) AND NOT gave FY26.
+//   New      = gave FY26 (Operating 2025-2026) AND NOT gave FY25.
+//   Retained = gave both years.
+// (Headline Total Donors stays type-1-only and is unaffected.)
 //
 // Expected post-fix totals at SAR (June 2026):
 //   raisedFY26  ≈ $6,297,617
@@ -62,13 +66,17 @@ import { getEffectiveWorkspaceId } from '@/lib/impersonate';
 
 const OPERATING_CAMPAIGN_PREFIX = 'Operating ';
 const FY26_CAMPAIGN = 'Operating 2025-2026';
-const FY25_CAMPAIGN = 'Operating 2024-2025';
-// "Has the donor ever given to Operating before the current FY?"
-// Cutoff is the FY26 start (July 1 in dev finance terms — SAR's
-// payroll/finance FY runs Jul→Jun even though the academic year is
-// Sep→Aug). Anything dated before this is treated as "prior Operating
-// activity" for the new-donor calculation.
-const FY26_CUTOFF = '2025-07-01';
+// Last-year campaign is DERIVED from the current one (current minus 1) —
+// never hardcode the prior-year string, so the Campaign Giving by Fund
+// FY25 column (and the lapsed/new set math) auto-rolls forward next
+// fiscal year. "Operating 2025-2026" -> "Operating 2024-2025".
+function priorCampaign(current: string): string {
+  const m = current.match(/^(.*?)(\d{4})-(\d{4})$/);
+  if (!m) return current;
+  const [, prefix, y1, y2] = m;
+  return `${prefix}${Number(y1) - 1}-${Number(y2) - 1}`;
+}
+const FY25_CAMPAIGN = priorCampaign(FY26_CAMPAIGN);
 
 const GIFT_TYPE_DONATION = 1;
 const GIFT_TYPE_PLEDGE = 2;
@@ -175,6 +183,16 @@ interface OverviewResponse {
     }>;
   };
   newDonorsFY26: number;
+  newDonors: {
+    count: number;
+    donors: Array<{
+      constituent_id: number;
+      name: string;
+      role: string;
+      lastAmount: number;
+      lastDate: string;
+    }>;
+  };
 }
 
 export async function GET() {
@@ -239,10 +257,10 @@ export async function GET() {
   // segment math + lapsed/new logic).
   const fy26Type1Donors = new Set<number>();
   const fy25Type1Donors = new Set<number>();
-  // Constituents who gave a type-1 Operating gift dated before FY26's
-  // start. Used to compute "new" donors as FY26 type-1 donors NOT in
-  // this set.
-  const priorOperatingType1Donors = new Set<number>();
+  // "Gave" sets for lapsed/new/retained: any type-1 OR type-2 gift in
+  // that campaign. Pledge-only (type-2) donors count as having given.
+  const fy26GaveDonors = new Set<number>();
+  const fy25GaveDonors = new Set<number>();
   // Per-fund + per-FY raised. fund=null/empty bucketed as '(No fund)'.
   const fundFY26 = new Map<string, number>();
   const fundFY25 = new Map<string, number>();
@@ -273,8 +291,14 @@ export async function GET() {
     hasSoft: boolean;
   }>();
   let fy26SegmentDonors = new Set<number>();
-  // Last FY25 type-1 gift per donor — feeds the lapsed-donor table.
+  // Last type-1/type-2 gift per donor per FY — feeds the lapsed (FY25)
+  // and new (FY26) donor lists' "last gift" amount + date.
   const lastFy25GiftByDonor = new Map<number, { amount: number; date: string }>();
+  const lastFy26GiftByDonor = new Map<number, { amount: number; date: string }>();
+  const recordLast = (map: Map<number, { amount: number; date: string }>, cid: number, amount: number, date: string) => {
+    const prior = map.get(cid);
+    if (!prior || date > prior.date) map.set(cid, { amount, date });
+  };
   const nameByDonor = new Map<number, string>();
 
   for (const g of gifts) {
@@ -304,12 +328,16 @@ export async function GET() {
       if (isType1) {
         raisedFY26 += amt;
         fy26Type1Donors.add(cid);
+        fy26GaveDonors.add(cid);
+        recordLast(lastFy26GiftByDonor, cid, amt, g.date);
         fundFY26.set(fund, (fundFY26.get(fund) || 0) + amt);
         seg.type1 += amt;
         seg.hasType1 = true;
         fy26ByDonor.set(cid, seg);
       } else if (isType2) {
         raisedFY26 += pledgeBal;
+        fy26GaveDonors.add(cid);
+        recordLast(lastFy26GiftByDonor, cid, amt, g.date);
         fundFY26.set(fund, (fundFY26.get(fund) || 0) + pledgeBal);
         seg.pledged += pledgeBal;
         seg.hasType2 = true;
@@ -328,21 +356,15 @@ export async function GET() {
       if (isType1) {
         raisedFY25 += amt;
         fy25Type1Donors.add(cid);
+        fy25GaveDonors.add(cid);
+        recordLast(lastFy25GiftByDonor, cid, amt, g.date);
         fundFY25.set(fund, (fundFY25.get(fund) || 0) + amt);
-        const prior = lastFy25GiftByDonor.get(cid);
-        if (!prior || g.date > prior.date) {
-          lastFy25GiftByDonor.set(cid, { amount: amt, date: g.date });
-        }
       } else if (isType2) {
         raisedFY25 += pledgeBal;
+        fy25GaveDonors.add(cid);
+        recordLast(lastFy25GiftByDonor, cid, amt, g.date);
         fundFY25.set(fund, (fundFY25.get(fund) || 0) + pledgeBal);
       }
-    }
-
-    // Prior Operating type-1 activity (any year, any Operating
-    // campaign, before FY26 cutoff). Used for the "new donor" check.
-    if (isType1 && g.date < FY26_CUTOFF) {
-      priorOperatingType1Donors.add(cid);
     }
   }
 
@@ -359,7 +381,7 @@ export async function GET() {
   // Pull role + roles_raw from constituents_cache for every donor we
   // saw (FY26 segment donors + FY25 type-1 donors for lapsed pills).
   // Chunked IN(...) to keep individual queries small.
-  const allDonorIds = Array.from(new Set<number>([...fy25Type1Donors, ...fy26SegmentDonors]));
+  const allDonorIds = Array.from(new Set<number>([...fy25GaveDonors, ...fy26SegmentDonors, ...fy26GaveDonors]));
   const roleByDonor = new Map<number, string>();
   const rolesRawByDonor = new Map<number, string>();
   try {
@@ -434,26 +456,27 @@ export async function GET() {
     .filter(c => c.raisedFY26 > 0 || c.raisedFY25 > 0)
     .sort((a, b) => b.raisedFY26 - a.raisedFY26);
 
-  // Lapsed = type-1 FY25 donors not present as type-1 FY26 donors.
-  const lapsedIds: number[] = [];
-  for (const cid of fy25Type1Donors) {
-    if (!fy26Type1Donors.has(cid)) lapsedIds.push(cid);
-  }
+  // Lapsed = gave FY25 (type-1 OR type-2) and NOT gave FY26 (type-1 OR
+  // type-2). New = gave FY26 and NOT gave FY25. A FY26 pledge (type-2)
+  // therefore keeps a constituent out of lapsed and out of "new-vs-25"
+  // only if they also gave FY25.
+  const lapsedIds = Array.from(fy25GaveDonors).filter(cid => !fy26GaveDonors.has(cid));
+  const newIds = Array.from(fy26GaveDonors).filter(cid => !fy25GaveDonors.has(cid));
 
   // Exclude organizations (DAFs, foundations, charitable funds) from the
-  // lapsed-donor *list* — only individual persons should appear there.
+  // lapsed + new *lists* — only individual persons should appear there.
   // In gifts_cache the Veracross record type lives in
-  // raw_data->>'constituent_record_type' ('2' = person, '3' = org). We
-  // mark a constituent as an org if ANY of their gift rows (not just the
-  // current Operating campaign) carries record type '3' — a lapsed org
-  // may have no current-year row at all. Unknown/missing record types are
-  // NOT excluded (kept, to be safe). The lapsed COUNT pill still uses the
-  // full lapsedIds length — only the displayed list is person-filtered.
-  const orgLapsedIds = new Set<number>();
+  // raw_data->>'constituent_record_type' ('2' = person, '3' = org). A
+  // constituent is treated as an org if ANY of their gift rows carries
+  // record type '3' (a lapsed org may have no current-year row). Unknown/
+  // missing record types are kept. COUNT pills use the full set lengths;
+  // only the displayed lists are person-filtered.
+  const orgIds = new Set<number>();
+  const orgCandidateIds = Array.from(new Set<number>([...lapsedIds, ...newIds]));
   try {
     const chunkSize = 500;
-    for (let i = 0; i < lapsedIds.length; i += chunkSize) {
-      const chunk = lapsedIds.slice(i, i + chunkSize);
+    for (let i = 0; i < orgCandidateIds.length; i += chunkSize) {
+      const chunk = orgCandidateIds.slice(i, i + chunkSize);
       if (chunk.length === 0) continue;
       const { data, error } = await supabaseAdmin
         .from('gifts_cache')
@@ -462,41 +485,36 @@ export async function GET() {
         .in('constituent_id', chunk)
         .eq('raw_data->>constituent_record_type', '3');
       if (error) {
-        console.error('[OVERVIEW] lapsed org-filter query failed:', error);
+        console.error('[OVERVIEW] org-filter query failed:', error);
         continue;
       }
       for (const r of (data || [])) {
-        if (r.constituent_id != null) orgLapsedIds.add(r.constituent_id);
+        if (r.constituent_id != null) orgIds.add(r.constituent_id);
       }
     }
   } catch (err) {
-    console.error('[OVERVIEW] lapsed org-filter failed (non-fatal):', err);
+    console.error('[OVERVIEW] org-filter failed (non-fatal):', err);
   }
 
-  const lapsedDonors = lapsedIds
-    .filter(cid => !orgLapsedIds.has(cid))
-    .map(cid => {
-      const last = lastFy25GiftByDonor.get(cid);
-      return {
-        constituent_id: cid,
-        name: nameByDonor.get(cid) || `Donor ${cid}`,
-        role: segmentOf(cid),
-        lastAmount: last?.amount ?? 0,
-        lastDate: last?.date ?? '',
-      };
-    })
-    .sort((a, b) => b.lastAmount - a.lastAmount)
-    .slice(0, 100);
+  const buildDonorList = (ids: number[], lastMap: Map<number, { amount: number; date: string }>) =>
+    ids
+      .filter(cid => !orgIds.has(cid))
+      .map(cid => {
+        const last = lastMap.get(cid);
+        return {
+          constituent_id: cid,
+          name: nameByDonor.get(cid) || `Donor ${cid}`,
+          role: segmentOf(cid),
+          lastAmount: last?.amount ?? 0,
+          lastDate: last?.date ?? '',
+        };
+      })
+      .sort((a, b) => b.lastAmount - a.lastAmount)
+      .slice(0, 100);
 
-  // New donors = FY26 type-1 donors with no Operating type-1 gift
-  // before the FY26 cutoff. The set membership in
-  // priorOperatingType1Donors covers every year of Operating data the
-  // cache has (Veracross's gifts endpoint window — see existing
-  // historical-gap caveat).
-  let newDonorsFY26 = 0;
-  for (const cid of fy26Type1Donors) {
-    if (!priorOperatingType1Donors.has(cid)) newDonorsFY26 += 1;
-  }
+  const lapsedDonors = buildDonorList(lapsedIds, lastFy25GiftByDonor);
+  const newDonorsList = buildDonorList(newIds, lastFy26GiftByDonor);
+  const newDonorsFY26 = newIds.length;
 
   const payload: OverviewResponse = {
     headline: {
@@ -509,10 +527,14 @@ export async function GET() {
     campaigns,
     lapsed: {
       count: lapsedIds.length,
-      totalLastYearDonors: fy25Type1Donors.size,
+      totalLastYearDonors: fy25GaveDonors.size,
       donors: lapsedDonors,
     },
     newDonorsFY26,
+    newDonors: {
+      count: newIds.length,
+      donors: newDonorsList,
+    },
   };
   return NextResponse.json(payload);
 }

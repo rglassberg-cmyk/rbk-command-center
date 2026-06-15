@@ -40,6 +40,10 @@ interface OverviewData {
     donors: LapsedDonor[];
   };
   newDonorsFY26: number;
+  newDonors: {
+    count: number;
+    donors: LapsedDonor[];
+  };
 }
 
 // One donor row in a segment drill-down (from
@@ -94,7 +98,7 @@ export default function OverviewTab() {
 
   // Drill-down drawer. `kind: 'segment'` fetches donors lazily;
   // `kind: 'lapsed'` reuses the lapsed list already in the payload.
-  const [drawer, setDrawer] = useState<{ kind: 'segment'; segment: string } | { kind: 'lapsed' } | null>(null);
+  const [drawer, setDrawer] = useState<{ kind: 'segment'; segment: string } | { kind: 'lapsed' } | { kind: 'new' } | null>(null);
   const [drawerSearch, setDrawerSearch] = useState('');
   const [segCache, setSegCache] = useState<Map<string, SegmentDonor[]>>(new Map());
   const [segLoading, setSegLoading] = useState(false);
@@ -136,6 +140,7 @@ export default function OverviewTab() {
 
   const openSegment = useCallback((segment: string) => { setDrawerSearch(''); setDrawer({ kind: 'segment', segment }); }, []);
   const openLapsed = useCallback(() => { setDrawerSearch(''); setDrawer({ kind: 'lapsed' }); }, []);
+  const openNew = useCallback(() => { setDrawerSearch(''); setDrawer({ kind: 'new' }); }, []);
   const closeDrawer = useCallback(() => setDrawer(null), []);
 
   const lapsedRatio = data && data.lapsed.totalLastYearDonors > 0
@@ -150,7 +155,7 @@ export default function OverviewTab() {
       const rows = segCache.get(drawer.segment) ?? [];
       return q ? rows.filter(r => r.constituentName.toLowerCase().includes(q)) : rows;
     }
-    const rows = data.lapsed.donors;
+    const rows = drawer.kind === 'new' ? data.newDonors.donors : data.lapsed.donors;
     return q ? rows.filter(r => r.name.toLowerCase().includes(q)) : rows;
   }, [drawer, data, drawerSearch, segCache]);
 
@@ -170,11 +175,14 @@ export default function OverviewTab() {
   const campaignTotalFY26 = data.campaigns.reduce((s, c) => s + c.raisedFY26, 0);
   const campaignTotalFY25 = data.campaigns.reduce((s, c) => s + c.raisedFY25, 0);
 
-  const drawerTitle = drawer?.kind === 'segment' ? drawer.segment : 'Lapsed Donors';
-  // Header count: segment uses the loaded list length; lapsed uses the
+  const drawerTitle = drawer?.kind === 'segment' ? drawer.segment
+    : drawer?.kind === 'new' ? 'New Donors'
+    : 'Lapsed Donors';
+  // Header count: segment uses the loaded list length; lapsed/new use the
   // authoritative count from the payload (list may be truncated to 100).
   const drawerCount = drawer?.kind === 'segment'
     ? (segCache.get(drawer.segment)?.length ?? 0)
+    : drawer?.kind === 'new' ? data.newDonors.count
     : data.lapsed.count;
 
   return (
@@ -219,14 +227,19 @@ export default function OverviewTab() {
           </div>
         </button>
 
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-green-500 p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">New Donors</p>
+        <button
+          onClick={openNew}
+          className="text-left bg-white rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-green-500 p-5 hover:shadow-md hover:border-green-300 transition-all cursor-pointer"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">New Donors</p>
+            <span className="text-[11px] text-green-600 font-medium">View →</span>
+          </div>
           <p className="text-green-600 font-bold mt-2" style={{ fontSize: 28, fontVariantNumeric: 'tabular-nums' }}>
-            {data.newDonorsFY26.toLocaleString()}
+            {data.newDonors.count.toLocaleString()}
           </p>
-          <p className="text-xs text-slate-400 mt-2">First-time FY26 donors</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">FY25 comparison pending</p>
-        </div>
+          <p className="text-xs text-slate-400 mt-2">Gave FY26, not FY25</p>
+        </button>
       </div>
 
       {/* SECTION 2 — Segment cards (clickable → donor drill-down) */}
@@ -243,7 +256,18 @@ export default function OverviewTab() {
                   onClick={() => openSegment(s.segment)}
                   className={`text-left bg-white rounded-xl shadow-sm border border-slate-200 border-t-4 ${style.topBorder} p-4 hover:shadow-md hover:border-slate-300 transition-all cursor-pointer`}
                 >
-                  <p className="text-xs font-semibold text-slate-700">{s.segment}</p>
+                  <p className="text-xs font-semibold text-slate-700 flex items-center gap-1">
+                    {s.segment}
+                    {s.segment === 'Other' && (
+                      <span
+                        title="Donors whose Veracross role doesn't match a named segment — may include DAFs, foundations, and untagged constituents."
+                        className="text-slate-400 cursor-help"
+                        aria-label="What is Other?"
+                      >
+                        ⓘ
+                      </span>
+                    )}
+                  </p>
                   <p className="text-slate-900 font-bold mt-1" style={{ fontSize: 20, fontVariantNumeric: 'tabular-nums' }}>
                     {formatMoney(s.total)}
                   </p>
@@ -449,7 +473,8 @@ export default function OverviewTab() {
                 <p className="text-sm text-slate-400 text-center py-12">
                   {drawerSearch.trim()
                     ? 'No donors match your search.'
-                    : drawer.kind === 'segment' ? 'No donors in this segment.' : 'No lapsed donors.'}
+                    : drawer.kind === 'segment' ? 'No donors in this segment.'
+                    : drawer.kind === 'new' ? 'No new donors yet.' : 'No lapsed donors.'}
                 </p>
               ) : drawer.kind === 'segment' ? (
                 <table className="w-full text-sm">
@@ -481,7 +506,7 @@ export default function OverviewTab() {
                   <thead className="sticky top-0 bg-white z-10">
                     <tr className="border-b border-slate-200">
                       <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Donor</th>
-                      <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">FY25 Gift</th>
+                      <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">{drawer.kind === 'new' ? 'FY26 Gift' : 'FY25 Gift'}</th>
                       <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Status</th>
                     </tr>
                   </thead>
@@ -494,7 +519,7 @@ export default function OverviewTab() {
                           </a>
                         </td>
                         <td className="px-4 py-2.5 text-right text-slate-700" style={{ fontVariantNumeric: 'tabular-nums' }}>{formatMoney(d.lastAmount)}</td>
-                        <td className="px-4 py-2.5 text-slate-400 text-xs">Not yet given FY26</td>
+                        <td className="px-4 py-2.5 text-slate-400 text-xs">{drawer.kind === 'new' ? 'New this year' : 'Not yet given FY26'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -502,6 +527,9 @@ export default function OverviewTab() {
               )}
               {drawer.kind === 'lapsed' && data.lapsed.count > data.lapsed.donors.length && !drawerSearch.trim() && (
                 <p className="text-xs text-slate-400 px-4 py-3 italic">Showing top {data.lapsed.donors.length} by last gift amount.</p>
+              )}
+              {drawer.kind === 'new' && data.newDonors.count > data.newDonors.donors.length && !drawerSearch.trim() && (
+                <p className="text-xs text-slate-400 px-4 py-3 italic">Showing top {data.newDonors.donors.length} by gift amount.</p>
               )}
             </div>
           </div>
