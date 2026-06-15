@@ -91,6 +91,7 @@ interface VCEnrollment {
   currently_enrolled: boolean;
   date_withdrawn: string | null;
   late_date_enrolled: string | null;
+  level: number | null;
 }
 
 async function getProgramsToken(): Promise<string> {
@@ -230,6 +231,10 @@ export async function POST(request: NextRequest) {
         currently_enrolled: true,
         date_withdrawn: e.date_withdrawn,
         late_date_enrolled: e.late_date_enrolled,
+        // `level` was present in the raw enrollment response (0 in samples)
+        // but unstored — capturing it now to learn whether it encodes
+        // registration status (pending vs confirmed).
+        level: e.level ?? null,
         school_year: classYearById.get(e.internal_class_id)!,
         synced_at: new Date().toISOString(),
       }));

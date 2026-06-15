@@ -1,6 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { ExternalLink } from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, LabelList,
+} from 'recharts';
 import { apiFetch } from '@/lib/apiFetch';
 import { ShimmerStatCards, ShimmerTableRows } from './ui/Shimmer';
 
@@ -13,11 +17,11 @@ const YEAR_OPTIONS: { value: number; label: string }[] = [
   { value: 2026, label: '2026–27' },
 ];
 
-// Compact grade chip labels (Veracross grade_level_id → short label).
+// Veracross grade_level_id → display label (per spec mapping).
 const GRADE_LABELS: Record<number, string> = {
-  40: 'I/T', 35: '2N', 30: '3N', 25: 'Pre-K', 20: 'K',
-  1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7', 8: '8',
-  9: '9', 10: '10', 11: '11', 12: '12',
+  40: 'Infant/Toddler', 35: '2YN', 30: '3YN', 25: 'Pre-K', 20: 'K',
+  1: '1st', 2: '2nd', 3: '3rd', 4: '4th', 5: '5th', 6: '6th', 7: '7th', 8: '8th',
+  9: '9th', 10: '10th', 11: '11th', 12: '12th',
 };
 const GRADE_ORDER = [40, 35, 30, 25, 20, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 function gradeLabel(id: number): string {
@@ -31,10 +35,18 @@ function sortedGradeIds(ids: number[]): number[] {
   });
 }
 
+// Veracross Axiom deep links.
+const VC_CLASS_URL = (id: number) =>
+  `https://axiom.veracross.com/sar/#/detail/class-other-program/${id}/3156-general`;
+const VC_STUDENT_URL = (personId: number) =>
+  `https://axiom.veracross.com/sar/#/detail/student-ls/${personId}/273-general`;
+
+type ProgramGroupKey = 'tzaharon' | 'after_school' | 'ms_extracurriculars';
+
 interface AfterSchoolClass {
   veracross_class_id: number;
   description: string;
-  program_group: 'tzaharon' | 'after_school' | 'ms_extracurriculars';
+  program_group: ProgramGroupKey;
   enrollment_count: number;
   capacity: number | null;
   grade_breakdown: Record<number, number>;
@@ -49,19 +61,48 @@ interface GroupData {
 }
 interface AfterSchoolData {
   school_year: number;
-  groups: {
-    tzaharon: GroupData;
-    after_school: GroupData;
-    ms_extracurriculars: GroupData;
-  };
+  groups: Record<ProgramGroupKey, GroupData>;
   last_synced: string | null;
 }
+interface StudentName {
+  first_name: string;
+  last_name: string;
+  display_name: string;
+}
 
-const GROUP_META: { key: 'tzaharon' | 'after_school' | 'ms_extracurriculars'; label: string; accent: string }[] = [
-  { key: 'tzaharon', label: 'Tzaharon', accent: 'border-t-blue-400' },
+// Section render order: After School, Tzaharon, MS Extra-Curriculars.
+// MS is collapsed by default (registration not yet open).
+const GROUP_META: {
+  key: ProgramGroupKey;
+  label: string;
+  accent: string;
+  defaultCollapsed?: boolean;
+  note?: string;
+}[] = [
   { key: 'after_school', label: 'After School', accent: 'border-t-teal-400' },
-  { key: 'ms_extracurriculars', label: 'MS Extra-Curriculars', accent: 'border-t-violet-400' },
+  { key: 'tzaharon', label: 'Tzaharon', accent: 'border-t-blue-400' },
+  {
+    key: 'ms_extracurriculars',
+    label: 'MS Extra-Curriculars',
+    accent: 'border-t-violet-400',
+    defaultCollapsed: true,
+    note: 'Registration opens Fall 2026–27',
+  },
 ];
+
+// Day-of-week derivation (spec order — Friday is checked before Weekend,
+// so "Friday/Weekend" buckets as Friday).
+const DAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Weekend', 'Other'];
+function deriveDay(cl: AfterSchoolClass): string {
+  const s = `${cl.description} ${cl.course_name ?? ''}`;
+  if (/Monday|Mon\b/i.test(s)) return 'Monday';
+  if (/Tuesday|Tue\b/i.test(s)) return 'Tuesday';
+  if (/Wednesday|Wed\b/i.test(s)) return 'Wednesday';
+  if (/Thursday|Thu\b/i.test(s)) return 'Thursday';
+  if (/Friday|Fri\b/i.test(s)) return 'Friday';
+  if (/Weekend/i.test(s)) return 'Weekend';
+  return 'Other';
+}
 
 function enrolledColor(count: number, capacity: number | null): string {
   if (capacity == null || capacity <= 0) return 'text-slate-700';
@@ -88,6 +129,9 @@ function relativeTime(iso: string | null): string {
   const days = Math.floor(hr / 24);
   return `${days} day${days === 1 ? '' : 's'} ago`;
 }
+function trunc(s: string, n: number): string {
+  return s.length > n ? `${s.slice(0, n - 1)}…` : s;
+}
 
 export default function AfterSchoolTab() {
   const [schoolYear, setSchoolYear] = useState(2026);
@@ -98,6 +142,9 @@ export default function AfterSchoolTab() {
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
   const [drilldown, setDrilldown] = useState<AfterSchoolClass | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [search, setSearch] = useState('');
+  const [studentNames, setStudentNames] = useState<Record<number, StudentName>>({});
+  const [namesLoading, setNamesLoading] = useState(false);
 
   const fetchData = useCallback(async (year: number) => {
     setLoading(true);
@@ -121,6 +168,31 @@ export default function AfterSchoolTab() {
     fetchData(schoolYear);
   }, [schoolYear, fetchData]);
 
+  // Resolve student names when the drilldown opens (only for ids not yet known).
+  useEffect(() => {
+    if (!drilldown) return;
+    const ids = drilldown.students
+      .map((s) => s.person_id)
+      .filter((id) => !(id in studentNames));
+    if (ids.length === 0) return;
+    let cancelled = false;
+    setNamesLoading(true);
+    apiFetch('/api/after-school/students', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ personIds: ids }),
+    })
+      .then((r) => r.json())
+      .then((j: { students?: Record<number, StudentName> }) => {
+        if (!cancelled && j.students) setStudentNames((prev) => ({ ...prev, ...j.students }));
+      })
+      .catch(() => { /* degrade to Student #id */ })
+      .finally(() => { if (!cancelled) setNamesLoading(false); });
+    return () => { cancelled = true; };
+    // studentNames intentionally omitted — we only fetch the missing ids once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drilldown]);
+
   const runSync = async () => {
     setSyncing(true);
     setSyncMsg(null);
@@ -139,17 +211,58 @@ export default function AfterSchoolTab() {
   };
 
   const yearLabel = YEAR_OPTIONS.find((y) => y.value === schoolYear)?.label ?? '';
+  const searchActive = search.trim().length > 0;
+  const q = search.trim().toLowerCase();
+  const filterClasses = (classes: AfterSchoolClass[]) =>
+    searchActive ? classes.filter((c) => c.description.toLowerCase().includes(q)) : classes;
+  const resultsCount = useMemo(() => {
+    if (!data || !searchActive) return 0;
+    return (Object.keys(data.groups) as ProgramGroupKey[]).reduce(
+      (sum, k) => sum + filterClasses(data.groups[k].classes).length,
+      0,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, q, searchActive]);
+
+  // After School chart data (full data — charts are an overview, not filtered).
+  const afterSchoolClasses = data?.groups.after_school.classes ?? [];
+  const chartTop10 = useMemo(
+    () =>
+      [...afterSchoolClasses]
+        .sort((a, b) => b.enrollment_count - a.enrollment_count)
+        .slice(0, 10)
+        .map((c) => ({ name: trunc(c.description, 30), enrolled: c.enrollment_count })),
+    [afterSchoolClasses],
+  );
+  const chartByDay = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const c of afterSchoolClasses) {
+      const d = deriveDay(c);
+      totals.set(d, (totals.get(d) || 0) + c.enrollment_count);
+    }
+    return DAY_ORDER.filter((d) => (totals.get(d) || 0) > 0).map((d) => ({ day: d, enrolled: totals.get(d) || 0 }));
+  }, [afterSchoolClasses]);
+  const chartByGrade = useMemo(() => {
+    const totals = new Map<number, number>();
+    for (const c of afterSchoolClasses) {
+      for (const [gid, n] of Object.entries(c.grade_breakdown)) {
+        totals.set(Number(gid), (totals.get(Number(gid)) || 0) + n);
+      }
+    }
+    return sortedGradeIds([...totals.keys()])
+      .filter((gid) => (totals.get(gid) || 0) > 0)
+      .map((gid) => ({ grade: gradeLabel(gid), enrolled: totals.get(gid) || 0 }));
+  }, [afterSchoolClasses]);
 
   return (
     <div>
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">After School Programs</h1>
           <p className="text-sm text-slate-500">Registration overview · {yearLabel}</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          {/* Year toggle */}
           <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden">
             {YEAR_OPTIONS.map((y) => (
               <button
@@ -163,7 +276,6 @@ export default function AfterSchoolTab() {
               </button>
             ))}
           </div>
-          {/* Sync */}
           <button
             onClick={runSync}
             disabled={syncing}
@@ -181,10 +293,29 @@ export default function AfterSchoolTab() {
         </div>
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3">
-          {error}
+      {/* Search */}
+      <div className="mb-6">
+        <div className="relative">
+          <svg className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
+          </svg>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search classes..."
+            className="w-full md:max-w-md pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+          />
+          {searchActive && (
+            <span className="ml-3 text-xs text-slate-400">
+              {resultsCount} result{resultsCount === 1 ? '' : 's'}
+            </span>
+          )}
         </div>
+      </div>
+
+      {error && (
+        <div className="mb-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3">{error}</div>
       )}
 
       {loading ? (
@@ -213,10 +344,66 @@ export default function AfterSchoolTab() {
             })}
           </div>
 
+          {/* Charts — After School only */}
+          {afterSchoolClasses.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6">
+              {/* A — Most Popular Classes */}
+              <div className="bg-white border border-slate-200 rounded-lg p-4">
+                <p className="text-sm font-semibold text-slate-700 mb-1">Most Popular Classes</p>
+                <div style={{ height: 280 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartTop10} layout="vertical" margin={{ top: 4, right: 36, bottom: 4, left: 8 }}>
+                      <XAxis type="number" hide />
+                      <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11, fill: '#475569' }} />
+                      <Tooltip formatter={(v) => [`${v} enrolled`, '']} labelStyle={{ fontSize: 12 }} />
+                      <Bar dataKey="enrolled" fill="#3b82f6" radius={[0, 3, 3, 0]}>
+                        <LabelList dataKey="enrolled" position="right" style={{ fontSize: 11, fill: '#475569' }} />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">Classes with high enrollment may need to be split into sections</p>
+              </div>
+
+              {/* B — Enrollment by Day */}
+              <div className="bg-white border border-slate-200 rounded-lg p-4">
+                <p className="text-sm font-semibold text-slate-700 mb-1">Enrollment by Day</p>
+                <div style={{ height: 280 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartByDay} margin={{ top: 8, right: 8, bottom: 4, left: 0 }}>
+                      <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#475569' }} tickFormatter={(d) => d.slice(0, 3)} />
+                      <YAxis tick={{ fontSize: 11, fill: '#475569' }} allowDecimals={false} />
+                      <Tooltip formatter={(v) => [`${v} enrolled`, '']} labelStyle={{ fontSize: 12 }} />
+                      <Bar dataKey="enrolled" fill="#14b8a6" radius={[3, 3, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* C — Enrollment by Grade */}
+              <div className="bg-white border border-slate-200 rounded-lg p-4">
+                <p className="text-sm font-semibold text-slate-700 mb-1">Enrollment by Grade</p>
+                <div style={{ height: 280 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartByGrade} layout="vertical" margin={{ top: 4, right: 28, bottom: 4, left: 8 }}>
+                      <XAxis type="number" hide />
+                      <YAxis type="category" dataKey="grade" width={90} tick={{ fontSize: 11, fill: '#475569' }} />
+                      <Tooltip formatter={(v) => [`${v} enrolled`, '']} labelStyle={{ fontSize: 12 }} />
+                      <Bar dataKey="enrolled" fill="#a855f7" radius={[0, 3, 3, 0]}>
+                        <LabelList dataKey="enrolled" position="right" style={{ fontSize: 11, fill: '#475569' }} />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Per-group tables */}
           {GROUP_META.map((g) => {
             const group = data.groups[g.key];
-            const isCollapsed = collapsed[g.key] ?? false;
+            const visibleClasses = filterClasses(group.classes);
+            const isCollapsed = searchActive ? false : (collapsed[g.key] ?? g.defaultCollapsed ?? false);
             return (
               <div key={g.key} className="mt-6 bg-white border border-slate-200 rounded-lg overflow-hidden">
                 <button
@@ -228,15 +415,22 @@ export default function AfterSchoolTab() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                     </svg>
                     {g.label}
+                    {g.note && <span className="text-[11px] font-normal text-slate-400">· {g.note}</span>}
                   </span>
-                  <span className="text-xs text-slate-400">{group.classes.length} classes · {group.total_enrolled} enrolled</span>
+                  <span className="text-xs text-slate-400">
+                    {searchActive
+                      ? `${visibleClasses.length} match${visibleClasses.length === 1 ? '' : 'es'}`
+                      : `${group.classes.length} classes · ${group.total_enrolled} enrolled`}
+                  </span>
                 </button>
                 {!isCollapsed && (
                   <div className="overflow-x-auto">
-                    {group.classes.length === 0 ? (
-                      <p className="text-sm text-slate-400 px-4 py-6 text-center">No classes for {yearLabel}.</p>
+                    {visibleClasses.length === 0 ? (
+                      <p className="text-sm text-slate-400 px-4 py-6 text-center">
+                        {searchActive ? 'No matching classes.' : `No classes for ${yearLabel}.`}
+                      </p>
                     ) : (
-                      <table className="w-full min-w-[640px] text-sm">
+                      <table className="w-full min-w-[680px] text-sm">
                         <thead>
                           <tr className="text-left text-xs uppercase tracking-wide text-slate-400 border-b border-slate-100">
                             <th className="px-4 py-2 font-medium">Class Name</th>
@@ -244,10 +438,11 @@ export default function AfterSchoolTab() {
                             <th className="px-4 py-2 font-medium w-20 text-right">Capacity</th>
                             <th className="px-4 py-2 font-medium w-32">Fill</th>
                             <th className="px-4 py-2 font-medium">Grades</th>
+                            <th className="px-2 py-2 font-medium w-10"></th>
                           </tr>
                         </thead>
                         <tbody>
-                          {group.classes.map((cl) => {
+                          {visibleClasses.map((cl) => {
                             const pct = cl.capacity && cl.capacity > 0 ? Math.min(100, Math.round((cl.enrollment_count / cl.capacity) * 100)) : 0;
                             const gradeIds = sortedGradeIds(Object.keys(cl.grade_breakdown).map(Number));
                             return (
@@ -280,6 +475,18 @@ export default function AfterSchoolTab() {
                                     )}
                                   </div>
                                 </td>
+                                <td className="px-2 py-2.5 text-right">
+                                  <a
+                                    href={VC_CLASS_URL(cl.veracross_class_id)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="inline-flex text-slate-400 hover:text-slate-600"
+                                    title="Open in Veracross"
+                                  >
+                                    <ExternalLink size={14} />
+                                  </a>
+                                </td>
                               </tr>
                             );
                           })}
@@ -301,7 +508,18 @@ export default function AfterSchoolTab() {
           <div className="fixed top-0 right-0 bottom-0 w-full max-w-[420px] bg-white shadow-2xl z-50 flex flex-col">
             <div className="flex items-start justify-between px-5 py-4 border-b border-slate-100">
               <div>
-                <h2 className="text-lg font-bold text-slate-800">{drilldown.description}</h2>
+                <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  {drilldown.description}
+                  <a
+                    href={VC_CLASS_URL(drilldown.veracross_class_id)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-slate-400 hover:text-slate-600"
+                    title="Open class in Veracross"
+                  >
+                    <ExternalLink size={15} />
+                  </a>
+                </h2>
                 <p className="text-sm text-slate-500 mt-0.5">
                   {drilldown.enrollment_count} enrolled
                   {drilldown.capacity != null ? ` · capacity ${drilldown.capacity}` : ' · capacity not set'}
@@ -310,36 +528,12 @@ export default function AfterSchoolTab() {
               <button onClick={() => setDrilldown(null)} className="text-slate-400 hover:text-slate-700 text-xl leading-none">×</button>
             </div>
             <div className="flex-1 overflow-y-auto px-5 py-4">
-              {/* Grade breakdown */}
-              <p className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-2">Grade breakdown</p>
-              {Object.keys(drilldown.grade_breakdown).length === 0 ? (
-                <p className="text-sm text-slate-400 mb-6">No grade data.</p>
-              ) : (
-                <div className="space-y-1.5 mb-6">
-                  {sortedGradeIds(Object.keys(drilldown.grade_breakdown).map(Number)).map((gid) => {
-                    const count = drilldown.grade_breakdown[gid];
-                    const max = Math.max(...Object.values(drilldown.grade_breakdown));
-                    return (
-                      <div key={gid} className="flex items-center gap-2">
-                        <span className="w-12 text-xs text-slate-500">{gradeLabel(gid)}</span>
-                        <div className="flex-1 h-4 bg-slate-100 rounded overflow-hidden">
-                          <div className="h-full bg-blue-400" style={{ width: `${max > 0 ? (count / max) * 100 : 0}%` }} />
-                        </div>
-                        <span className="w-6 text-xs text-slate-600 text-right">{count}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
               {/* Student list */}
-              <p className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-2">
+              <p className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-2 flex items-center gap-2">
                 Students ({drilldown.students.length})
+                {namesLoading && <span className="text-[11px] normal-case text-slate-400">· loading names…</span>}
               </p>
-              <p className="text-[11px] text-slate-400 mb-3">
-                Student names require an additional API call — coming soon. Showing Veracross person IDs + grade.
-              </p>
-              <div className="space-y-1">
+              <div className="space-y-1 mb-6">
                 {drilldown.students.length === 0 ? (
                   <p className="text-sm text-slate-400">No students enrolled.</p>
                 ) : (
@@ -348,18 +542,59 @@ export default function AfterSchoolTab() {
                     .sort((a, b) => {
                       const ia = a.grade_level_id != null ? GRADE_ORDER.indexOf(a.grade_level_id) : 999;
                       const ib = b.grade_level_id != null ? GRADE_ORDER.indexOf(b.grade_level_id) : 999;
-                      return ia - ib;
+                      if (ia !== ib) return ia - ib;
+                      const na = studentNames[a.person_id]?.display_name ?? '';
+                      const nb = studentNames[b.person_id]?.display_name ?? '';
+                      return na.localeCompare(nb);
                     })
-                    .map((s, i) => (
-                      <div key={`${s.person_id}-${i}`} className="flex items-center justify-between text-sm px-3 py-1.5 rounded bg-slate-50">
-                        <span className="text-slate-600">Student #{s.person_id}</span>
-                        <span className="text-xs font-medium bg-white border border-slate-200 text-slate-500 rounded px-1.5 py-0.5">
-                          {s.grade_level_id != null ? gradeLabel(s.grade_level_id) : '—'}
-                        </span>
-                      </div>
-                    ))
+                    .map((s, i) => {
+                      const name = studentNames[s.person_id]?.display_name;
+                      return (
+                        <a
+                          key={`${s.person_id}-${i}`}
+                          href={VC_STUDENT_URL(s.person_id)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-between text-sm px-3 py-1.5 rounded bg-slate-50 hover:bg-slate-100 group"
+                        >
+                          <span className="text-slate-700 group-hover:text-blue-600 inline-flex items-center gap-1">
+                            {name || `Student #${s.person_id}`}
+                            <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 text-slate-400" />
+                          </span>
+                          <span className="text-xs font-medium bg-white border border-slate-200 text-slate-500 rounded px-1.5 py-0.5">
+                            {s.grade_level_id != null ? gradeLabel(s.grade_level_id) : '—'}
+                          </span>
+                        </a>
+                      );
+                    })
                 )}
               </div>
+
+              {/* Grade breakdown chart */}
+              {Object.keys(drilldown.grade_breakdown).length > 0 && (
+                <>
+                  <p className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-2">Grade breakdown</p>
+                  <div style={{ height: 180 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={sortedGradeIds(Object.keys(drilldown.grade_breakdown).map(Number)).map((gid) => ({
+                          grade: gradeLabel(gid),
+                          count: drilldown.grade_breakdown[gid],
+                        }))}
+                        layout="vertical"
+                        margin={{ top: 4, right: 24, bottom: 4, left: 8 }}
+                      >
+                        <XAxis type="number" hide allowDecimals={false} />
+                        <YAxis type="category" dataKey="grade" width={80} tick={{ fontSize: 11, fill: '#475569' }} />
+                        <Tooltip formatter={(v) => [`${v}`, 'students']} labelStyle={{ fontSize: 12 }} />
+                        <Bar dataKey="count" fill="#60a5fa" radius={[0, 3, 3, 0]}>
+                          <LabelList dataKey="count" position="right" style={{ fontSize: 11, fill: '#475569' }} />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </>

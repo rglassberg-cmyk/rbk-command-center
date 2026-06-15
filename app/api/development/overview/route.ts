@@ -249,16 +249,24 @@ export async function GET() {
   // Per-donor FY26 giving for segment aggregation. We accumulate the
   // three pools separately so the gap-fill rule can be applied AFTER the
   // single pass (we can't know whether a donor has a direct gift until
-  // every row is seen): `type1` = SUM(amount) on type-1 gifts, `soft` =
-  // SUM(amount) on qualifying type-3 soft credits (soft_credit_type 1/2),
-  // `pledged` = SUM(pledge_balance) on type-2 gifts. Final segment
-  // `received` = type1 when `hasType1`, else `soft`. Segment totals =
-  // received + pledged. `fy26SegmentDonors` (built after the loop) is
-  // every constituent who gave directly (type-1), pledged (type-2), or —
-  // absent a direct gift — has a qualifying soft credit.
+  // every row is seen): `type1` = SUM(amount) on type-1 gifts,
+  // `softAmounts` = the SET of distinct qualifying type-3 soft-credit
+  // amounts (soft_credit_type 1/2), `pledged` = SUM(pledge_balance) on
+  // type-2 gifts. Final segment `received` = type1 when `hasType1`, else
+  // the sum of `softAmounts`. Segment totals = received + pledged.
+  // `fy26SegmentDonors` (built after the loop) is every constituent who
+  // gave directly (type-1), pledged (type-2), or — absent a direct gift —
+  // has a qualifying soft credit.
+  //
+  // softAmounts is a Set (not a running sum) because Veracross writes TWO
+  // soft-credit rows for one gift — soft_credit_type=1 (Donation Soft
+  // Credit) AND soft_credit_type=2 (household) at the SAME amount — so
+  // summing both rows double-counts. Deduping by amount counts each gift
+  // amount once. (Per spec; the rare case of two genuinely-distinct
+  // soft-credited gifts at the same amount collapses to one — accepted.)
   const fy26ByDonor = new Map<number, {
     type1: number;
-    soft: number;
+    softAmounts: Set<number>;
     pledged: number;
     hasType1: boolean;
     hasType2: boolean;
@@ -291,7 +299,7 @@ export async function GET() {
 
     if (activity === FY26_CAMPAIGN) {
       const seg = fy26ByDonor.get(cid) ?? {
-        type1: 0, soft: 0, pledged: 0, hasType1: false, hasType2: false, hasSoft: false,
+        type1: 0, softAmounts: new Set<number>(), pledged: 0, hasType1: false, hasType2: false, hasSoft: false,
       };
       if (isType1) {
         raisedFY26 += amt;
@@ -309,9 +317,10 @@ export async function GET() {
       } else if (isSoftCredit) {
         // Segment math ONLY — soft credits do NOT touch raisedFY26, the
         // per-fund campaign table, or the type-1 donor/lapsed/new sets.
-        // Accumulated here but only used as `received` when the donor has
-        // no direct gift (resolved after the loop).
-        seg.soft += amt;
+        // Recorded by distinct amount (dedup of Veracross's type-1/type-2
+        // soft-credit twins) and only used as `received` when the donor
+        // has no direct gift (resolved after the loop).
+        seg.softAmounts.add(amt);
         seg.hasSoft = true;
         fy26ByDonor.set(cid, seg);
       }
@@ -390,8 +399,11 @@ export async function GET() {
     if (!fy26SegmentDonors.has(cid)) continue; // drop non-qualifying $0 donors
     // Gap-fill: direct donors count their type-1 sum (soft credits are
     // their Veracross twins and ignored); donors with no direct gift
-    // count their qualifying soft credits.
-    const received = v.hasType1 ? v.type1 : v.soft;
+    // count their qualifying soft credits, deduped by amount (one gift
+    // is written as two soft-credit rows — type 1 + type 2 — at the same
+    // amount).
+    const softTotal = Array.from(v.softAmounts).reduce((sum, a) => sum + a, 0);
+    const received = v.hasType1 ? v.type1 : softTotal;
     const s = segmentMap.get(segmentOf(cid))!;
     s.donationsReceived += received;
     s.outstandingPledges += v.pledged;
