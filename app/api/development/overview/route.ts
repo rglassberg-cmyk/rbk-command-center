@@ -511,8 +511,9 @@ export async function GET() {
   // raw_data->>'constituent_record_type' ('2' = person, '3' = org). A
   // constituent is treated as an org if ANY of their gift rows carries
   // record type '3' (a lapsed org may have no current-year row). Unknown/
-  // missing record types are kept. COUNT pills use the full set lengths;
-  // only the displayed lists are person-filtered.
+  // missing record types are kept. As of 2026-06-16 the COUNT pills ALSO
+  // exclude orgs so the pill number matches the (person-only) drilldown
+  // list exactly.
   const orgIds = new Set<number>();
   const orgCandidateIds = Array.from(new Set<number>([...lapsedIds, ...newIds]));
   try {
@@ -564,7 +565,10 @@ export async function GET() {
 
   const lapsedDonors = buildDonorList(lapsedIds, lastFy25GiftByDonor, lastFy25SoftByDonor);
   const newDonorsList = buildDonorList(newIds, lastFy26GiftByDonor, lastFy26SoftByDonor);
-  const newDonorsFY26 = newIds.length;
+  // Person-only counts (orgs excluded) so the pills match the drilldown lists.
+  const lapsedCount = lapsedIds.filter(cid => !orgIds.has(cid)).length;
+  const newCount = newIds.filter(cid => !orgIds.has(cid)).length;
+  const newDonorsFY26 = newCount;
 
   const payload: OverviewResponse = {
     headline: {
@@ -576,13 +580,13 @@ export async function GET() {
     segments,
     campaigns,
     lapsed: {
-      count: lapsedIds.length,
+      count: lapsedCount,
       totalLastYearDonors: fy25GaveDonors.size,
       donors: lapsedDonors,
     },
     newDonorsFY26,
     newDonors: {
-      count: newIds.length,
+      count: newCount,
       donors: newDonorsList,
     },
   };

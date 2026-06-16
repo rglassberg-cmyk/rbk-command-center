@@ -54,6 +54,8 @@ const EVENT_NAME_MAP: Record<string, string> = {
   'm schreck fund/ israel gap year scholarship':
     'M Schreck Fund / Israel Gap Year Scholarship',
   'general / undesignated': 'Cooper 25-26',
+  'general/undesignated': 'Cooper 25-26',
+  'general fund': 'Cooper 25-26',
   'cooper yahrzeit': 'Cooper 25-26',
 };
 
@@ -65,40 +67,6 @@ function normalizeEventName(name: string): string | null {
   const lower = name.toLowerCase().trim();
   if (EVENTS_TO_REMOVE.includes(lower)) return null;
   return EVENT_NAME_MAP[lower] ?? name;
-}
-
-// Custom outside-the-ring label for the disbursement pie. Hides labels
-// for slices below 3% (they'd otherwise overlap each other on small
-// categories); those still appear in the legend below the chart. The
-// label sits 28px outside the slice's outer edge with a leader line
-// (labelLine={true} on the Pie itself), anchored left/right depending
-// on which side of the center the slice falls on.
-function renderPieLabel(props: {
-  cx?: number;
-  cy?: number;
-  midAngle?: number;
-  outerRadius?: number;
-  percent?: number;
-  name?: string;
-}) {
-  const { cx = 0, cy = 0, midAngle = 0, outerRadius = 0, percent = 0, name = '' } = props;
-  if (percent < 0.05) return null;
-  const RADIAN = Math.PI / 180;
-  const radius = outerRadius + 32;
-  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-  const y = cy + radius * Math.sin(-midAngle * RADIAN);
-  return (
-    <text
-      x={x}
-      y={y}
-      textAnchor={x > cx ? 'start' : 'end'}
-      dominantBaseline="central"
-      fontSize={13}
-      fill="#374151"
-    >
-      {`${name} ${(percent * 100).toFixed(0)}%`}
-    </text>
-  );
 }
 
 interface Category {
@@ -369,18 +337,21 @@ export default function CooperFundTab() {
       <div className="bg-white rounded-xl border border-slate-200 p-5 mb-6">
         <h3 className="text-sm font-semibold text-slate-700">Disbursements by Reporting Category</h3>
         <p className="text-xs text-slate-500 mt-0.5 mb-3">How disbursed funds are allocated · FY26</p>
-        <div style={{ height: 320 }}>
-          <ResponsiveContainer width="100%" height={320}>
+        {/* Legend-based layout (no inline slice labels) so category names
+            never overlap on small slices. The right-side legend carries the
+            $ amount + % for each category. */}
+        <div style={{ height: 340 }}>
+          <ResponsiveContainer width="100%" height={340}>
             <PieChart>
               <Pie
                 data={pieData}
                 dataKey="amount"
                 nameKey="name"
-                cx="50%"
+                cx="40%"
                 cy="50%"
-                outerRadius={100}
-                label={renderPieLabel}
-                labelLine={true}
+                outerRadius={110}
+                label={false}
+                labelLine={false}
               >
                 {pieData.map((d, i) => (
                   <Cell key={i} fill={d.fill} />
@@ -393,7 +364,17 @@ export default function CooperFundTab() {
                   return [`${formatMoney(num)} (${pct}%)`, name];
                 }}
               />
-              <Legend wrapperStyle={{ fontSize: '12px' }} />
+              <Legend
+                layout="vertical"
+                align="right"
+                verticalAlign="middle"
+                wrapperStyle={{ fontSize: '12px', maxWidth: '52%', lineHeight: '1.5' }}
+                formatter={(value, entry) => {
+                  const amt = Number((entry?.payload as { amount?: number } | undefined)?.amount ?? 0);
+                  const pct = totalDisbursed > 0 ? ((amt / totalDisbursed) * 100).toFixed(0) : '0';
+                  return `${value} — ${formatMoney(amt)} (${pct}%)`;
+                }}
+              />
             </PieChart>
           </ResponsiveContainer>
         </div>

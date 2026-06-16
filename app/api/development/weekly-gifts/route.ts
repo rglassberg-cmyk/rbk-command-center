@@ -136,6 +136,11 @@ export async function GET(request: NextRequest) {
   // Step 3: Filter to cash gift types (codes 1=Donation, 3=Soft Credit), exclude in-kind
   recentGifts = recentGifts.filter(g => CASH_GIFT_TYPE_CODES.has(g.gift_type));
   recentGifts = recentGifts.filter(g => !g.in_kind_gift_description || g.in_kind_gift_description.trim() === '');
+  // Exclude internal "SAR Academy" accounting entries (e.g. a ~$900K
+  // transfer that isn't a real donor gift). The DB query already drops the
+  // exact "SAR Academy" string; this catches variants ("The SAR Academy",
+  // "SAR Academy of Riverdale", etc.) — equivalent to ILIKE '%SAR%Academy%'.
+  recentGifts = recentGifts.filter(g => !/sar.*academy/i.test(g.constituent_name || ''));
 
   // Step 4: Soft credit deduplication using hard_credit_gift_id linkage
   // Primary dedup: group by root gift ID (hard_credit_gift_id links soft credits to their hard credit)
