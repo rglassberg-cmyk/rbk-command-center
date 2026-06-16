@@ -21,6 +21,7 @@ interface Member {
   divisions: string[];
   title: string | null;
   assignee_key: string | null;
+  slack_user_id: string | null;
   // The workspace_members.id of the person THIS member assists. The
   // "X's assistant" relationship is the inverse: find the row whose
   // assistant_to === X.id.
@@ -61,6 +62,47 @@ const ALL_MODULE_OPTIONS: { key: string; label: string }[] = [
   { key: 'calendar',         label: 'Calendar' },
   { key: 'home',             label: 'Home page' },
 ];
+
+// Categorized module catalog for the redesigned Users tab (By User detail
+// panel + By Module grid). Covers EVERY key in ALL_MODULE_OPTIONS plus
+// `student_logs` (per spec — not in ALL_MODULE_OPTIONS; the sidebar gates
+// Student Logs by role today, but it's surfaced here as a toggle for
+// completeness/future use). `communications` lives in ALL_MODULE_OPTIONS
+// but wasn't in the spec's category list — placed under OPERATIONS so no
+// module is dropped.
+type ModuleCategory = 'SCHOOL' | 'OPERATIONS' | 'COMMUNITY' | 'CORE';
+const MODULE_CATALOG: { key: string; label: string; category: ModuleCategory; description: string }[] = [
+  { key: 'absences',         label: 'Student Absences',       category: 'SCHOOL',     description: 'Daily attendance — absences, tardies, and early dismissals by grade.' },
+  { key: 'faculty_absences', label: 'Faculty Absences',       category: 'SCHOOL',     description: 'Faculty and staff attendance tracking.' },
+  { key: 'admissions',       label: 'Admissions',             category: 'SCHOOL',     description: 'Applications, enrollment projection, and re-enrollment.' },
+  { key: 'after_school',     label: 'After School',           category: 'SCHOOL',     description: 'After-school program registration and enrollment.' },
+  { key: 'student_logs',     label: 'Student Logs',           category: 'SCHOOL',     description: 'Weekly behavior log summary from Veracross.' },
+  { key: 'development',      label: 'Development',             category: 'OPERATIONS', description: 'Fundraising — gifts, campaigns, Guardian Circle, Cooper & Israel funds.' },
+  { key: 'lever',            label: 'Recruiting',             category: 'OPERATIONS', description: 'Lever recruiting pipeline and candidate tracking.' },
+  { key: 'projects',         label: 'Projects',               category: 'OPERATIONS', description: 'Cross-department kanban project board.' },
+  { key: 'communications',   label: 'Communications',         category: 'OPERATIONS', description: 'Monday.com approvals queue and social media links.' },
+  { key: 'simchas',          label: 'Simchas & Shivas',       category: 'COMMUNITY',  description: "B'nei mitzvahs, shivas, and condolence note tracking." },
+  { key: 'home',             label: 'Home',                   category: 'CORE',       description: 'Personal home landing page with schedule and projects.' },
+  { key: 'tasks',            label: 'Tasks',                  category: 'CORE',       description: 'Shared task board across the workspace.' },
+  { key: 'agenda',           label: 'Meeting Agenda',         category: 'CORE',       description: 'Meeting agenda items and threaded notes.' },
+  { key: 'calendar',         label: 'Calendar',               category: 'CORE',       description: 'Google Calendar integration.' },
+  { key: 'gemara',           label: 'Gemara',                 category: 'CORE',       description: 'Gemara class resource board.' },
+];
+const CATEGORY_ORDER: ModuleCategory[] = ['SCHOOL', 'OPERATIONS', 'COMMUNITY', 'CORE'];
+const CATEGORY_BADGE: Record<ModuleCategory, string> = {
+  SCHOOL:     'bg-blue-50 text-blue-700',
+  OPERATIONS: 'bg-emerald-50 text-emerald-700',
+  COMMUNITY:  'bg-pink-50 text-pink-700',
+  CORE:       'bg-slate-100 text-slate-600',
+};
+function roleAvatarBg(role: string): string {
+  if (role === 'owner') return 'bg-blue-500';
+  if (role === 'assistant') return 'bg-purple-500';
+  return 'bg-slate-400';
+}
+function memberDisplayName(m: { display_name: string | null; email: string }): string {
+  return m.display_name || m.email.split('@')[0];
+}
 
 const VALID_ROLES = ['owner', 'assistant', 'viewer'] as const;
 
@@ -232,6 +274,13 @@ export default function PermissionsPage() {
   const [briefingBotName, setBriefingBotName] = useState<string>('Buzz');
   const [onboardingRows, setOnboardingRows] = useState<OnboardingRow[]>([]);
   const [onboardingLoading, setOnboardingLoading] = useState(false);
+
+  // Redesigned Users tab: By User / By Module sub-tabs + shared search +
+  // selected-row state for the detail panels.
+  const [usersSubTab, setUsersSubTab] = useState<'by-user' | 'by-module'>('by-user');
+  const [userSearch, setUserSearch] = useState('');
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedModuleKey, setSelectedModuleKey] = useState<string | null>(null);
 
   // Add User form state
   const [showAddForm, setShowAddForm] = useState(false);
@@ -958,592 +1007,569 @@ export default function PermissionsPage() {
           </div>
 
           {/* ===== USERS TAB ===== */}
-          {activeTab === 'users' && (
-            <>
-              <div className="mb-6 flex items-start justify-between gap-4">
-                <p className="text-slate-500" style={{ fontSize: 13 }}>Add or remove workspace members and control which dashboards each can see.</p>
-                <button
-                  onClick={() => setShowAddForm(s => !s)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg inline-flex items-center gap-1.5 flex-shrink-0"
-                >
-                  <span className="text-base leading-none">+</span> Add User
-                </button>
-              </div>
+          {activeTab === 'users' && (() => {
+            const q = userSearch.trim().toLowerCase();
+            const filteredUsers = members.filter(m =>
+              !q || memberDisplayName(m).toLowerCase().includes(q) || m.email.toLowerCase().includes(q)
+            );
+            const selectedUser = members.find(m => m.id === selectedUserId) || null;
+            const filteredModules = MODULE_CATALOG.filter(mod =>
+              !q || mod.label.toLowerCase().includes(q) || mod.key.toLowerCase().includes(q)
+            );
+            const selectedModule = MODULE_CATALOG.find(mod => mod.key === selectedModuleKey) || null;
+            const moduleAccessCount = (key: string) =>
+              members.filter(m => m.role !== 'viewer' || isModEnabled(m.allowed_modules, key)).length;
 
-              {/* Add User form */}
-              {showAddForm && (
-                <div className="mb-6 bg-white border border-slate-200 rounded-xl p-5">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Email</label>
-                      <input
-                        type="email"
-                        value={addEmail}
-                        onChange={(e) => setAddEmail(e.target.value)}
-                        placeholder="name@saracademy.org"
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                        Display name <span className="font-normal italic normal-case text-slate-400">— optional</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={addDisplayName}
-                        onChange={(e) => setAddDisplayName(e.target.value)}
-                        placeholder="e.g. Sara Hasson"
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Role</label>
-                      <select
-                        value={addRole}
-                        onChange={(e) => setAddRole(e.target.value as 'owner' | 'assistant' | 'viewer')}
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white"
+            return (
+              <>
+                {/* Search + sub-tabs */}
+                <div className="mb-5">
+                  <div className="relative max-w-md mb-4">
+                    <svg className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
+                    </svg>
+                    <input
+                      type="text"
+                      value={userSearch}
+                      onChange={(e) => setUserSearch(e.target.value)}
+                      placeholder={usersSubTab === 'by-user' ? 'Search users by name or email…' : 'Search modules…'}
+                      className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+                    />
+                  </div>
+                  <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden">
+                    {([
+                      { key: 'by-user', label: 'By User' },
+                      { key: 'by-module', label: 'By Module' },
+                    ] as { key: 'by-user' | 'by-module'; label: string }[]).map(st => (
+                      <button
+                        key={st.key}
+                        onClick={() => setUsersSubTab(st.key)}
+                        className={`px-4 py-1.5 text-sm font-medium transition-colors ${
+                          usersSubTab === st.key ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'
+                        }`}
                       >
-                        {VALID_ROLES.map(r => (
-                          <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}{r === 'owner' ? ' (full access)' : r === 'assistant' ? ' (full access)' : ''}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                        Title <span className="font-normal italic normal-case text-slate-400">— optional</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={addTitle}
-                        onChange={(e) => setAddTitle(e.target.value)}
-                        placeholder="e.g. Principal, Executive Director"
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Divisions</label>
-                      <div className="flex items-center gap-4 py-2">
-                        {DIVISION_OPTIONS.map(d => (
-                          <label key={d.value} className="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
-                            <input
-                              type="checkbox"
-                              checked={addDivisions.includes(d.value)}
-                              onChange={(e) => setAddDivisions(prev =>
-                                e.target.checked ? [...prev, d.value] : prev.filter(v => v !== d.value)
-                              )}
-                              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-300"
-                            />
-                            {d.label}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className={addRole === 'viewer' ? '' : 'opacity-50 pointer-events-none'}>
-                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                      Modules {addRole !== 'viewer' && <span className="font-normal italic normal-case text-slate-400">— owners and assistants see everything; module list ignored.</span>}
-                    </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {ALL_MODULE_OPTIONS.map(opt => (
-                        <label key={opt.key} className="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
-                          <input
-                            type="checkbox"
-                            checked={!!addModules[opt.key]}
-                            onChange={(e) => setAddModules(prev => ({ ...prev, [opt.key]: e.target.checked }))}
-                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-300"
-                          />
-                          {opt.label}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="mt-5 flex items-center justify-end gap-2">
-                    <button
-                      onClick={resetAddForm}
-                      disabled={addSaving}
-                      className="px-4 py-2 text-sm text-slate-600 hover:text-slate-900"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleAddUser}
-                      disabled={addSaving || !addEmail.trim()}
-                      className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg disabled:opacity-50"
-                    >
-                      {addSaving ? 'Adding…' : 'Add User'}
-                    </button>
-                  </div>
-                  <p className="text-xs text-slate-400 mt-3">
-                    New users are stored with a placeholder ID and gain a real Firebase UID on their first Google sign-in. They&apos;ll need to sign in via Google with this exact email.
-                  </p>
-                </div>
-              )}
-
-              {/* Error banner */}
-              {error && (
-                <div className="mb-6 bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex items-center justify-between">
-                  <span className="text-red-700 text-sm">{error}</span>
-                  <button onClick={fetchMembers} className="text-red-600 text-sm font-medium hover:text-red-800">Retry</button>
-                </div>
-              )}
-
-              {loading ? (
-                <div className="animate-pulse">
-                  <div className="bg-slate-50 rounded-t-lg border border-slate-200 h-12" />
-                  {[1, 2, 3, 4].map(i => (
-                    <div key={i} className="bg-white border-b border-slate-100 px-5 py-4 flex items-center gap-4">
-                      <div className="flex-[2]">
-                        <div className="h-4 bg-slate-200 rounded w-36 mb-2" />
-                        <div className="h-3 bg-slate-100 rounded w-48" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="h-3 bg-slate-100 rounded w-24" />
-                      </div>
-                      {DASHBOARD_COLUMNS.map(col => (
-                        <div key={col.key} className="flex-1 flex justify-center">
-                          <div className="w-5 h-5 rounded-md bg-slate-100" />
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <>
-                  {/* Table header */}
-                  <div
-                    className="bg-slate-50 rounded-t-lg border border-slate-200 flex items-center gap-4"
-                    style={{ padding: '14px 20px' }}
-                  >
-                    <div className="flex-[2]">
-                      <span className="text-slate-600 font-semibold uppercase tracking-wide" style={{ fontSize: 12 }}>Name & Role</span>
-                    </div>
-                    <div className="flex-1">
-                      <span className="text-slate-600 font-semibold uppercase tracking-wide" style={{ fontSize: 12 }}>Workspace</span>
-                    </div>
-                    {DASHBOARD_COLUMNS.map(col => (
-                      <div key={col.key} className="flex-1 text-center">
-                        <span className="text-slate-600 font-semibold uppercase tracking-wide" style={{ fontSize: 12 }}>{col.label}</span>
-                      </div>
+                        {st.label}
+                      </button>
                     ))}
                   </div>
+                </div>
 
-                  {/* Data rows */}
-                  <div className="bg-white border-x border-b border-slate-200 rounded-b-lg">
-                    {members.map((member, idx) => {
-                      const isFullAccess = member.role === 'owner' || member.role === 'assistant';
-                      const memberExpandedModule = expandedSub?.startsWith(`${member.id}:`) ? expandedSub.split(':')[1] : null;
+                {/* Error banner */}
+                {error && (
+                  <div className="mb-6 bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex items-center justify-between">
+                    <span className="text-red-700 text-sm">{error}</span>
+                    <button onClick={fetchMembers} className="text-red-600 text-sm font-medium hover:text-red-800">Retry</button>
+                  </div>
+                )}
 
-                      return (
-                        <div key={member.id} style={{ borderBottom: idx < members.length - 1 ? '1px solid #f1f5f9' : undefined }}>
-                          {/* Main row */}
-                          <div className="flex items-center gap-4" style={{ padding: '14px 20px' }}>
-                            {/* Name & role */}
-                            <div className="flex-[2] min-w-0">
-                              {editingNameId === member.id ? (
-                                <input
-                                  autoFocus
-                                  type="text"
-                                  value={nameDraft}
-                                  onChange={(e) => setNameDraft(e.target.value)}
-                                  onBlur={() => saveDisplayName(member, nameDraft)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') { e.preventDefault(); saveDisplayName(member, nameDraft); }
-                                    else if (e.key === 'Escape') { setEditingNameId(null); }
-                                  }}
-                                  placeholder={member.email.split('@')[0]}
-                                  className="w-full font-semibold text-slate-900 bg-white border border-blue-300 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                  style={{ fontSize: 14.5 }}
-                                />
-                              ) : (
-                                <button
-                                  onClick={() => { setEditingNameId(member.id); setNameDraft(member.display_name || ''); }}
-                                  className="group inline-flex items-center gap-1.5 max-w-full text-left"
-                                  title="Click to edit name"
-                                >
-                                  <span className="text-slate-900 font-semibold truncate" style={{ fontSize: 14.5 }}>
-                                    {member.display_name || member.email.split('@')[0]}
-                                  </span>
-                                  <svg
-                                    className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                    strokeWidth={2}
-                                    aria-label="Edit name"
-                                  >
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                  </svg>
-                                </button>
-                              )}
-                              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                <span className="text-slate-500 truncate" style={{ fontSize: 12.5 }}>{member.email}</span>
-                                {editingRoleId === member.id ? (
-                                  <select
-                                    autoFocus
-                                    value={member.role}
-                                    onChange={(e) => saveRole(member, e.target.value as 'owner' | 'assistant' | 'viewer')}
-                                    onBlur={() => setEditingRoleId(null)}
-                                    disabled={member.email.toLowerCase() === ADMIN_EMAIL}
-                                    className="text-[10px] font-medium border border-slate-200 rounded px-1 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-300"
-                                  >
-                                    {VALID_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                                  </select>
-                                ) : (
-                                  <button
-                                    onClick={() => member.email.toLowerCase() !== ADMIN_EMAIL && setEditingRoleId(member.id)}
-                                    disabled={member.email.toLowerCase() === ADMIN_EMAIL}
-                                    className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 transition-colors ${
-                                      member.role === 'viewer'
-                                        ? 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                                    } ${member.email.toLowerCase() === ADMIN_EMAIL ? 'cursor-default opacity-60' : 'cursor-pointer'}`}
-                                    title={member.email.toLowerCase() === ADMIN_EMAIL ? 'Admin role is fixed' : 'Click to change role'}
-                                  >
-                                    {member.role}
-                                  </button>
-                                )}
-                              </div>
-                              {/* Title + Divisions row — both inline-editable. */}
-                              <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                                {editingTitleId === member.id ? (
+                {loading ? (
+                  <div className="animate-pulse space-y-2">
+                    {[1, 2, 3, 4, 5].map(i => (
+                      <div key={i} className="bg-white border border-slate-200 rounded-lg h-16" />
+                    ))}
+                  </div>
+                ) : usersSubTab === 'by-user' ? (
+                  /* ---------- BY USER ---------- */
+                  <div className="grid grid-cols-1 lg:grid-cols-[330px_1fr] gap-6">
+                    {/* Left: user list */}
+                    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col">
+                      <div className="p-3 border-b border-slate-100">
+                        <button
+                          onClick={() => setShowAddForm(true)}
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg inline-flex items-center justify-center gap-1.5"
+                        >
+                          <span className="text-base leading-none">+</span> Add User
+                        </button>
+                      </div>
+                      <div className="overflow-y-auto" style={{ maxHeight: '70vh' }}>
+                        {filteredUsers.length === 0 ? (
+                          <p className="text-sm text-slate-400 text-center py-8">No users match.</p>
+                        ) : filteredUsers.map(m => {
+                          const isSel = m.id === selectedUserId;
+                          return (
+                            <button
+                              key={m.id}
+                              onClick={() => setSelectedUserId(m.id)}
+                              className={`w-full text-left flex items-center gap-3 px-3 py-2.5 border-b border-slate-50 transition-colors ${
+                                isSel ? 'bg-blue-50' : 'hover:bg-slate-50'
+                              }`}
+                            >
+                              <span className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0 ${roleAvatarBg(m.role)}`}>
+                                {memberDisplayName(m).charAt(0).toUpperCase()}
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block text-sm font-medium text-slate-800 truncate">{memberDisplayName(m)}</span>
+                                <span className="block text-xs text-slate-400 truncate">{m.email}</span>
+                              </span>
+                              <span className={`text-[10px] font-medium rounded px-1.5 py-0.5 flex-shrink-0 ${
+                                m.role === 'viewer' ? 'bg-slate-100 text-slate-600' : m.role === 'assistant' ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700'
+                              }`}>{m.role}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Right: user detail */}
+                    <div>
+                      {!selectedUser ? (
+                        <div className="bg-white border border-slate-200 rounded-xl p-12 text-center text-sm text-slate-400">
+                          Select a user to view and edit their access.
+                        </div>
+                      ) : (() => {
+                        const u = selectedUser;
+                        const isAdmin = u.email.toLowerCase() === ADMIN_EMAIL;
+                        const isViewer = u.role === 'viewer';
+                        return (
+                          <div className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100">
+                            {/* Header */}
+                            <div className="p-5 flex items-center gap-4">
+                              <span className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-semibold flex-shrink-0 ${roleAvatarBg(u.role)}`}>
+                                {memberDisplayName(u).charAt(0).toUpperCase()}
+                              </span>
+                              <div className="min-w-0">
+                                {editingNameId === u.id ? (
                                   <input
                                     autoFocus
                                     type="text"
-                                    value={titleDraft}
-                                    onChange={(e) => setTitleDraft(e.target.value)}
-                                    onBlur={() => saveTitle(member, titleDraft)}
+                                    value={nameDraft}
+                                    onChange={(e) => setNameDraft(e.target.value)}
+                                    onBlur={() => saveDisplayName(u, nameDraft)}
                                     onKeyDown={(e) => {
-                                      if (e.key === 'Enter') { e.preventDefault(); saveTitle(member, titleDraft); }
-                                      else if (e.key === 'Escape') { setEditingTitleId(null); }
+                                      if (e.key === 'Enter') { e.preventDefault(); saveDisplayName(u, nameDraft); }
+                                      else if (e.key === 'Escape') { setEditingNameId(null); }
                                     }}
-                                    placeholder="Title (e.g. Principal)"
-                                    className="text-xs bg-white border border-blue-300 rounded px-1.5 py-0.5 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                    style={{ width: 200 }}
+                                    placeholder={u.email.split('@')[0]}
+                                    className="text-lg font-bold text-slate-900 bg-white border border-blue-300 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-blue-200 w-full"
                                   />
                                 ) : (
                                   <button
-                                    onClick={() => { setEditingTitleId(member.id); setTitleDraft(member.title || ''); }}
-                                    className="group inline-flex items-center gap-1 text-xs italic text-slate-500 hover:text-slate-700"
-                                    title="Click to edit title"
+                                    onClick={() => { setEditingNameId(u.id); setNameDraft(u.display_name || ''); }}
+                                    className="group inline-flex items-center gap-1.5 max-w-full text-left"
+                                    title="Click to edit name"
                                   >
-                                    {member.title || <span className="text-slate-300 not-italic">+ Add title</span>}
-                                    <svg className="w-2.5 h-2.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                                    <h3 className="text-lg font-bold text-slate-900 truncate">{memberDisplayName(u)}</h3>
+                                    <svg className="w-3.5 h-3.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-label="Edit name">
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                     </svg>
                                   </button>
                                 )}
-                                <div className="flex items-center gap-2">
-                                  {DIVISION_OPTIONS.map(d => {
-                                    const checked = (member.divisions || []).includes(d.value);
-                                    return (
-                                      <button
-                                        key={d.value}
-                                        onClick={() => toggleDivision(member, d.value)}
-                                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${
-                                          checked
-                                            ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                                            : 'bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600'
-                                        }`}
-                                        title={checked ? `Remove ${d.label}` : `Add ${d.label}`}
-                                      >
-                                        <span className={`w-2.5 h-2.5 inline-flex items-center justify-center rounded-sm ${checked ? 'bg-emerald-500 text-white' : 'border border-slate-300'}`}>
-                                          {checked && (
-                                            <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={4}>
-                                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                            </svg>
-                                          )}
-                                        </span>
-                                        {d.value === 'academy' ? 'Academy' : 'HS'}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
+                                <p className="text-sm text-slate-500 truncate">{u.email}</p>
+                                <p className="text-xs text-slate-400 mt-0.5">{u.workspace_name}</p>
+                              </div>
+                            </div>
 
-                                {/* Assistant picker — shows whoever currently
-                                    assists this member, or "+ Add". Click opens
-                                    a dropdown of other workspace members who
-                                    have an assignee_key set. Selecting one
-                                    writes to that row's assistant_to. */}
-                                {(() => {
-                                  const currentAssistant = members.find(m => m.assistant_to === member.id);
-                                  const candidates = members.filter(m =>
-                                    m.id !== member.id &&
-                                    m.workspace_id === member.workspace_id &&
-                                    m.assignee_key !== null
-                                  );
-                                  const isOpen = openAssistantId === member.id;
-                                  return (
-                                    <div className="relative">
+                            {/* Role + divisions + title + slack */}
+                            <div className="p-5 space-y-4">
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Role</label>
+                                <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden">
+                                  {VALID_ROLES.map(r => (
+                                    <button
+                                      key={r}
+                                      onClick={() => !isAdmin && saveRole(u, r)}
+                                      disabled={isAdmin}
+                                      className={`px-3 py-1.5 text-sm font-medium capitalize transition-colors ${
+                                        u.role === r ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'
+                                      } ${isAdmin ? 'cursor-not-allowed opacity-60' : ''}`}
+                                      title={isAdmin ? 'Admin role is fixed' : undefined}
+                                    >
+                                      {r}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Divisions</label>
+                                <div className="flex items-center gap-4">
+                                  {DIVISION_OPTIONS.map(d => (
+                                    <label key={d.value} className="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                                      <input
+                                        type="checkbox"
+                                        checked={(u.divisions || []).includes(d.value)}
+                                        onChange={() => toggleDivision(u, d.value)}
+                                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-300"
+                                      />
+                                      {d.label}
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Title</label>
+                                  <input
+                                    key={u.id}
+                                    type="text"
+                                    defaultValue={u.title || ''}
+                                    onBlur={(e) => saveTitle(u, e.target.value)}
+                                    placeholder="e.g. Principal"
+                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Slack User ID</label>
+                                  <p className="px-3 py-2 text-sm text-slate-600 bg-slate-50 rounded-lg border border-slate-100">
+                                    {u.slack_user_id || <span className="text-slate-400">Not set</span>}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Assistant — sets who assists this member (writes
+                                  assistant_to on the assistant's row). Drives the
+                                  Tasks page second column. */}
+                              {(() => {
+                                const currentAssistant = members.find(m => m.assistant_to === u.id);
+                                const candidates = members.filter(m => m.id !== u.id && m.workspace_id === u.workspace_id && m.assignee_key !== null);
+                                const isOpen = openAssistantId === u.id;
+                                return (
+                                  <div>
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Assistant</label>
+                                    <div className="relative inline-block">
                                       <button
-                                        onClick={() => setOpenAssistantId(isOpen ? null : member.id)}
-                                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${
-                                          currentAssistant
-                                            ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
-                                            : 'bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600'
+                                        onClick={() => setOpenAssistantId(isOpen ? null : u.id)}
+                                        className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border transition-colors ${
+                                          currentAssistant ? 'border-indigo-200 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'
                                         }`}
-                                        title={currentAssistant ? `Assistant: ${currentAssistant.display_name || currentAssistant.email}` : 'Set assistant'}
                                       >
-                                        <span className="opacity-70">Assistant:</span>
-                                        <span>{currentAssistant ? (currentAssistant.display_name || currentAssistant.email.split('@')[0]) : '—'}</span>
-                                        <svg className={`w-2.5 h-2.5 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                                        {currentAssistant ? memberDisplayName(currentAssistant) : '+ Set assistant'}
+                                        <svg className={`w-3.5 h-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                                           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                                         </svg>
                                       </button>
                                       {isOpen && (
-                                        <>
-                                          <span
-                                            className="fixed inset-0 z-10"
-                                            onClick={() => setOpenAssistantId(null)}
-                                            aria-hidden="true"
-                                          />
-                                          <div className="absolute left-0 top-full mt-1 z-20 bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[180px]">
-                                            <button
-                                              onClick={() => setMemberAssistant(member, null)}
-                                              className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 text-slate-500 italic"
-                                            >
-                                              (none)
+                                        <div className="absolute left-0 mt-1 z-20 bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[200px] max-h-60 overflow-y-auto">
+                                          <button onClick={() => setMemberAssistant(u, null)} className="block w-full text-left px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-50">(none)</button>
+                                          {candidates.length === 0 ? (
+                                            <p className="px-3 py-1.5 text-xs text-slate-400">No eligible members (need an assignee key).</p>
+                                          ) : candidates.map(c => (
+                                            <button key={c.id} onClick={() => setMemberAssistant(u, c.id)} className="block w-full text-left px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+                                              {memberDisplayName(c)}
                                             </button>
-                                            {candidates.length === 0 ? (
-                                              <p className="px-3 py-1.5 text-[11px] text-slate-400">No assignable members yet</p>
-                                            ) : candidates.map(c => (
-                                              <button
-                                                key={c.id}
-                                                onClick={() => setMemberAssistant(member, c.id)}
-                                                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 ${currentAssistant?.id === c.id ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-slate-700'}`}
-                                              >
-                                                {c.display_name || c.email.split('@')[0]}
-                                                {c.assignee_key && <span className="text-slate-400 ml-1">({c.assignee_key})</span>}
-                                              </button>
-                                            ))}
-                                          </div>
-                                        </>
+                                          ))}
+                                        </div>
                                       )}
                                     </div>
-                                  );
-                                })()}
-                              </div>
-                            </div>
-
-                            {/* Workspace */}
-                            <div className="flex-1 min-w-0">
-                              <span className="text-slate-600 truncate text-sm">{member.workspace_name}</span>
-                            </div>
-
-                            {/* Dashboard toggles */}
-                            {DASHBOARD_COLUMNS.map(col => {
-                              const isChecked = isFullAccess || isModEnabled(member.allowed_modules, col.key);
-                              const hasSubs = SUB_PERMISSIONS[col.key]?.length > 0;
-                              const cellKey = `${member.id}:${col.key}`;
-                              const isSaving = savingKey === `${member.id}:save`;
-                              const isSaved = savedKey === `${member.id}:save`;
-                              return (
-                                <div key={col.key} className="flex-1 flex justify-center">
-                                  <div className="relative inline-flex items-center gap-1">
-                                    <button
-                                      onClick={() => toggleModule(member, col.key)}
-                                      disabled={isFullAccess}
-                                      className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
-                                        isFullAccess
-                                          ? 'bg-slate-100 border-slate-200 cursor-not-allowed'
-                                          : isChecked
-                                            ? 'border-transparent'
-                                            : 'border-slate-300 hover:border-slate-400 cursor-pointer'
-                                      }`}
-                                      style={!isFullAccess && isChecked ? { backgroundColor: 'oklch(0.58 0.12 235)' } : undefined}
-                                      title={isFullAccess ? 'Owners and assistants see all dashboards by default.' : undefined}
-                                    >
-                                      {(isChecked || isFullAccess) && (
-                                        <svg className={`w-3 h-3 ${isFullAccess ? 'text-slate-400' : 'text-white'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                        </svg>
-                                      )}
-                                    </button>
-                                    {hasSubs && isChecked && !isFullAccess && (
-                                      <button
-                                        onClick={() => setExpandedSub(expandedSub === cellKey ? null : cellKey)}
-                                        className={`w-4 h-4 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors ${expandedSub === cellKey ? 'text-blue-500' : ''}`}
-                                        title="Configure sub-permissions"
-                                      >
-                                        <svg className={`w-3 h-3 transition-transform ${expandedSub === cellKey ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                                        </svg>
-                                      </button>
-                                    )}
-                                    {isSaving && (
-                                      <span className="absolute -right-4 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-                                    )}
-                                    {isSaved && !isSaving && (
-                                      <span className="absolute -right-4 top-1/2 -translate-y-1/2">
-                                        <svg className="w-3 h-3 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                        </svg>
-                                      </span>
-                                    )}
                                   </div>
-                                </div>
-                              );
-                            })}
-
-                            {/* Remove user */}
-                            <div className="flex-shrink-0">
-                              <button
-                                onClick={() => handleRemoveMember(member)}
-                                disabled={member.email.toLowerCase() === ADMIN_EMAIL || removingId === member.id}
-                                className="text-slate-300 hover:text-red-600 transition-colors p-1 disabled:opacity-30 disabled:hover:text-slate-300"
-                                title={member.email.toLowerCase() === ADMIN_EMAIL ? 'Cannot remove the admin account' : `Remove ${member.email}`}
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a2 2 0 012-2h2a2 2 0 012 2v3" />
-                                </svg>
-                              </button>
+                                );
+                              })()}
                             </div>
-                          </div>
 
-                          {/* Sub-permissions panel */}
-                          {memberExpandedModule && SUB_PERMISSIONS[memberExpandedModule] && !isFullAccess && (
-                            <div className="px-5 pb-4">
-                              <div className="border-l-2 border-slate-200 ml-4 pl-4 py-2 space-y-2">
-                                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
-                                  {DASHBOARD_COLUMNS.find(c => c.key === memberExpandedModule)?.label || memberExpandedModule} — Sub-permissions
+                            {/* Module permissions */}
+                            <div className="p-5">
+                              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Module Access</label>
+                              {!isViewer ? (
+                                <p className="text-sm text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-4 py-3">
+                                  {u.role === 'owner' ? 'Owners' : 'Assistants'} automatically have access to every module — no per-module toggles needed.
                                 </p>
-                                {SUB_PERMISSIONS[memberExpandedModule].map(sub => {
-                                  const checked = getSubValue(member.allowed_modules, memberExpandedModule, sub.key);
-                                  return (
-                                    <label key={sub.key} className="flex items-start gap-2.5 cursor-pointer group">
-                                      <input
-                                        type="checkbox"
-                                        checked={checked}
-                                        onChange={() => toggleSubPermission(member, memberExpandedModule, sub.key)}
-                                        className="mt-0.5 w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                      />
-                                      <div>
-                                        <span className="text-sm font-medium text-slate-800">{sub.label}</span>
-                                        <p className="text-xs text-slate-500">{sub.description}</p>
+                              ) : (
+                                <div className="space-y-5">
+                                  {CATEGORY_ORDER.map(cat => {
+                                    const mods = MODULE_CATALOG.filter(mm => mm.category === cat);
+                                    if (mods.length === 0) return null;
+                                    return (
+                                      <div key={cat}>
+                                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">{cat}</p>
+                                        <div className="space-y-1">
+                                          {mods.map(mod => {
+                                            const on = isModEnabled(u.allowed_modules, mod.key);
+                                            const subs = SUB_PERMISSIONS[mod.key] || [];
+                                            const subOpen = expandedSub === `${u.id}:${mod.key}`;
+                                            return (
+                                              <div key={mod.key} className="rounded-lg border border-slate-100">
+                                                <div className="flex items-center justify-between px-3 py-2">
+                                                  <div className="flex items-center gap-2 min-w-0">
+                                                    <span className="text-sm text-slate-700 truncate">{mod.label}</span>
+                                                    {subs.length > 0 && on && (
+                                                      <button
+                                                        onClick={() => setExpandedSub(subOpen ? null : `${u.id}:${mod.key}`)}
+                                                        className={`text-slate-400 hover:text-slate-600 ${subOpen ? 'text-blue-500' : ''}`}
+                                                        title="Sub-permissions"
+                                                      >
+                                                        <svg className={`w-3.5 h-3.5 transition-transform ${subOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                                                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                                        </svg>
+                                                      </button>
+                                                    )}
+                                                  </div>
+                                                  <button
+                                                    onClick={() => toggleModule(u, mod.key)}
+                                                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0 ${on ? 'bg-blue-600' : 'bg-slate-200'}`}
+                                                    title={on ? 'Disable' : 'Enable'}
+                                                  >
+                                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${on ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                                                  </button>
+                                                </div>
+                                                {subs.length > 0 && on && subOpen && (
+                                                  <div className="border-t border-slate-100 px-3 py-2 space-y-2 bg-slate-50/50">
+                                                    {subs.map(sub => (
+                                                      <label key={sub.key} className="flex items-start gap-2.5 cursor-pointer">
+                                                        <input
+                                                          type="checkbox"
+                                                          checked={getSubValue(u.allowed_modules, mod.key, sub.key)}
+                                                          onChange={() => toggleSubPermission(u, mod.key, sub.key)}
+                                                          className="mt-0.5 w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                                        />
+                                                        <span>
+                                                          <span className="text-sm font-medium text-slate-700">{sub.label}</span>
+                                                          <span className="block text-xs text-slate-400">{sub.description}</span>
+                                                        </span>
+                                                      </label>
+                                                    ))}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
                                       </div>
-                                    </label>
-                                  );
-                                })}
-                              </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
                             </div>
-                          )}
 
-                          {/* Home sub-permissions */}
-                          {expandedSub === `${member.id}:home` && !isFullAccess && (
-                            <div className="px-5 pb-4">
-                              <div className="border-l-2 border-slate-200 ml-4 pl-4 py-2 space-y-2">
-                                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Home — Sub-permissions</p>
-                                {SUB_PERMISSIONS.home.map(sub => {
-                                  const checked = getSubValue(member.allowed_modules, 'home', sub.key);
-                                  return (
-                                    <label key={sub.key} className="flex items-start gap-2.5 cursor-pointer group">
-                                      <input
-                                        type="checkbox"
-                                        checked={checked}
-                                        onChange={() => toggleSubPermission(member, 'home', sub.key)}
-                                        className="mt-0.5 w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                      />
-                                      <div>
-                                        <span className="text-sm font-medium text-slate-800">{sub.label}</span>
-                                        <p className="text-xs text-slate-500">{sub.description}</p>
-                                      </div>
-                                    </label>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* 🧪 Testing & Preview — per-member feature flags.
-                              Collapsed by default; expanding reveals one
-                              checkbox per TESTING_FEATURES entry. Empty
-                              state when nothing is registered keeps the
-                              section out of the way. */}
-                          {TESTING_FEATURES.length > 0 && (() => {
-                            const isTestingOpen = testingExpandedMembers.has(member.id);
-                            const memberFeatures = member.testing_features ?? [];
-                            const enabledCount = TESTING_FEATURES.filter(f => memberFeatures.includes(f.key)).length;
-                            const grouped: Record<string, typeof TESTING_FEATURES> = {};
-                            for (const f of TESTING_FEATURES) {
-                              if (!grouped[f.module]) grouped[f.module] = [];
-                              grouped[f.module].push(f);
-                            }
-                            return (
-                              <div className="px-5 pb-4">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setTestingExpandedMembers(prev => {
-                                      const next = new Set(prev);
-                                      if (next.has(member.id)) next.delete(member.id);
-                                      else next.add(member.id);
-                                      return next;
-                                    });
-                                  }}
-                                  className="flex items-center justify-between w-full text-left py-2 px-3 rounded hover:bg-slate-50 transition-colors"
-                                >
-                                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
-                                    🧪 Testing &amp; Preview
-                                    {enabledCount > 0 && (
-                                      <span className="bg-blue-100 text-blue-700 text-[10px] font-medium rounded-full px-1.5 py-0.5 normal-case">
-                                        {enabledCount} on
-                                      </span>
-                                    )}
-                                  </span>
-                                  <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isTestingOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                                  </svg>
-                                </button>
-                                {isTestingOpen && (
-                                  <div className="border-l-2 border-amber-200 ml-4 pl-4 py-2 space-y-3 mt-1">
-                                    <p className="text-xs text-slate-400">
-                                      Features in development. Only grant access to users actively helping validate.
-                                    </p>
+                            {/* Testing & Preview */}
+                            {TESTING_FEATURES.length > 0 && (() => {
+                              const memberFeatures = u.testing_features ?? [];
+                              const grouped: Record<string, typeof TESTING_FEATURES> = {};
+                              for (const f of TESTING_FEATURES) {
+                                if (!grouped[f.module]) grouped[f.module] = [];
+                                grouped[f.module].push(f);
+                              }
+                              return (
+                                <div className="p-5">
+                                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">🧪 Testing &amp; Preview</label>
+                                  <p className="text-xs text-slate-400 mb-3">Features in development. Only grant to users actively helping validate.</p>
+                                  <div className="space-y-3">
                                     {Object.entries(grouped).map(([moduleKey, features]) => (
                                       <div key={moduleKey} className="space-y-2">
                                         <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">{moduleKey}</p>
-                                        {features.map(f => {
-                                          const checked = memberFeatures.includes(f.key);
-                                          return (
-                                            <label key={f.key} className="flex items-start gap-2.5 cursor-pointer group">
-                                              <input
-                                                type="checkbox"
-                                                checked={checked}
-                                                onChange={() => toggleTestingFeature(member, f.key)}
-                                                className="mt-0.5 w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                              />
-                                              <div>
-                                                <span className="text-sm font-medium text-slate-800">{f.label}</span>
-                                                <p className="text-xs text-slate-400">{f.description}</p>
-                                              </div>
-                                            </label>
-                                          );
-                                        })}
+                                        {features.map(f => (
+                                          <label key={f.key} className="flex items-start gap-2.5 cursor-pointer">
+                                            <input
+                                              type="checkbox"
+                                              checked={memberFeatures.includes(f.key)}
+                                              onChange={() => toggleTestingFeature(u, f.key)}
+                                              className="mt-0.5 w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                            />
+                                            <span>
+                                              <span className="text-sm font-medium text-slate-800">{f.label}</span>
+                                              <span className="block text-xs text-slate-400">{f.description}</span>
+                                            </span>
+                                          </label>
+                                        ))}
                                       </div>
                                     ))}
                                   </div>
-                                )}
+                                </div>
+                              );
+                            })()}
+
+                            {/* Remove */}
+                            <div className="p-5">
+                              <button
+                                onClick={() => handleRemoveMember(u)}
+                                disabled={isAdmin || removingId === u.id}
+                                className="inline-flex items-center gap-2 text-sm text-red-600 hover:text-red-800 disabled:opacity-40 disabled:hover:text-red-600"
+                                title={isAdmin ? "Can't remove the admin account" : 'Remove user'}
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                {removingId === u.id ? 'Removing…' : 'Remove user'}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                ) : (
+                  /* ---------- BY MODULE ---------- */
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredModules.length === 0 ? (
+                      <p className="text-sm text-slate-400 col-span-full text-center py-8">No modules match.</p>
+                    ) : filteredModules.map(mod => (
+                      <button
+                        key={mod.key}
+                        onClick={() => setSelectedModuleKey(mod.key)}
+                        className="text-left bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md hover:border-slate-300 transition-all"
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="text-sm font-semibold text-slate-800">{mod.label}</span>
+                          <span className={`text-[10px] font-medium rounded-full px-2 py-0.5 ${CATEGORY_BADGE[mod.category]}`}>{mod.category}</span>
+                        </div>
+                        <p className="text-xs text-slate-400 line-clamp-2 mb-2">{mod.description}</p>
+                        <p className="text-xs text-slate-500">
+                          <span className="font-semibold text-slate-700">{moduleAccessCount(mod.key)}</span> {moduleAccessCount(mod.key) === 1 ? 'user' : 'users'} with access
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add User modal */}
+                {showAddForm && (
+                  <>
+                    <div className="fixed inset-0 bg-slate-900/30 z-40" onClick={resetAddForm} />
+                    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto py-10 px-4 pointer-events-none">
+                      <div className="bg-white border border-slate-200 rounded-xl p-5 w-full max-w-2xl shadow-2xl pointer-events-auto">
+                        <h3 className="text-lg font-bold text-slate-900 mb-4">Add User</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Email</label>
+                            <input type="email" value={addEmail} onChange={(e) => setAddEmail(e.target.value)} placeholder="name@saracademy.org" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Display name <span className="font-normal italic normal-case text-slate-400">— optional</span></label>
+                            <input type="text" value={addDisplayName} onChange={(e) => setAddDisplayName(e.target.value)} placeholder="e.g. Sara Hasson" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Role</label>
+                            <select value={addRole} onChange={(e) => setAddRole(e.target.value as 'owner' | 'assistant' | 'viewer')} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white">
+                              {VALID_ROLES.map(r => (
+                                <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}{r === 'owner' || r === 'assistant' ? ' (full access)' : ''}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Title <span className="font-normal italic normal-case text-slate-400">— optional</span></label>
+                            <input type="text" value={addTitle} onChange={(e) => setAddTitle(e.target.value)} placeholder="e.g. Principal" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Divisions</label>
+                            <div className="flex items-center gap-4 py-2">
+                              {DIVISION_OPTIONS.map(d => (
+                                <label key={d.value} className="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                                  <input type="checkbox" checked={addDivisions.includes(d.value)} onChange={(e) => setAddDivisions(prev => e.target.checked ? [...prev, d.value] : prev.filter(v => v !== d.value))} className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-300" />
+                                  {d.label}
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        <div className={addRole === 'viewer' ? '' : 'opacity-50 pointer-events-none'}>
+                          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                            Modules {addRole !== 'viewer' && <span className="font-normal italic normal-case text-slate-400">— owners and assistants see everything; module list ignored.</span>}
+                          </label>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            {ALL_MODULE_OPTIONS.map(opt => (
+                              <label key={opt.key} className="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                                <input type="checkbox" checked={!!addModules[opt.key]} onChange={(e) => setAddModules(prev => ({ ...prev, [opt.key]: e.target.checked }))} className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-300" />
+                                {opt.label}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="mt-5 flex items-center justify-end gap-2">
+                          <button onClick={resetAddForm} disabled={addSaving} className="px-4 py-2 text-sm text-slate-600 hover:text-slate-900">Cancel</button>
+                          <button onClick={handleAddUser} disabled={addSaving || !addEmail.trim()} className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg disabled:opacity-50">{addSaving ? 'Adding…' : 'Add User'}</button>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-3">New users are stored with a placeholder ID and gain a real Firebase UID on their first Google sign-in. They&apos;ll need to sign in via Google with this exact email.</p>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* By Module — detail slide-in panel */}
+                {selectedModule && (
+                  <>
+                    <div className="fixed inset-0 bg-slate-900/20 z-40" onClick={() => setSelectedModuleKey(null)} />
+                    <div className="fixed top-0 right-0 bottom-0 w-full max-w-[480px] bg-white shadow-2xl z-50 flex flex-col">
+                      <div className="px-6 py-5 border-b border-slate-100 flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-lg font-bold text-slate-900 truncate">{selectedModule.label}</h3>
+                            <span className={`text-[10px] font-medium rounded-full px-2 py-0.5 ${CATEGORY_BADGE[selectedModule.category]}`}>{selectedModule.category}</span>
+                          </div>
+                          <p className="text-xs text-slate-500 mt-1">{selectedModule.description}</p>
+                        </div>
+                        <button onClick={() => setSelectedModuleKey(null)} className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 flex-shrink-0">
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="flex-1 overflow-y-auto px-6 py-4">
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Access</p>
+                        <div className="space-y-1">
+                          {members.map(m => {
+                            const full = m.role !== 'viewer';
+                            const on = full || isModEnabled(m.allowed_modules, selectedModule.key);
+                            return (
+                              <div key={m.id} className="flex items-center justify-between gap-2 py-1.5">
+                                <span className="flex items-center gap-2 min-w-0">
+                                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0 ${roleAvatarBg(m.role)}`}>
+                                    {memberDisplayName(m).charAt(0).toUpperCase()}
+                                  </span>
+                                  <span className="min-w-0">
+                                    <span className="block text-sm text-slate-700 truncate">{memberDisplayName(m)}</span>
+                                    <span className="block text-[11px] text-slate-400 truncate">{m.role}</span>
+                                  </span>
+                                </span>
+                                <button
+                                  onClick={() => !full && toggleModule(m, selectedModule.key)}
+                                  disabled={full}
+                                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0 ${on ? 'bg-blue-600' : 'bg-slate-200'} ${full ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  title={full ? 'Owners and assistants have full access' : on ? 'Disable' : 'Enable'}
+                                >
+                                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${on ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                                </button>
                               </div>
                             );
-                          })()}
+                          })}
                         </div>
-                      );
-                    })}
-                  </div>
 
-                  <div className="mt-4 flex items-center gap-2">
-                    <p className="text-slate-400" style={{ fontSize: 12.5 }}>
-                      Owners and assistants automatically have access to all dashboards. Viewers only see what&apos;s checked.
-                    </p>
-                  </div>
-                </>
-              )}
-            </>
-          )}
+                        {/* Sub-permissions per viewer who has the module enabled */}
+                        {(SUB_PERMISSIONS[selectedModule.key] || []).length > 0 && (() => {
+                          const subs = SUB_PERMISSIONS[selectedModule.key];
+                          const enabledViewers = members.filter(m => m.role === 'viewer' && isModEnabled(m.allowed_modules, selectedModule.key));
+                          return (
+                            <div className="mt-6">
+                              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Sub-permissions</p>
+                              <p className="text-[11px] text-slate-400 mb-3">Owners and assistants have all sub-permissions. Below: viewers with this module enabled.</p>
+                              {enabledViewers.length === 0 ? (
+                                <p className="text-sm text-slate-400">No viewers have this module enabled.</p>
+                              ) : (
+                                <div className="space-y-4">
+                                  {enabledViewers.map(m => (
+                                    <div key={m.id} className="rounded-lg border border-slate-100 p-3">
+                                      <p className="text-sm font-medium text-slate-700 mb-2">{memberDisplayName(m)}</p>
+                                      <div className="space-y-2">
+                                        {subs.map(sub => (
+                                          <label key={sub.key} className="flex items-start gap-2.5 cursor-pointer">
+                                            <input
+                                              type="checkbox"
+                                              checked={getSubValue(m.allowed_modules, selectedModule.key, sub.key)}
+                                              onChange={() => toggleSubPermission(m, selectedModule.key, sub.key)}
+                                              className="mt-0.5 w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                            />
+                                            <span>
+                                              <span className="text-sm font-medium text-slate-700">{sub.label}</span>
+                                              <span className="block text-xs text-slate-400">{sub.description}</span>
+                                            </span>
+                                          </label>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </>
+            );
+          })()}
 
           {/* ===== SCHOOL SETTINGS TAB ===== */}
           {activeTab === 'school' && (

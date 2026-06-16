@@ -2,11 +2,15 @@
 
 > ⚠️ THIS IS THE ONLY TODO FILE. Update this after every session. Do not create new TODO or action item files. Archive any other planning docs by adding an ARCHIVED header. Phase build plans are reference-only.
 
-*Last updated: June 15, 2026*
+*Last updated: June 16, 2026*
 
 For the longer roadmap + horizon items + architecture history, see `RBKCC_VISION_AND_ROADMAP.md`. For implementation detail, see `CLAUDE_CONTEXT.md` ("Recent Changes" section).
 
 ---
+
+## ✅ Shipped (June 16, 2026)
+
+- ✅ **Admin permissions — Users tab redesigned (By User / By Module)** (rev `ssrrbkcmdcenter-00682-vv2`, deployed + site UP HTTP 307). Replaced the flat module-toggle table with two sub-tabs under a shared search. **By User**: scrollable user list (role-colored avatars, +Add User modal) → detail panel (editable name, role 3-button toggle, divisions, title, Slack ID read-only, assistant picker, category-grouped module toggles w/ sub-permission expanders for viewers, 🧪 Testing & Preview, Remove). **By Module**: category-badged module cards w/ live access counts → right slide-in panel (every member toggle — owners/assistants disabled-on, viewers interactive — + per-viewer sub-permissions). New `MODULE_CATALOG` covers all `ALL_MODULE_OPTIONS` keys + `student_logs`; SCHOOL/OPERATIONS/COMMUNITY/CORE grouping. **Only the Users tab changed** — School Settings / Integrations / Feature Flags, page path, "Admin" title, `ADMIN_EMAIL` guard untouched. No API/`lib/modules.ts` changes; reused existing handlers + `isModuleEnabled`/`hasSubPermission`. Preserved display-name edit + assistant picker (the only admin UI for `assistant_to`). Added `slack_user_id` to client `Member` type (route already returned it). tsc + build clean.
 
 ## ✅ Shipped (June 15, 2026)
 
