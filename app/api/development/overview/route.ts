@@ -51,10 +51,18 @@ import { getEffectiveWorkspaceId } from '@/lib/impersonate';
 // (hard credits only). Pledge-only donors (no payment yet) aren't
 // counted as donors until they pay.
 //
-// Lapsed / New / Retained use "gave" = ANY gift_type IN (1, 2) in that
-// campaign (2026-06-15 fix). A pledge (type-2) counts as having given —
-// the donor committed — so a FY26 pledge keeps a constituent OUT of
-// lapsed and IN retained.
+// Lapsed / New / Retained use "gave" = a constituent gave in a campaign if
+// they have ANY of (2026-06-15 fix; soft-credit gap-fill added same day):
+//   - gift_type = 1 (direct gift), OR
+//   - gift_type = 2 (pledge — the donor committed), OR
+//   - gift_type = 3 with soft_credit_type IN (1, 2) AND no gift_type-1 row
+//     (gap-fill — the SAME rule the segment cards use). This catches
+//     soft-credit-only constituents: a DAF/foundation or household member
+//     who gave through an org. Without it, e.g. Engelhardt (FY26 soft
+//     credits only) was wrongly flagged lapsed, and Schanzer (FY25 soft
+//     credits only) was missing from the lapsed list entirely.
+// A pledge (type-2) or qualifying soft credit therefore keeps a constituent
+// OUT of lapsed and IN retained.
 //   Lapsed   = gave FY25 (Operating 2024-2025) AND NOT gave FY26.
 //   New      = gave FY26 (Operating 2025-2026) AND NOT gave FY25.
 //   Retained = gave both years.
@@ -257,8 +265,12 @@ export async function GET() {
   // segment math + lapsed/new logic).
   const fy26Type1Donors = new Set<number>();
   const fy25Type1Donors = new Set<number>();
-  // "Gave" sets for lapsed/new/retained: any type-1 OR type-2 gift in
-  // that campaign. Pledge-only (type-2) donors count as having given.
+  // "Gave" sets for lapsed/new/retained: any type-1, type-2, OR qualifying
+  // type-3 soft credit (soft_credit_type 1/2) in that campaign. Pledge-only
+  // (type-2) and soft-credit-only donors both count as having given. The
+  // gap-fill caveat ("only when no type-1 row") is moot for set membership —
+  // a type-1 donor is already in the set — so soft credits are added
+  // unconditionally here without changing the result.
   const fy26GaveDonors = new Set<number>();
   const fy25GaveDonors = new Set<number>();
   // Per-fund + per-FY raised. fund=null/empty bucketed as '(No fund)'.
@@ -295,6 +307,12 @@ export async function GET() {
   // and new (FY26) donor lists' "last gift" amount + date.
   const lastFy25GiftByDonor = new Map<number, { amount: number; date: string }>();
   const lastFy26GiftByDonor = new Map<number, { amount: number; date: string }>();
+  // Last qualifying soft credit per donor per FY — gap-fill source for the
+  // lapsed/new drilldown "last gift" amount + date when a constituent has NO
+  // direct (type-1/type-2) gift in that FY (soft-credit-only donors). Direct
+  // gifts always win via `direct ?? soft` at list-build time.
+  const lastFy25SoftByDonor = new Map<number, { amount: number; date: string }>();
+  const lastFy26SoftByDonor = new Map<number, { amount: number; date: string }>();
   const recordLast = (map: Map<number, { amount: number; date: string }>, cid: number, amount: number, date: string) => {
     const prior = map.get(cid);
     if (!prior || date > prior.date) map.set(cid, { amount, date });
@@ -343,14 +361,20 @@ export async function GET() {
         seg.hasType2 = true;
         fy26ByDonor.set(cid, seg);
       } else if (isSoftCredit) {
-        // Segment math ONLY — soft credits do NOT touch raisedFY26, the
-        // per-fund campaign table, or the type-1 donor/lapsed/new sets.
-        // Recorded by distinct amount (dedup of Veracross's type-1/type-2
-        // soft-credit twins) and only used as `received` when the donor
-        // has no direct gift (resolved after the loop).
+        // Soft credits feed segment math AND the lapsed/new/retained "gave"
+        // set (gap-fill: a soft-credit-only constituent counts as having
+        // given). They do NOT touch raisedFY26, the per-fund campaign table,
+        // or the type-1 headline donor count. Recorded by distinct amount
+        // (dedup of Veracross's type-1/type-2 soft-credit twins) and only
+        // used as `received` when the donor has no direct gift (resolved
+        // after the loop). `lastFy26SoftByDonor` is the gap-fill last-gift
+        // source for the new-donor drilldown (used only when the donor has
+        // no direct gift).
         seg.softAmounts.add(amt);
         seg.hasSoft = true;
         fy26ByDonor.set(cid, seg);
+        fy26GaveDonors.add(cid);
+        recordLast(lastFy26SoftByDonor, cid, amt, g.date);
       }
     } else if (activity === FY25_CAMPAIGN) {
       if (isType1) {
@@ -364,6 +388,16 @@ export async function GET() {
         fy25GaveDonors.add(cid);
         recordLast(lastFy25GiftByDonor, cid, amt, g.date);
         fundFY25.set(fund, (fundFY25.get(fund) || 0) + pledgeBal);
+      } else if (isSoftCredit) {
+        // FY25 gap-fill: a soft-credit-only constituent counts as having
+        // given last year, so they correctly enter the lapsed set when they
+        // have no FY26 gift (e.g. Schanzer, Bruce and Jill — FY25 soft
+        // credits only; their fund made the direct gift). Soft credits do
+        // NOT touch raisedFY25, the FY25 headline donor count, or the
+        // per-fund FY25 column. `lastFy25SoftByDonor` is the gap-fill
+        // last-gift source for the lapsed drilldown.
+        fy25GaveDonors.add(cid);
+        recordLast(lastFy25SoftByDonor, cid, amt, g.date);
       }
     }
   }
@@ -456,10 +490,11 @@ export async function GET() {
     .filter(c => c.raisedFY26 > 0 || c.raisedFY25 > 0)
     .sort((a, b) => b.raisedFY26 - a.raisedFY26);
 
-  // Lapsed = gave FY25 (type-1 OR type-2) and NOT gave FY26 (type-1 OR
-  // type-2). New = gave FY26 and NOT gave FY25. A FY26 pledge (type-2)
-  // therefore keeps a constituent out of lapsed and out of "new-vs-25"
-  // only if they also gave FY25.
+  // Lapsed = gave FY25 and NOT gave FY26. New = gave FY26 and NOT gave FY25.
+  // Retained (computed in the UI from the counts) = both. The "gave" sets
+  // now include type-1, type-2, AND qualifying soft credits (gap-fill), so a
+  // FY26 pledge OR soft credit keeps a constituent out of lapsed, and a
+  // FY25-soft-credit-only constituent correctly enters lapsed.
   const lapsedIds = Array.from(fy25GaveDonors).filter(cid => !fy26GaveDonors.has(cid));
   const newIds = Array.from(fy26GaveDonors).filter(cid => !fy25GaveDonors.has(cid));
 
@@ -496,11 +531,19 @@ export async function GET() {
     console.error('[OVERVIEW] org-filter failed (non-fatal):', err);
   }
 
-  const buildDonorList = (ids: number[], lastMap: Map<number, { amount: number; date: string }>) =>
+  // `directMap` holds the latest type-1/type-2 gift; `softMap` holds the
+  // latest qualifying soft credit. Gap-fill: a direct gift always wins
+  // (`direct ?? soft`), so soft credits only surface the "last gift" for
+  // soft-credit-only donors.
+  const buildDonorList = (
+    ids: number[],
+    directMap: Map<number, { amount: number; date: string }>,
+    softMap: Map<number, { amount: number; date: string }>,
+  ) =>
     ids
       .filter(cid => !orgIds.has(cid))
       .map(cid => {
-        const last = lastMap.get(cid);
+        const last = directMap.get(cid) ?? softMap.get(cid);
         return {
           constituent_id: cid,
           name: nameByDonor.get(cid) || `Donor ${cid}`,
@@ -512,8 +555,8 @@ export async function GET() {
       .sort((a, b) => b.lastAmount - a.lastAmount)
       .slice(0, 100);
 
-  const lapsedDonors = buildDonorList(lapsedIds, lastFy25GiftByDonor);
-  const newDonorsList = buildDonorList(newIds, lastFy26GiftByDonor);
+  const lapsedDonors = buildDonorList(lapsedIds, lastFy25GiftByDonor, lastFy25SoftByDonor);
+  const newDonorsList = buildDonorList(newIds, lastFy26GiftByDonor, lastFy26SoftByDonor);
   const newDonorsFY26 = newIds.length;
 
   const payload: OverviewResponse = {
