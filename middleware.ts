@@ -24,6 +24,6 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!login|api/auth|api/webhook|api/development/sync-gifts-internal|api/development/sync-constituents-internal|api/development/backfill-gifts|api/absences/sync|api/after-school/sync|api/slack/events|api/slack/morning-briefing-internal|api/health|_next/static|_next/image|favicon.ico|icon-192.png|icon-512.png|manifest.json).*)',
+    '/((?!login|api/auth|api/webhook|api/development/sync-gifts-internal|api/development/sync-constituents-internal|api/development/backfill-gifts|api/development/giving-history/import|api/absences/sync|api/after-school/sync|api/slack/events|api/slack/morning-briefing-internal|api/health|_next/static|_next/image|favicon.ico|icon-192.png|icon-512.png|manifest.json).*)',
   ],
 };

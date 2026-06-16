@@ -421,10 +421,45 @@ export async function GET() {
     if (v.hasType1 || v.hasType2 || v.hasSoft) fy26SegmentDonors.add(cid);
   }
 
+  // FY25 "gave" baseline for lapsed/new/retained. Prefer
+  // giving_history_cache (the nightly "Operating Gift History Export" —
+  // complete across all years; gifts_cache is missing pre-FY26 history).
+  // Falls back to the gifts_cache FY25 set when the history table is empty
+  // (before the first import) so nothing breaks. The table is Operating-
+  // only by construction, so fiscal_year='FY25' = Operating FY25.
+  let fy25Baseline = fy25GaveDonors;
+  let fy25BaselineSource: 'giving_history_cache' | 'gifts_cache' = 'gifts_cache';
+  try {
+    const histDonors = new Set<number>();
+    let hfrom = 0;
+    const hpage = 1000;
+    while (true) {
+      const { data, error } = await supabaseAdmin
+        .from('giving_history_cache')
+        .select('constituent_id')
+        .eq('workspace_id', wsId)
+        .eq('fiscal_year', 'FY25')
+        .in('gift_type', [1, 2, 3])
+        .range(hfrom, hfrom + hpage - 1);
+      if (error) { console.error('[OVERVIEW] giving_history FY25 query failed:', error); break; }
+      if (!data || data.length === 0) break;
+      for (const r of data) if (r.constituent_id != null) histDonors.add(r.constituent_id);
+      if (data.length < hpage) break;
+      hfrom += hpage;
+    }
+    if (histDonors.size > 0) {
+      fy25Baseline = histDonors;
+      fy25BaselineSource = 'giving_history_cache';
+    }
+  } catch (err) {
+    console.error('[OVERVIEW] giving_history FY25 lookup failed (non-fatal):', err);
+  }
+  console.log(`[OVERVIEW] FY25 baseline source=${fy25BaselineSource} size=${fy25Baseline.size}`);
+
   // Pull role + roles_raw from constituents_cache for every donor we
-  // saw (FY26 segment donors + FY25 type-1 donors for lapsed pills).
+  // saw (FY26 segment donors + FY25 baseline donors for lapsed pills).
   // Chunked IN(...) to keep individual queries small.
-  const allDonorIds = Array.from(new Set<number>([...fy25GaveDonors, ...fy26SegmentDonors, ...fy26GaveDonors]));
+  const allDonorIds = Array.from(new Set<number>([...fy25Baseline, ...fy26SegmentDonors, ...fy26GaveDonors]));
   const roleByDonor = new Map<number, string>();
   const rolesRawByDonor = new Map<number, string>();
   try {
@@ -502,8 +537,10 @@ export async function GET() {
   // now include type-1, type-2, AND qualifying soft credits (gap-fill), so a
   // FY26 pledge OR soft credit keeps a constituent out of lapsed, and a
   // FY25-soft-credit-only constituent correctly enters lapsed.
-  const lapsedIds = Array.from(fy25GaveDonors).filter(cid => !fy26GaveDonors.has(cid));
-  const newIds = Array.from(fy26GaveDonors).filter(cid => !fy25GaveDonors.has(cid));
+  // FY25 baseline = giving_history_cache (complete) when available, else
+  // gifts_cache. FY26 "gave" stays gifts_cache (fresher current-year data).
+  const lapsedIds = Array.from(fy25Baseline).filter(cid => !fy26GaveDonors.has(cid));
+  const newIds = Array.from(fy26GaveDonors).filter(cid => !fy25Baseline.has(cid));
 
   // Exclude organizations (DAFs, foundations, charitable funds) from the
   // lapsed + new *lists* — only individual persons should appear there.
@@ -581,7 +618,7 @@ export async function GET() {
     campaigns,
     lapsed: {
       count: lapsedCount,
-      totalLastYearDonors: fy25GaveDonors.size,
+      totalLastYearDonors: fy25Baseline.size,
       donors: lapsedDonors,
     },
     newDonorsFY26,

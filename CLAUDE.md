@@ -9,7 +9,7 @@
 
 Next.js 16 app serving as a unified operations dashboard for Rebecca (RBK) and Emily. Deployed to Firebase Hosting at **https://rbk-cmd-center.web.app**, with Supabase as the database and Firebase Auth (Google OAuth) for authentication.
 
-**Latest Cloud Run revision:** `ssrrbkcmdcenter-00684-f2n`. **Latest deploy:** June 16, 2026.
+**Latest Cloud Run revision:** `ssrrbkcmdcenter-00686-gtz`. **Latest deploy:** June 16, 2026.
 
 **Tech stack:** Next.js 16 + React 19 + Tailwind CSS (v4, `@tailwindcss/typography`) + Tiptap (rich text) + Supabase + Firebase (Auth, Hosting, Cloud Functions). Fonts: Geist (UI), Source Serif 4 (home greeting). ALL authenticated users auto-redirect from `/` to `/home` unless `?nav=` or `?projectPanel=` params are present. The old Dashboard at `/` is only accessible via sidebar nav items that pass `?nav=` params. ALL users see "Home" in sidebar (no more "Dashboard" item for anyone). `shouldRedirectHome` is always true.
 
@@ -720,7 +720,25 @@ Phase F per-workspace integration credentials. **Service-role only** — RLS den
 
 ## Recent Changes
 
-**Latest revision:** `ssrrbkcmdcenter-00684-f2n` (deployed 2026-06-16). Latest: **three batched dev fixes** — (1) segment soft-credit dedup now keys on `hard_credit_gift_id` not amount (Cory Greenbaum 11×$540 → $5,940, was $540) in both overview + segment-donors routes; permissions By-User/By-Module category labels (Academics/Operations/Community/Productivity) + alphabetical-within-category By-Module sort; (2) New Donors drilldown org-excluded (already) + FY-labeled tooltips on Lapsed/New pills, Israel Fund "Total Raised" card now clickable → inline raised-by-initiative list, segment drilldowns show full per-donor totals (via the dedup fix); (3) Weekly Gifts excludes internal "SAR Academy" entries (regex), Lapsed/New count pills now exclude orgs to match drilldowns, Cooper Fund event-name merges (Schreck/Yahrzeit/General→Cooper 25-26, drop Sayeret Matkal) + pie chart switched to a value-bearing vertical legend (no overlapping labels). Three commits: `196e451a`, `27e835cc`, `7f9ecff0`.
+**Latest revision:** `ssrrbkcmdcenter-00686-gtz` (deployed 2026-06-16). Latest: **giving_history_cache — Veracross "Operating Gift History Export" CSV import pipeline** — new `giving_history_cache` table (all-years Operating gifts, ~185k rows), `lib/parseGivingHistoryCSV.ts` parser, `POST /api/development/giving-history/import` (reads Becca's Gmail for the nightly export, parses the CSV attachment, batched upsert), a daily-8am-ET `watchGivingHistoryExport` Cloud Function, an admin-only "Import History" button on the Overview tab, and the Overview lapsed/new/retained FY25 baseline now reads `giving_history_cache` (FY25, gift_type 1/2/3) with a gifts_cache fallback when the table is empty. Verified: import endpoint + Gmail auth work (returns graceful 404 until the first export email arrives); scheduler ENABLED. Untouched: gifts_cache hourly sync, segment card totals, headline totals, all other tabs.
+
+### giving_history_cache — Veracross "Operating Gift History Export" import pipeline (2026-06-16)
+
+Cloud Run revision `ssrrbkcmdcenter-00686-gtz`. Veracross emails a nightly CSV of ALL Operating gifts (all years, ~185k rows) to `rglassberg@saracademy.org` with subject containing "Operating Gift History Export". This wires up importing it and uses it for the Overview lapsed/new/retained baseline (gifts_cache only has complete FY26 data).
+
+**Table** `giving_history_cache` (`scripts/migrations/giving-history-cache.sql`, applied live): `id, workspace_id, gift_record_id, constituent_id, constituent_name, amount, gift_type, gift_type_text, gift_date, campaign, fundraising_activity, fiscal_year, soft_credit_type_text, studio_hard_credit_id, imported_at`. `UNIQUE(workspace_id, gift_record_id)`; indexes on (ws, constituent_id), (ws, fundraising_activity, gift_type), (ws, fiscal_year). RLS on, server-only (supabaseAdmin).
+
+**Parser** `lib/parseGivingHistoryCSV.ts` — RFC-4180-aware CSV reader (handles the quoted "Last, First" constituent field with its embedded comma, embedded newlines, `""` escapes). Maps the 11 columns; gift-type text→int (Donation 1 / Pledge 2 / Donation Soft-Credit 3 / Plg Installment 4 / Plg Soft-Credit 5 / else 0); MM/DD/YY→ISO (YY<50→20xx else 19xx); "FY 05"→"FY05"; strips `$`/commas from amount. Skips header, rows with no gift_record_id, and rows with missing/0 constituent_id.
+
+**Import route** `POST /api/development/giving-history/import` (in middleware exclusion list). Auth: `X-Internal-Secret` (Cloud Function) OR an admin session (`ADMIN_EMAIL`). Reads Becca's Gmail token via `getValidGoogleToken(SAR_WORKSPACE_ID, 'rglassberg@saracademy.org')`, searches `users/me/messages?q=subject:"Operating Gift History Export" has:attachment&maxResults=1` (Gmail returns newest first), pulls the message, walks the MIME tree for the CSV part, downloads + base64url-decodes the attachment, parses, **dedups by gift_record_id** (a single upsert can't hit the same conflict target twice), and upserts in batches of 500 (omitting `id` + `imported_at` so first-import time is preserved on updates). `maxDuration = 300`. Returns `{ success, rows_processed, rows_upserted, email_subject, email_date }`; graceful errors (404 when no email/attachment, 400 when no Gmail token).
+
+**Cloud Function** `watchGivingHistoryExport` — daily 8am ET (`0 8 * * *`, America/New_York), POSTs the import route with `X-Internal-Secret`. Deployed; scheduler `firebase-schedule-watchGivingHistoryExport-us-central1` ENABLED.
+
+**Overview lapsed/new/retained** (`app/api/development/overview/route.ts`) — the FY25 "gave" baseline now prefers `giving_history_cache` (`fiscal_year='FY25'`, `gift_type IN (1,2,3)`, paginated) and **falls back to the gifts_cache FY25 set when the history table is empty** (logs the source). FY26 "gave" still comes from gifts_cache (fresher current-year). lapsed/new/retained ID math + `totalLastYearDonors` + the role-lookup id union all use this baseline. The table is Operating-only (it's the *Operating* export), so the unscoped `fiscal_year` filter stays Operating-correct. Segment card totals, headline Total Raised/Donors, and the soft-credit gap-fill logic are unchanged. **Known limitation:** lapsed "last gift" amount/date still come from gifts_cache, so FY25-history-only lapsed donors show $0 there until a richer source is wired — names/roles/counts are correct.
+
+**Overview UI** — admin-only ("Import History") button at the top of the Overview tab that POSTs the import route with the admin session and shows a spinner + result message.
+
+**Verified:** the endpoint, internal-secret auth, and Becca's Gmail token all work — a live trigger returned a clean "No Operating Gift History Export email found" (the nightly export hadn't arrived yet), and the overview safely falls back to gifts_cache. When the first email lands, the 8am function (or the button) populates the table and the baseline switches automatically. `npx tsc --noEmit` (app + functions) + `npm run build` clean.
 
 ### Dev batch — segment dedup by gift id, drilldown/tooltip/Israel/Weekly/Cooper fixes (2026-06-16)
 

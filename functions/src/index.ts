@@ -143,6 +143,29 @@ exports.syncAfterSchoolPrograms = functions.pubsub
   });
 
 // ---------------------------------------------------------------------------
+// Giving History import — daily at 8am ET, after Veracross's nightly
+// "Operating Gift History Export" email arrives in Becca's inbox.
+// ---------------------------------------------------------------------------
+exports.watchGivingHistoryExport = functions.pubsub
+  .schedule('0 8 * * *')
+  .timeZone('America/New_York')
+  .onRun(async () => {
+    const res = await fetch(
+      'https://ssrrbkcmdcenter-429508710310.us-east1.run.app/api/development/giving-history/import',
+      {
+        method: 'POST',
+        headers: {
+          'X-Internal-Secret': process.env.INTERNAL_SYNC_SECRET || '',
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const data = await res.json();
+    console.log('Giving History import:', data);
+    return null;
+  });
+
+// ---------------------------------------------------------------------------
 // Gifts sync — hourly on weekdays, daily on weekends
 // ---------------------------------------------------------------------------
 

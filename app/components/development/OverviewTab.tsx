@@ -4,6 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '@/lib/apiFetch';
 import { formatMoney } from '@/lib/format';
 import { ShimmerStatCards, ShimmerCards } from '../ui/Shimmer';
+import { useAuth } from '../AuthProvider';
+
+const ADMIN_EMAIL = 'rglassberg@saracademy.org';
 
 interface Segment {
   segment: string;
@@ -91,10 +94,31 @@ function formatShortDate(iso: string): string {
 }
 
 export default function OverviewTab() {
+  const { user } = useAuth();
+  const isAdmin = (user?.email ?? '').toLowerCase() === ADMIN_EMAIL;
   const [data, setData] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lapsedOpen, setLapsedOpen] = useState(false);
+  // Admin-only "Import History" trigger state.
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+
+  const runImport = useCallback(async () => {
+    setImporting(true);
+    setImportMsg(null);
+    try {
+      const res = await apiFetch('/api/development/giving-history/import', { method: 'POST' });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || !j.success) throw new Error(j.error || `Import failed (${res.status})`);
+      setImportMsg(`Imported ${Number(j.rows_upserted).toLocaleString()} rows from "${j.email_subject}"`);
+    } catch (e) {
+      setImportMsg(`Import failed: ${(e as Error).message}`);
+    } finally {
+      setImporting(false);
+      setTimeout(() => setImportMsg(null), 8000);
+    }
+  }, []);
 
   // Drill-down drawer. `kind: 'segment'` fetches donors lazily;
   // `kind: 'lapsed'` reuses the lapsed list already in the payload.
@@ -187,6 +211,24 @@ export default function OverviewTab() {
 
   return (
     <div className="space-y-8">
+      {/* Admin-only: manually trigger the giving-history CSV import. */}
+      {isAdmin && (
+        <div className="flex items-center justify-end gap-3 -mb-4">
+          {importMsg && <span className="text-xs text-slate-500">{importMsg}</span>}
+          <button
+            onClick={runImport}
+            disabled={importing}
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+            title="Import the latest Operating Gift History Export from Gmail"
+          >
+            <svg className={`w-4 h-4 ${importing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {importing ? 'Importing…' : 'Import History'}
+          </button>
+        </div>
+      )}
+
       {/* SECTION 1 — Headline cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-500 p-5">
