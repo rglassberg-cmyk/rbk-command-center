@@ -9,7 +9,7 @@
 
 Next.js 16 app serving as a unified operations dashboard for Rebecca (RBK) and Emily. Deployed to Firebase Hosting at **https://rbk-cmd-center.web.app**, with Supabase as the database and Firebase Auth (Google OAuth) for authentication.
 
-**Latest Cloud Run revision:** `ssrrbkcmdcenter-00682-vv2`. **Latest deploy:** June 16, 2026.
+**Latest Cloud Run revision:** `ssrrbkcmdcenter-00684-f2n`. **Latest deploy:** June 16, 2026.
 
 **Tech stack:** Next.js 16 + React 19 + Tailwind CSS (v4, `@tailwindcss/typography`) + Tiptap (rich text) + Supabase + Firebase (Auth, Hosting, Cloud Functions). Fonts: Geist (UI), Source Serif 4 (home greeting). ALL authenticated users auto-redirect from `/` to `/home` unless `?nav=` or `?projectPanel=` params are present. The old Dashboard at `/` is only accessible via sidebar nav items that pass `?nav=` params. ALL users see "Home" in sidebar (no more "Dashboard" item for anyone). `shouldRedirectHome` is always true.
 
@@ -720,7 +720,23 @@ Phase F per-workspace integration credentials. **Service-role only** — RLS den
 
 ## Recent Changes
 
-**Latest revision:** `ssrrbkcmdcenter-00682-vv2` (deployed 2026-06-16). Latest: **Admin permissions Users tab redesigned — By User / By Module two-panel layout** — replaced the flat module-toggle table with two sub-tabs under a shared search: **By User** (scrollable user list + detail panel — role 3-button toggle, divisions, title, Slack ID read-only, categorized module toggles with sub-permission expanders, Testing & Preview, remove; display-name edit + assistant picker preserved) and **By Module** (category-badged module cards → right slide-in panel with every member's access toggle + per-viewer sub-permissions). School Settings / Integrations / Feature Flags tabs, page path, title, and ADMIN_EMAIL guard untouched (entry directly below). Earlier: lapsed/new/retained soft-credit gap-fill (`00680-c6b`), lapsed/new pledge fix + New Donors drilldown + Other tooltip + campaign YoY (`00678-q2c`), After School permissions column (`00676-k8w`).
+**Latest revision:** `ssrrbkcmdcenter-00684-f2n` (deployed 2026-06-16). Latest: **three batched dev fixes** — (1) segment soft-credit dedup now keys on `hard_credit_gift_id` not amount (Cory Greenbaum 11×$540 → $5,940, was $540) in both overview + segment-donors routes; permissions By-User/By-Module category labels (Academics/Operations/Community/Productivity) + alphabetical-within-category By-Module sort; (2) New Donors drilldown org-excluded (already) + FY-labeled tooltips on Lapsed/New pills, Israel Fund "Total Raised" card now clickable → inline raised-by-initiative list, segment drilldowns show full per-donor totals (via the dedup fix); (3) Weekly Gifts excludes internal "SAR Academy" entries (regex), Lapsed/New count pills now exclude orgs to match drilldowns, Cooper Fund event-name merges (Schreck/Yahrzeit/General→Cooper 25-26, drop Sayeret Matkal) + pie chart switched to a value-bearing vertical legend (no overlapping labels). Three commits: `196e451a`, `27e835cc`, `7f9ecff0`.
+
+### Dev batch — segment dedup by gift id, drilldown/tooltip/Israel/Weekly/Cooper fixes (2026-06-16)
+
+Cloud Run revision `ssrrbkcmdcenter-00684-f2n`. Three stacked task-prompts, implemented together and shipped in one deploy (3 commits: `196e451a`, `27e835cc`, `7f9ecff0`).
+
+**Segment soft-credit dedup now keys on `hard_credit_gift_id`, not amount.** The prior dedup used a `Set<number>` of amounts, which collapsed a donor's multiple same-amount gifts into one (e.g. Cory Greenbaum's 11 monthly $540 soft credits → counted as $540 instead of $5,940). Both `overview/route.ts` and `segment-donors/route.ts` now: select `hard_credit_gift_id`; per donor keep `softKeys: Set<number|string>` + a running `soft` total, adding the amount only on first sight of a key (`hard_credit_gift_id ?? amt_<amount>`); `received = hasType1 ? type1 : soft`. sc_type=1 + sc_type=2 rows for one gift share an id → counted once; distinct gifts at the same amount are kept. Verified live: Cory = 11 distinct gift ids → $5,940. This also fixes the "Alumni drilldown shows one gift" report (segment-donors already summed all type-1 gifts; the soft path was the bug). Segment **card** totals were already correct via the same per-donor logic.
+
+**Permissions page (FIX 2 of prompt 1).** The `MODULE_CATALOG` order already matched the spec (Academics → Operations → Community → Productivity, with the exact module order). Added `CATEGORY_LABEL` display names (SCHOOL→"Academics", CORE→"Productivity", etc.) used in the By-User group headers and the By-Module card/drawer badges, and sorted the By-Module grid by category order then alphabetical-by-label within each category. By-User keeps the explicit spec order. No toggle/API logic changed.
+
+**New Donors / Lapsed / tooltips.** The New Donors drilldown already excluded orgs (the overview route computes `orgIds` over lapsed∪new and `buildDonorList` filters both). Added FY-labeled hover `title` tooltips to the Lapsed ("Donors who gave in FY2024-25 but have not yet given in FY2025-26") and New ("First-time donors in FY2025-26 who did not give in FY2024-25") headline cards + clearer subtitles. (No Retained card exists in the 4-card headline grid, so its tooltip had no element to attach to — skipped rather than add a 5th card / break the layout.) **Lapsed AND New count pills now exclude orgs** (`lapsedCount`/`newCount` = person-filtered) so the pill number matches the drilldown list.
+
+**Israel Fund "Total Raised" → clickable.** The headline card is now a button toggling an inline "Raised by Initiative" table (visible raised-cache initiatives = `data.moneyIn`, event_name + raised, sorted desc). Uses data already in the route payload — no new API call, no sync change.
+
+**Weekly Gifts — exclude internal "SAR Academy".** Added a regex filter (`/sar.*academy/i` ≈ ILIKE '%SAR%Academy%') after the cash/in-kind filters to drop internal accounting entries (e.g. the ~$900K transfer). The route's existing exact-string `.neq('constituent_name','SAR Academy')` is kept; the regex catches variants.
+
+**Cooper Fund.** Event-name normalization (already present from 2026-06-02) confirmed/extended: Schreck variants + "Israel Gap Year Scholarships" → "M Schreck Fund / Israel Gap Year Scholarship"; "Cooper Yahrzeit", "General / Undesignated", "General Fund" → "Cooper 25-26"; "Education Sayeret Matkal Soldier" removed. Pie chart label overlap fixed by switching from inline outside-labels to a **value-bearing right-side vertical legend** (`name — $X (Y%)`); removed the now-unused `renderPieLabel`. `npx tsc --noEmit` + `npm run build` clean throughout.
 
 ### Admin permissions — Users tab redesigned (By User / By Module) (2026-06-16)
 
