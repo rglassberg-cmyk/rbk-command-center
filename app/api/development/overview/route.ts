@@ -145,6 +145,7 @@ interface GiftRow {
   pledge_balance: number | null;
   gift_type: number;
   soft_credit_type: number | null;
+  hard_credit_gift_id: number | null;
   fund: string | null;
   fundraising_activity: string | null;
   date: string;
@@ -238,7 +239,7 @@ export async function GET() {
     while (true) {
       const { data, error } = await supabaseAdmin
         .from('gifts_cache')
-        .select('constituent_id, constituent_name, amount, pledge_balance, gift_type, soft_credit_type, fund, fundraising_activity, date')
+        .select('constituent_id, constituent_name, amount, pledge_balance, gift_type, soft_credit_type, hard_credit_gift_id, fund, fundraising_activity, date')
         .eq('workspace_id', wsId)
         .in('gift_type', [GIFT_TYPE_DONATION, GIFT_TYPE_PLEDGE, GIFT_TYPE_SOFT_CREDIT])
         .ilike('fundraising_activity', `${OPERATING_CAMPAIGN_PREFIX}%`)
@@ -288,15 +289,18 @@ export async function GET() {
   // gave directly (type-1), pledged (type-2), or — absent a direct gift —
   // has a qualifying soft credit.
   //
-  // softAmounts is a Set (not a running sum) because Veracross writes TWO
-  // soft-credit rows for one gift — soft_credit_type=1 (Donation Soft
-  // Credit) AND soft_credit_type=2 (household) at the SAME amount — so
-  // summing both rows double-counts. Deduping by amount counts each gift
-  // amount once. (Per spec; the rare case of two genuinely-distinct
-  // soft-credited gifts at the same amount collapses to one — accepted.)
+  // Soft credits are deduped by `hard_credit_gift_id`, NOT by amount.
+  // Veracross writes TWO soft-credit rows per gift (soft_credit_type=1
+  // Donation Soft Credit + soft_credit_type=2 household) that share the
+  // same hard_credit_gift_id, so we count each underlying gift once via
+  // `softKeys` (a Set of hard_credit_gift_id, falling back to `amt_<n>`
+  // when the id is null) and accumulate `soft` only on first sight of a
+  // key. Deduping by amount was wrong for donors with multiple same-amount
+  // gifts (e.g. 11 monthly $540 soft credits collapsed to one $540).
   const fy26ByDonor = new Map<number, {
     type1: number;
-    softAmounts: Set<number>;
+    softKeys: Set<number | string>;
+    soft: number;
     pledged: number;
     hasType1: boolean;
     hasType2: boolean;
@@ -341,7 +345,7 @@ export async function GET() {
 
     if (activity === FY26_CAMPAIGN) {
       const seg = fy26ByDonor.get(cid) ?? {
-        type1: 0, softAmounts: new Set<number>(), pledged: 0, hasType1: false, hasType2: false, hasSoft: false,
+        type1: 0, softKeys: new Set<number | string>(), soft: 0, pledged: 0, hasType1: false, hasType2: false, hasSoft: false,
       };
       if (isType1) {
         raisedFY26 += amt;
@@ -369,8 +373,13 @@ export async function GET() {
         // used as `received` when the donor has no direct gift (resolved
         // after the loop). `lastFy26SoftByDonor` is the gap-fill last-gift
         // source for the new-donor drilldown (used only when the donor has
-        // no direct gift).
-        seg.softAmounts.add(amt);
+        // no direct gift). Dedup by hard_credit_gift_id so each underlying
+        // gift counts once (sc_type 1 + 2 share an id).
+        const softKey = g.hard_credit_gift_id ?? `amt_${amt}`;
+        if (!seg.softKeys.has(softKey)) {
+          seg.softKeys.add(softKey);
+          seg.soft += amt;
+        }
         seg.hasSoft = true;
         fy26ByDonor.set(cid, seg);
         fy26GaveDonors.add(cid);
@@ -455,11 +464,9 @@ export async function GET() {
     if (!fy26SegmentDonors.has(cid)) continue; // drop non-qualifying $0 donors
     // Gap-fill: direct donors count their type-1 sum (soft credits are
     // their Veracross twins and ignored); donors with no direct gift
-    // count their qualifying soft credits, deduped by amount (one gift
-    // is written as two soft-credit rows — type 1 + type 2 — at the same
-    // amount).
-    const softTotal = Array.from(v.softAmounts).reduce((sum, a) => sum + a, 0);
-    const received = v.hasType1 ? v.type1 : softTotal;
+    // count their qualifying soft credits, deduped by hard_credit_gift_id
+    // (so 11 monthly $540 soft credits sum to $5,940, not $540).
+    const received = v.hasType1 ? v.type1 : v.soft;
     const s = segmentMap.get(segmentOf(cid))!;
     s.donationsReceived += received;
     s.outstandingPledges += v.pledged;

@@ -89,6 +89,14 @@ const MODULE_CATALOG: { key: string; label: string; category: ModuleCategory; de
   { key: 'gemara',           label: 'Gemara',                 category: 'CORE',       description: 'Gemara class resource board.' },
 ];
 const CATEGORY_ORDER: ModuleCategory[] = ['SCHOOL', 'OPERATIONS', 'COMMUNITY', 'CORE'];
+// Display labels for the category headers/badges. Internal keys stay
+// SCHOOL/OPERATIONS/COMMUNITY/CORE; these are what the UI shows.
+const CATEGORY_LABEL: Record<ModuleCategory, string> = {
+  SCHOOL:     'Academics',
+  OPERATIONS: 'Operations',
+  COMMUNITY:  'Community',
+  CORE:       'Productivity',
+};
 const CATEGORY_BADGE: Record<ModuleCategory, string> = {
   SCHOOL:     'bg-blue-50 text-blue-700',
   OPERATIONS: 'bg-emerald-50 text-emerald-700',
@@ -1013,9 +1021,15 @@ export default function PermissionsPage() {
               !q || memberDisplayName(m).toLowerCase().includes(q) || m.email.toLowerCase().includes(q)
             );
             const selectedUser = members.find(m => m.id === selectedUserId) || null;
-            const filteredModules = MODULE_CATALOG.filter(mod =>
-              !q || mod.label.toLowerCase().includes(q) || mod.key.toLowerCase().includes(q)
-            );
+            // By Module grid: category order (CATEGORY_ORDER), alphabetical
+            // by label within each category.
+            const filteredModules = MODULE_CATALOG
+              .filter(mod => !q || mod.label.toLowerCase().includes(q) || mod.key.toLowerCase().includes(q))
+              .slice()
+              .sort((a, b) => {
+                const ci = CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category);
+                return ci !== 0 ? ci : a.label.localeCompare(b.label);
+              });
             const selectedModule = MODULE_CATALOG.find(mod => mod.key === selectedModuleKey) || null;
             const moduleAccessCount = (key: string) =>
               members.filter(m => m.role !== 'viewer' || isModEnabled(m.allowed_modules, key)).length;
@@ -1271,7 +1285,7 @@ export default function PermissionsPage() {
                                     if (mods.length === 0) return null;
                                     return (
                                       <div key={cat}>
-                                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">{cat}</p>
+                                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">{CATEGORY_LABEL[cat]}</p>
                                         <div className="space-y-1">
                                           {mods.map(mod => {
                                             const on = isModEnabled(u.allowed_modules, mod.key);
@@ -1400,7 +1414,7 @@ export default function PermissionsPage() {
                       >
                         <div className="flex items-center justify-between gap-2 mb-1">
                           <span className="text-sm font-semibold text-slate-800">{mod.label}</span>
-                          <span className={`text-[10px] font-medium rounded-full px-2 py-0.5 ${CATEGORY_BADGE[mod.category]}`}>{mod.category}</span>
+                          <span className={`text-[10px] font-medium rounded-full px-2 py-0.5 ${CATEGORY_BADGE[mod.category]}`}>{CATEGORY_LABEL[mod.category]}</span>
                         </div>
                         <p className="text-xs text-slate-400 line-clamp-2 mb-2">{mod.description}</p>
                         <p className="text-xs text-slate-500">
@@ -1485,7 +1499,7 @@ export default function PermissionsPage() {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <h3 className="text-lg font-bold text-slate-900 truncate">{selectedModule.label}</h3>
-                            <span className={`text-[10px] font-medium rounded-full px-2 py-0.5 ${CATEGORY_BADGE[selectedModule.category]}`}>{selectedModule.category}</span>
+                            <span className={`text-[10px] font-medium rounded-full px-2 py-0.5 ${CATEGORY_BADGE[selectedModule.category]}`}>{CATEGORY_LABEL[selectedModule.category]}</span>
                           </div>
                           <p className="text-xs text-slate-500 mt-1">{selectedModule.description}</p>
                         </div>
