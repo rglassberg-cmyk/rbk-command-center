@@ -209,6 +209,7 @@ export default function OverviewTab() {
 
         <button
           onClick={openLapsed}
+          title="Donors who gave in FY2024-25 but have not yet given in FY2025-26"
           className="text-left bg-white rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-red-500 p-5 hover:shadow-md hover:border-red-300 transition-all cursor-pointer"
         >
           <div className="flex items-center justify-between">
@@ -218,7 +219,7 @@ export default function OverviewTab() {
           <p className="text-red-600 font-bold mt-2" style={{ fontSize: 28, fontVariantNumeric: 'tabular-nums' }}>
             {data.lapsed.count.toLocaleString()}
           </p>
-          <p className="text-xs text-slate-400 mt-2">Gave FY25, not yet FY26</p>
+          <p className="text-xs text-slate-400 mt-2">Gave FY2024-25, not yet FY2025-26</p>
           <div className="mt-2">
             <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
               <div className="h-full bg-red-500" style={{ width: `${Math.min(100, lapsedRatio * 100)}%` }} />
@@ -229,6 +230,7 @@ export default function OverviewTab() {
 
         <button
           onClick={openNew}
+          title="First-time donors in FY2025-26 who did not give in FY2024-25"
           className="text-left bg-white rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-green-500 p-5 hover:shadow-md hover:border-green-300 transition-all cursor-pointer"
         >
           <div className="flex items-center justify-between">
@@ -238,7 +240,7 @@ export default function OverviewTab() {
           <p className="text-green-600 font-bold mt-2" style={{ fontSize: 28, fontVariantNumeric: 'tabular-nums' }}>
             {data.newDonors.count.toLocaleString()}
           </p>
-          <p className="text-xs text-slate-400 mt-2">Gave FY26, not FY25</p>
+          <p className="text-xs text-slate-400 mt-2">First-time in FY2025-26 (not FY2024-25)</p>
         </button>
       </div>
 

@@ -253,6 +253,9 @@ export default function IsraelFundTab() {
   const [error, setError] = useState<string | null>(null);
   const [initiativeSearch, setInitiativeSearch] = useState('');
   const [moneyInOpen, setMoneyInOpen] = useState(false);
+  // Total Raised headline card → inline expandable list of visible
+  // raised-cache initiatives (event_name + raised), sorted desc.
+  const [totalRaisedOpen, setTotalRaisedOpen] = useState(false);
   const [moneyInSearch, setMoneyInSearch] = useState('');
   const [expandedInitiative, setExpandedInitiative] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -728,11 +731,18 @@ export default function IsraelFundTab() {
       {/* Metric cards. Labels are the only change from the prior tab —
           numbers come straight from the derived totals so they stay in
           sync after client-side grant edits. */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Total Raised</p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <button
+          onClick={() => setTotalRaisedOpen(o => !o)}
+          className="text-left bg-white rounded-xl border border-slate-200 p-5 hover:shadow-md hover:border-green-300 transition-all cursor-pointer"
+          title="Click to see raised by initiative"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Total Raised</p>
+            <span className="text-[11px] text-green-600 font-medium">{totalRaisedOpen ? 'Hide' : 'View →'}</span>
+          </div>
           <p className="text-2xl font-bold text-green-600">{formatMoney(totalRaised)}</p>
-        </div>
+        </button>
         <div className="bg-white rounded-xl border border-slate-200 p-5">
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Total Disbursed</p>
           <p className="text-2xl font-bold text-red-600">{formatMoney(totalDisbursed)}</p>
@@ -742,6 +752,39 @@ export default function IsraelFundTab() {
           <p className={`text-2xl font-bold ${totalBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatMoney(totalBalance)}</p>
         </div>
       </div>
+
+      {/* Total Raised drilldown — visible raised-cache initiatives by
+          raised amount, descending. Uses data already in the payload. */}
+      {totalRaisedOpen && (
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-8">
+          <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+            <p className="text-sm font-semibold text-slate-700">Raised by Initiative</p>
+            <p className="text-xs text-slate-400">{(data?.moneyIn?.length ?? 0)} initiatives · {formatMoney(totalRaised)} total</p>
+          </div>
+          <div className="overflow-x-auto" style={{ maxHeight: 420 }}>
+            {(!data?.moneyIn || data.moneyIn.length === 0) ? (
+              <p className="text-sm text-slate-400 text-center py-6">No initiative data.</p>
+            ) : (
+              <table className="w-full text-sm min-w-[360px]">
+                <thead className="sticky top-0 bg-slate-50">
+                  <tr className="border-b border-slate-200">
+                    <th className="text-left px-5 py-2 text-xs font-semibold text-slate-500 uppercase">Initiative</th>
+                    <th className="text-right px-5 py-2 text-xs font-semibold text-slate-500 uppercase">Raised</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...data.moneyIn].sort((a, b) => b.total - a.total).map(mi => (
+                    <tr key={mi.event} className="border-b border-slate-100 last:border-0">
+                      <td className="px-5 py-2 text-slate-800">{mi.event}</td>
+                      <td className="px-5 py-2 text-right text-slate-700" style={{ fontVariantNumeric: 'tabular-nums' }}>{formatMoney(mi.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Initiatives table — expandable per row. */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-6">
