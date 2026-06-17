@@ -2,11 +2,15 @@
 
 > ⚠️ THIS IS THE ONLY TODO FILE. Update this after every session. Do not create new TODO or action item files. Archive any other planning docs by adding an ARCHIVED header. Phase build plans are reference-only.
 
-*Last updated: June 16, 2026*
+*Last updated: June 17, 2026*
 
 For the longer roadmap + horizon items + architecture history, see `RBKCC_VISION_AND_ROADMAP.md`. For implementation detail, see `CLAUDE_CONTEXT.md` ("Recent Changes" section).
 
 ---
+
+## ✅ Shipped (June 17, 2026)
+
+- ✅ **giving_history_cache — GCS ingest pipeline (replaces Gmail import) + lapsed/new fix LIVE** (rev `ssrrbkcmdcenter-00688-wkw`, deployed + site UP HTTP 307). Veracross drops the nightly Operating gift-history CSV via SFTP to `gs://rbk-cmd-center-sftp/veracross/giving-history/`. Installed `@google-cloud/storage`; new `POST /api/development/giving-history/ingest` reads the newest CSV from GCS (ADC / Cloud Run SA), parses, dedups by gift_record_id, batched upsert. **Replaced the prior Gmail approach** — deleted the `import` route + `watchGivingHistoryExport` function (via `firebase functions:delete`), added `ingestGivingHistory` Cloud Function (8am ET, scheduler ENABLED). Granted `roles/storage.objectViewer` to the compute SA on the bucket (required for download). **Ran live: 22,941 parsed / 21,999 upserted; FY25 baseline now 1,942 distinct donors (was ~965)** → long-time donors no longer false-"New". Overview FY25 baseline reads giving_history_cache w/ gifts_cache fallback; UI "Import History" button repointed to `/ingest`. Real export is ~23k rows (not the ~185k assumed). Untouched: gifts_cache sync, segment/headline totals, soft-credit gap-fill, other tabs. tsc (app+functions) + build clean. **Note:** supersedes the 2026-06-16 Gmail version (which had landed but the email never came — Veracross used SFTP instead).
 
 ## ✅ Shipped (June 16, 2026)
 

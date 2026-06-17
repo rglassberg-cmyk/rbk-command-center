@@ -1,16 +1,15 @@
-// Parser for the Veracross "Operating Gift History Export" CSV.
+// Parser for the Veracross Operating gift-history CSV export (delivered
+// nightly to gs://rbk-cmd-center-sftp/veracross/giving-history/).
 //
 // CSV column order (1-indexed):
-//   1 Constituent (full name, e.g. "Adler, Sue" — contains a comma, so
-//     it is quoted in the file)
+//   1 Constituent (full name, e.g. "Adler, Sue" — quoted, embedded comma)
 //   2 Record ID (gift record internal numeric id — stored as string)
-//   3 Gift Type (text: Donation / Pledge / Donation Soft-Credit /
-//     Plg Installment / Plg Soft-Credit)
+//   3 Gift Type (Donation / Pledge / Donation Soft-Credit / Plg Installment / Plg Soft-Credit)
 //   4 Date (MM/DD/YY)
 //   5 Amount (may carry $ and commas)
 //   6 Campaign (e.g. "Operating 2004-2005")
-//   7 Soft Credit Type (text: <None> / Household / Matching / Organization / Other)
-//   8 Studio Hard Credit Record ID (string; dedup key for soft credits)
+//   7 Soft Credit Type (<None> / Household / Matching / Organization / Other)
+//   8 Studio Hard Credit Record ID (dedup key for soft credits)
 //   9 Fiscal Year (e.g. "FY 05" — normalized to "FY05")
 //  10 Fundraising Activity (e.g. "Operating 2004-2005")
 //  11 Constituent ID (numeric)
@@ -22,7 +21,7 @@ export interface GivingHistoryRow {
   amount: number;
   gift_type: number;
   gift_type_text: string;
-  gift_date: string; // ISO date YYYY-MM-DD ('' when unparseable)
+  gift_date: string | null; // ISO YYYY-MM-DD or null
   campaign: string;
   fundraising_activity: string;
   fiscal_year: string;
@@ -43,33 +42,32 @@ function mapGiftType(text: string): number {
 }
 
 // MM/DD/YY (or MM/DD/YYYY) → YYYY-MM-DD. 2-digit year: <50 → 20xx, >=50 → 19xx.
-function parseDate(raw: string): string {
+function parseDate(raw: string): string | null {
   const s = raw.trim();
-  if (!s) return '';
+  if (!s) return null;
   const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
-  if (!m) return '';
+  if (!m) return null;
   const mm = Number(m[1]);
   const dd = Number(m[2]);
   let yyyy = Number(m[3]);
   if (m[3].length <= 2) yyyy = yyyy < 50 ? 2000 + yyyy : 1900 + yyyy;
-  if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return '';
+  if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${yyyy}-${pad(mm)}-${pad(dd)}`;
 }
 
 function parseAmount(raw: string): number {
-  const cleaned = raw.replace(/[$,\s]/g, '');
-  const n = parseFloat(cleaned);
+  const n = parseFloat(raw.replace(/[$,\s]/g, ''));
   return Number.isFinite(n) ? n : 0;
 }
 
-// "FY 05" → "FY05" (strip internal whitespace, uppercase).
+// "FY 05" → "FY05" (strip whitespace, uppercase).
 function normalizeFiscalYear(raw: string): string {
   return raw.replace(/\s+/g, '').toUpperCase();
 }
 
-// Minimal RFC-4180 CSV reader: handles quoted fields, embedded commas,
-// embedded newlines, and "" escaped quotes. Returns rows of string cells.
+// Minimal RFC-4180 CSV reader: quoted fields, embedded commas/newlines,
+// "" escaped quotes. Returns rows of string cells.
 function parseCsvRows(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -92,22 +90,28 @@ function parseCsvRows(text: string): string[][] {
     if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; i++; continue; }
     field += c; i++;
   }
-  // Flush trailing field/row (no terminating newline).
   if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
   return rows;
 }
 
 export function parseGivingHistoryCSV(csvText: string): GivingHistoryRow[] {
   const rows = parseCsvRows(csvText);
+  if (rows.length === 0) return [];
+
+  // Header detection: if the first row's Constituent ID cell (col 11) is not
+  // a positive integer, treat row 1 as a header and skip it. Otherwise the
+  // file has no header and row 1 is data.
+  const firstId = parseInt((rows[0]?.[10] ?? '').trim(), 10);
+  const startIdx = Number.isFinite(firstId) && firstId > 0 ? 0 : 1;
+
   const out: GivingHistoryRow[] = [];
-  // Skip the header row (index 0).
-  for (let r = 1; r < rows.length; r++) {
+  for (let r = startIdx; r < rows.length; r++) {
     const cols = rows[r];
     if (!cols || cols.length < 11) continue; // malformed / blank line
     const giftRecordId = (cols[1] ?? '').trim();
     const constituentId = parseInt((cols[10] ?? '').trim(), 10);
-    if (!giftRecordId) continue;                 // skip rows with no gift id
-    if (!Number.isFinite(constituentId) || constituentId === 0) continue; // skip missing constituent
+    if (!giftRecordId) continue;
+    if (!Number.isFinite(constituentId) || constituentId === 0) continue;
     const giftTypeText = (cols[2] ?? '').trim();
     out.push({
       gift_record_id: giftRecordId,

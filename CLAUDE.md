@@ -9,7 +9,7 @@
 
 Next.js 16 app serving as a unified operations dashboard for Rebecca (RBK) and Emily. Deployed to Firebase Hosting at **https://rbk-cmd-center.web.app**, with Supabase as the database and Firebase Auth (Google OAuth) for authentication.
 
-**Latest Cloud Run revision:** `ssrrbkcmdcenter-00686-gtz`. **Latest deploy:** June 16, 2026.
+**Latest Cloud Run revision:** `ssrrbkcmdcenter-00688-wkw`. **Latest deploy:** June 17, 2026.
 
 **Tech stack:** Next.js 16 + React 19 + Tailwind CSS (v4, `@tailwindcss/typography`) + Tiptap (rich text) + Supabase + Firebase (Auth, Hosting, Cloud Functions). Fonts: Geist (UI), Source Serif 4 (home greeting). ALL authenticated users auto-redirect from `/` to `/home` unless `?nav=` or `?projectPanel=` params are present. The old Dashboard at `/` is only accessible via sidebar nav items that pass `?nav=` params. ALL users see "Home" in sidebar (no more "Dashboard" item for anyone). `shouldRedirectHome` is always true.
 
@@ -720,7 +720,23 @@ Phase F per-workspace integration credentials. **Service-role only** — RLS den
 
 ## Recent Changes
 
-**Latest revision:** `ssrrbkcmdcenter-00686-gtz` (deployed 2026-06-16). Latest: **giving_history_cache — Veracross "Operating Gift History Export" CSV import pipeline** — new `giving_history_cache` table (all-years Operating gifts, ~185k rows), `lib/parseGivingHistoryCSV.ts` parser, `POST /api/development/giving-history/import` (reads Becca's Gmail for the nightly export, parses the CSV attachment, batched upsert), a daily-8am-ET `watchGivingHistoryExport` Cloud Function, an admin-only "Import History" button on the Overview tab, and the Overview lapsed/new/retained FY25 baseline now reads `giving_history_cache` (FY25, gift_type 1/2/3) with a gifts_cache fallback when the table is empty. Verified: import endpoint + Gmail auth work (returns graceful 404 until the first export email arrives); scheduler ENABLED. Untouched: gifts_cache hourly sync, segment card totals, headline totals, all other tabs.
+**Latest revision:** `ssrrbkcmdcenter-00688-wkw` (deployed 2026-06-17). Latest: **giving_history_cache — GCS ingest pipeline (replaces the Gmail import) + lapsed/new fix LIVE**. Veracross now drops the nightly Operating gift-history CSV via SFTP to `gs://rbk-cmd-center-sftp/veracross/giving-history/`. New `POST /api/development/giving-history/ingest` (reads the newest CSV from GCS via `@google-cloud/storage` + ADC, parses, dedups by gift_record_id, batched upsert) replaces the prior Gmail `import` route; `ingestGivingHistory` Cloud Function (8am ET) replaces `watchGivingHistoryExport` (deleted). **Ran live: 22,941 parsed / 21,999 upserted; FY25 baseline now 1,942 distinct donors (was ~965 in gifts_cache)** — long-time donors no longer mis-flagged "New". Overview lapsed/new/retained FY25 baseline reads giving_history_cache (FY25, gift_type 1/2/3) w/ gifts_cache fallback. Required granting `roles/storage.objectViewer` to the Cloud Run compute SA on the bucket. Untouched: gifts_cache hourly sync, segment card totals, headline totals, soft-credit gap-fill, all other tabs.
+
+### giving_history_cache — GCS ingest pipeline (supersedes Gmail import), lapsed/new fix LIVE (2026-06-17)
+
+Cloud Run revision `ssrrbkcmdcenter-00688-wkw`. Veracross delivers the nightly Operating gift-history CSV via **SFTP into `gs://rbk-cmd-center-sftp/veracross/giving-history/`** (not email, as the prior 2026-06-16 version assumed). This reworks the ingest to read from GCS and is now **populated and live**.
+
+**Supersedes the Gmail version (2026-06-16 entry below).** Removed `app/api/development/giving-history/import/route.ts` (Gmail) and the `watchGivingHistoryExport` Cloud Function (deleted from the project via `firebase functions:delete`). Replaced with the GCS route + `ingestGivingHistory` function so there's a single nightly importer.
+
+- **`@google-cloud/storage`** installed (^7.21.0).
+- **`POST /api/development/giving-history/ingest`** (middleware-excluded; `X-Internal-Secret` OR admin session). Uses `new Storage({ projectId: 'rbk-cmd-center' })` with Application Default Credentials (Cloud Run compute SA), `bucket('rbk-cmd-center-sftp').getFiles({ prefix: 'veracross/giving-history/' })`, picks the newest `.csv` by `metadata.updated`, `file.download()`, parses, **dedups by gift_record_id** (the export repeats a gift's Record ID across its credit rows — 942 collapsed), batched upsert of 500 (omits `id`/`imported_at`). `maxDuration=300`. Returns `{ success, file, rows_parsed, rows_upserted, skipped }`.
+- **`lib/parseGivingHistoryCSV.ts`** — RFC-4180 parser (quoted "Last, First" w/ embedded comma), conditional header detection (skips row 1 only when its Constituent-ID cell isn't a positive int), gift-type→int map, MM/DD/YY→ISO (`gift_date` nullable), `FY 05`→`FY05`, `$`/comma amount strip; skips rows missing gift_record_id or constituent_id.
+- **Cloud Function** `ingestGivingHistory` — daily 8am ET; scheduler `firebase-schedule-ingestGivingHistory-us-central1` ENABLED.
+- **IAM:** the Cloud Run compute SA (`429508710310-compute@developer.gserviceaccount.com`) could *list* the bucket but not read objects (same-project ≠ object read). Granted `roles/storage.objectViewer` on `gs://rbk-cmd-center-sftp` — required for `file.download()`.
+- **Overview lapsed/new/retained** — FY25 baseline reads `giving_history_cache` (`fiscal_year='FY25'`, `gift_type IN (1,2,3)`, paginated) with a gifts_cache fallback when empty; FY26 stays gifts_cache. (This was wired 2026-06-16 and is unchanged.)
+- **Overview UI** — admin-only "Import History" button now POSTs `/ingest` and reports `Imported N records from {file}`.
+
+**Verified live:** ran the ingest end-to-end — `Operating_Gift_History.csv` → **22,941 parsed / 21,999 upserted / 942 skipped**. **FY25 baseline jumped to 1,942 distinct donors (was ~965 in gifts_cache)** — confirming the core fix: long-time donors missing from gifts_cache no longer surface as false "New". `npx tsc --noEmit` (app + functions) + `npm run build` clean. (The export is ~23k rows, not the ~185k the brief assumed.) Untouched: gifts_cache hourly sync, segment card totals, headline Total Raised/Donors, soft-credit gap-fill, all other tabs.
 
 ### giving_history_cache — Veracross "Operating Gift History Export" import pipeline (2026-06-16)
 

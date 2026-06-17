@@ -143,15 +143,16 @@ exports.syncAfterSchoolPrograms = functions.pubsub
   });
 
 // ---------------------------------------------------------------------------
-// Giving History import — daily at 8am ET, after Veracross's nightly
-// "Operating Gift History Export" email arrives in Becca's inbox.
+// Giving History ingest — daily at 8am ET. Pulls the nightly Veracross
+// Operating gift-history CSV from gs://rbk-cmd-center-sftp/veracross/
+// giving-history/ (delivered via SFTP) into giving_history_cache.
 // ---------------------------------------------------------------------------
-exports.watchGivingHistoryExport = functions.pubsub
+exports.ingestGivingHistory = functions.pubsub
   .schedule('0 8 * * *')
   .timeZone('America/New_York')
   .onRun(async () => {
     const res = await fetch(
-      'https://ssrrbkcmdcenter-429508710310.us-east1.run.app/api/development/giving-history/import',
+      'https://ssrrbkcmdcenter-429508710310.us-east1.run.app/api/development/giving-history/ingest',
       {
         method: 'POST',
         headers: {
@@ -161,7 +162,7 @@ exports.watchGivingHistoryExport = functions.pubsub
       }
     );
     const data = await res.json();
-    console.log('Giving History import:', data);
+    console.log('[GIVING HISTORY INGEST]', data);
     return null;
   });
 

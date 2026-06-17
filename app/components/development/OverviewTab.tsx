@@ -108,10 +108,10 @@ export default function OverviewTab() {
     setImporting(true);
     setImportMsg(null);
     try {
-      const res = await apiFetch('/api/development/giving-history/import', { method: 'POST' });
+      const res = await apiFetch('/api/development/giving-history/ingest', { method: 'POST' });
       const j = await res.json().catch(() => ({}));
       if (!res.ok || !j.success) throw new Error(j.error || `Import failed (${res.status})`);
-      setImportMsg(`Imported ${Number(j.rows_upserted).toLocaleString()} rows from "${j.email_subject}"`);
+      setImportMsg(`Imported ${Number(j.rows_upserted).toLocaleString()} records from ${j.file}`);
     } catch (e) {
       setImportMsg(`Import failed: ${(e as Error).message}`);
     } finally {
