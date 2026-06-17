@@ -59,6 +59,7 @@ interface SegmentDonor {
   total: number;
   lastGiftDate: string | null;
   primaryDevelopmentRole: string;
+  secondaryRole?: string | null;
 }
 
 // Visual styling per segment — top borders on the segment cards and the
@@ -531,18 +532,31 @@ export default function OverviewTab() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(drawerRows as SegmentDonor[]).map(d => (
+                    {(drawerRows as SegmentDonor[]).map(d => {
+                      // Board Members drilldown only: show the role each
+                      // trustee would otherwise classify as.
+                      const showSecondary = drawer.kind === 'segment' && drawer.segment === 'Board Members' && !!d.secondaryRole;
+                      const secStyle = d.secondaryRole ? (SEGMENT_STYLE[d.secondaryRole] ?? SEGMENT_STYLE.Other) : null;
+                      return (
                       <tr key={d.constituentId} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                         <td className="px-4 py-2.5">
-                          <a href={veracrossUrl(d.constituentId)} target="_blank" rel="noopener noreferrer" className="font-medium text-slate-800 hover:text-blue-600 hover:underline">
-                            {d.constituentName}
-                          </a>
+                          <span className="inline-flex items-center gap-2 flex-wrap">
+                            <a href={veracrossUrl(d.constituentId)} target="_blank" rel="noopener noreferrer" className="font-medium text-slate-800 hover:text-blue-600 hover:underline">
+                              {d.constituentName}
+                            </a>
+                            {showSecondary && secStyle && (
+                              <span className={`inline-flex items-center text-[10px] font-medium rounded-full px-1.5 py-0.5 ${secStyle.pillCls}`}>
+                                {d.secondaryRole}
+                              </span>
+                            )}
+                          </span>
                         </td>
                         <td className="px-4 py-2.5 text-right text-slate-700" style={{ fontVariantNumeric: 'tabular-nums' }}>{formatMoney(d.donationsReceived)}</td>
                         <td className="px-4 py-2.5 text-right text-slate-400" style={{ fontVariantNumeric: 'tabular-nums' }}>{d.outstandingPledges > 0 ? formatMoney(d.outstandingPledges) : '—'}</td>
                         <td className="px-4 py-2.5 text-right font-semibold text-slate-900" style={{ fontVariantNumeric: 'tabular-nums' }}>{formatMoney(d.total)}</td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               ) : (

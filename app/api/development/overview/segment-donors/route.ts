@@ -60,6 +60,10 @@ interface SegmentDonor {
   total: number;
   lastGiftDate: string | null;
   primaryDevelopmentRole: string;
+  // For the Board Members drilldown only: the segment this constituent
+  // would fall into if "Trustee" were removed from their roles (Parent,
+  // Grandparent, etc.). null for every other segment.
+  secondaryRole: string | null;
 }
 
 export async function GET(request: NextRequest) {
@@ -188,6 +192,9 @@ export async function GET(request: NextRequest) {
   }
 
   // 4. Filter to the requested segment + shape the response.
+  // For the Board Members drilldown we also compute each trustee's
+  // "secondary role" — the segment they'd land in with Trustee removed.
+  const isBoardSegment = segment === 'Board Members';
   const donors: SegmentDonor[] = [];
   for (const [cid, v] of byDonor) {
     // Drop constituents with no qualifying attribution (would be $0).
@@ -205,6 +212,12 @@ export async function GET(request: NextRequest) {
       total: received + v.pledged,
       lastGiftDate: v.lastGiftDate,
       primaryDevelopmentRole: roleByDonor.get(cid) ?? 'Other',
+      secondaryRole: isBoardSegment
+        ? classifySegment(
+            (rolesRawByDonor.get(cid) ?? '').replace(/Trustee[^,]*/gi, '').replace(/,\s*,/g, ',').trim(),
+            roleByDonor.get(cid) ?? null,
+          )
+        : null,
     });
   }
   donors.sort((a, b) => b.total - a.total);

@@ -9,7 +9,7 @@
 
 Next.js 16 app serving as a unified operations dashboard for Rebecca (RBK) and Emily. Deployed to Firebase Hosting at **https://rbk-cmd-center.web.app**, with Supabase as the database and Firebase Auth (Google OAuth) for authentication.
 
-**Latest Cloud Run revision:** `ssrrbkcmdcenter-00688-wkw`. **Latest deploy:** June 17, 2026.
+**Latest Cloud Run revision:** `ssrrbkcmdcenter-00690-5b6`. **Latest deploy:** June 17, 2026.
 
 **Tech stack:** Next.js 16 + React 19 + Tailwind CSS (v4, `@tailwindcss/typography`) + Tiptap (rich text) + Supabase + Firebase (Auth, Hosting, Cloud Functions). Fonts: Geist (UI), Source Serif 4 (home greeting). ALL authenticated users auto-redirect from `/` to `/home` unless `?nav=` or `?projectPanel=` params are present. The old Dashboard at `/` is only accessible via sidebar nav items that pass `?nav=` params. ALL users see "Home" in sidebar (no more "Dashboard" item for anyone). `shouldRedirectHome` is always true.
 
@@ -720,7 +720,11 @@ Phase F per-workspace integration credentials. **Service-role only** — RLS den
 
 ## Recent Changes
 
-**Latest revision:** `ssrrbkcmdcenter-00688-wkw` (deployed 2026-06-17). Latest: **giving_history_cache — GCS ingest pipeline (replaces the Gmail import) + lapsed/new fix LIVE**. Veracross now drops the nightly Operating gift-history CSV via SFTP to `gs://rbk-cmd-center-sftp/veracross/giving-history/`. New `POST /api/development/giving-history/ingest` (reads the newest CSV from GCS via `@google-cloud/storage` + ADC, parses, dedups by gift_record_id, batched upsert) replaces the prior Gmail `import` route; `ingestGivingHistory` Cloud Function (8am ET) replaces `watchGivingHistoryExport` (deleted). **Ran live: 22,941 parsed / 21,999 upserted; FY25 baseline now 1,942 distinct donors (was ~965 in gifts_cache)** — long-time donors no longer mis-flagged "New". Overview lapsed/new/retained FY25 baseline reads giving_history_cache (FY25, gift_type 1/2/3) w/ gifts_cache fallback. Required granting `roles/storage.objectViewer` to the Cloud Run compute SA on the bucket. Untouched: gifts_cache hourly sync, segment card totals, headline totals, soft-credit gap-fill, all other tabs.
+**Latest revision:** `ssrrbkcmdcenter-00690-5b6` (deployed 2026-06-17). Latest: **Board Members drilldown — secondary-role badge per trustee.** In the Board Members segment drilldown only, each donor row now shows the segment they'd classify as if "Trustee" were removed (Parent/Grandparent/Parents of Alumni/Alumni/Faculty/Other) as a colored pill next to the name. `segment-donors/route.ts` adds `secondaryRole` (computed via `classifySegment` on a Trustee-stripped roles_raw; null for all other segments); `OverviewTab.tsx` renders the badge with the existing `SEGMENT_STYLE` colors, gated to the Board Members drawer. No other drilldown, segment total, classification, priority, or route changed.
+
+### Board Members drilldown — secondary-role badge per trustee (2026-06-17)
+
+Cloud Run revision `ssrrbkcmdcenter-00690-5b6`. Heidi asked that each Board Members drilldown row also show the role the trustee would otherwise classify as. `app/api/development/overview/segment-donors/route.ts`: added `secondaryRole: string | null` to the donor shape — for the Board Members segment only, computed as `classifySegment(rolesRaw.replace(/Trustee[^,]*/gi,'').replace(/,\s*,/g,',').trim(), role)` (Trustee stripped so the next-priority segment wins); null for every other segment. `app/components/development/OverviewTab.tsx`: the segment drilldown's donor cell now renders a small pill (existing `SEGMENT_STYLE` colors) next to the name, gated to `drawer.segment === 'Board Members' && d.secondaryRole`. The Veracross link uses the existing `veracrossUrl` helper (`…/detail/development-constituent/{id}/4028-gift-detail`) — no URL change needed. Untouched: every other drilldown, segment card totals, classification logic, Board Members priority, lapsed/new/retained, all other routes/tabs. `npx tsc --noEmit` + `npm run build` clean.
 
 ### giving_history_cache — GCS ingest pipeline (supersedes Gmail import), lapsed/new fix LIVE (2026-06-17)
 
