@@ -2,11 +2,15 @@
 
 > ⚠️ THIS IS THE ONLY TODO FILE. Update this after every session. Do not create new TODO or action item files. Archive any other planning docs by adding an ARCHIVED header. Phase build plans are reference-only.
 
-*Last updated: June 17, 2026*
+*Last updated: June 18, 2026*
 
 For the longer roadmap + horizon items + architecture history, see `RBKCC_VISION_AND_ROADMAP.md`. For implementation detail, see `CLAUDE_CONTEXT.md` ("Recent Changes" section).
 
 ---
+
+## ✅ Shipped (June 18, 2026)
+
+- ✅ **giving_history_cache GCS ingest — RE-VERIFIED, no redeploy** (live stays rev `ssrrbkcmdcenter-00690-5b6`). A re-request of the 2026-06-17 GCS ingest pipeline; on inspection it was already fully shipped + live, so no code changed and no new revision was cut. Verified: `@google-cloud/storage` present, all artifacts present (table, parser, `/ingest` route, `ingestGivingHistory` fn w/ scheduler ENABLED, overview FY25 `fy25Baseline` + gifts_cache fallback, admin Import button, middleware exclusion), `git status` clean, tsc clean. Re-ran the live ingest to refresh data → 22,941 parsed / 21,999 upserted / 942 skipped (bucket CSV unchanged); FY25 baseline 1,942 donors. Skipped a redundant no-op redeploy (no code delta); spec's `fy25BaselineDonors` is `fy25Baseline` in shipped code (functionally identical).
 
 ## ✅ Shipped (June 17, 2026)
 
