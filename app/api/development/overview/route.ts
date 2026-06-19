@@ -421,12 +421,24 @@ export async function GET() {
     if (v.hasType1 || v.hasType2 || v.hasSoft) fy26SegmentDonors.add(cid);
   }
 
-  // FY25 "gave" baseline for lapsed/new/retained. Prefer
+  // Prior-year "gave" baseline for lapsed/new/retained. Prefer
   // giving_history_cache (the nightly "Operating Gift History Export" —
   // complete across all years; gifts_cache is missing pre-FY26 history).
-  // Falls back to the gifts_cache FY25 set when the history table is empty
-  // (before the first import) so nothing breaks. The table is Operating-
-  // only by construction, so fiscal_year='FY25' = Operating FY25.
+  // Falls back to the gifts_cache prior-year set when the history table is
+  // empty (before the first import) so nothing breaks.
+  //
+  // 2026-06-18 FIX: match on `fundraising_activity = FY25_CAMPAIGN`
+  // ('Operating 2024-2025'), NOT `fiscal_year = 'FY25'`. Veracross stamps
+  // `fiscal_year` from the GIFT DATE, not the campaign — so gifts to the
+  // Operating 2024-2025 campaign dated in the summer-2024 shoulder land in
+  // FY24, and gifts dated in the fall-2025 shoulder land in FY26. The old
+  // fiscal_year filter therefore missed long-time donors (e.g. Newman /
+  // Perl Aug-2024 gifts → FY24; Landes Sep-2025 soft credit → FY26),
+  // mislabeling them "New". The campaign field is date-independent and
+  // mirrors how the FY26 side (`fy26GaveDonors`) already keys off the
+  // exact campaign string. Gift types broadened to 1-5 so pledge
+  // installments (4) and pledge soft-credits (5) also count as having
+  // given (Perl/Landes had FY25 type-4 rows the old 1-3 filter dropped).
   let fy25Baseline = fy25GaveDonors;
   let fy25BaselineSource: 'giving_history_cache' | 'gifts_cache' = 'gifts_cache';
   try {
@@ -438,10 +450,10 @@ export async function GET() {
         .from('giving_history_cache')
         .select('constituent_id')
         .eq('workspace_id', wsId)
-        .eq('fiscal_year', 'FY25')
-        .in('gift_type', [1, 2, 3])
+        .eq('fundraising_activity', FY25_CAMPAIGN)
+        .in('gift_type', [1, 2, 3, 4, 5])
         .range(hfrom, hfrom + hpage - 1);
-      if (error) { console.error('[OVERVIEW] giving_history FY25 query failed:', error); break; }
+      if (error) { console.error('[OVERVIEW] giving_history prior-year query failed:', error); break; }
       if (!data || data.length === 0) break;
       for (const r of data) if (r.constituent_id != null) histDonors.add(r.constituent_id);
       if (data.length < hpage) break;
@@ -452,9 +464,9 @@ export async function GET() {
       fy25BaselineSource = 'giving_history_cache';
     }
   } catch (err) {
-    console.error('[OVERVIEW] giving_history FY25 lookup failed (non-fatal):', err);
+    console.error('[OVERVIEW] giving_history prior-year lookup failed (non-fatal):', err);
   }
-  console.log(`[OVERVIEW] FY25 baseline source=${fy25BaselineSource} size=${fy25Baseline.size}`);
+  console.log(`[OVERVIEW] prior-year baseline source=${fy25BaselineSource} campaign=${FY25_CAMPAIGN} size=${fy25Baseline.size}`);
 
   // Pull role + roles_raw from constituents_cache for every donor we
   // saw (FY26 segment donors + FY25 baseline donors for lapsed pills).
