@@ -191,6 +191,24 @@ export async function GET(request: NextRequest) {
     console.error('[SEGMENT-DONORS] constituents_cache lookup failed (non-fatal):', err);
   }
 
+  // Board Member overrides — joint-record trustees forced to the Board
+  // Members segment (must match the overview route's segmentOf).
+  const boardOverrideIds = new Set<number>();
+  try {
+    const { data: overrideRows, error } = await supabaseAdmin
+      .from('board_member_overrides')
+      .select('constituent_id')
+      .eq('workspace_id', wsId);
+    if (error) console.error('[SEGMENT-DONORS] board_member_overrides query failed:', error);
+    for (const r of (overrideRows || [])) if (r.constituent_id != null) boardOverrideIds.add(r.constituent_id);
+  } catch (err) {
+    console.error('[SEGMENT-DONORS] board_member_overrides lookup failed (non-fatal):', err);
+  }
+  const segmentOf = (cid: number) =>
+    boardOverrideIds.has(cid)
+      ? 'Board Members'
+      : classifySegment(rolesRawByDonor.get(cid) ?? null, roleByDonor.get(cid) ?? null);
+
   // 4. Filter to the requested segment + shape the response.
   // For the Board Members drilldown we also compute each trustee's
   // "secondary role" — the segment they'd land in with Trustee removed.
@@ -199,7 +217,7 @@ export async function GET(request: NextRequest) {
   for (const [cid, v] of byDonor) {
     // Drop constituents with no qualifying attribution (would be $0).
     if (!(v.hasType1 || v.hasType2 || v.hasSoft)) continue;
-    if (classifySegment(rolesRawByDonor.get(cid) ?? null, roleByDonor.get(cid) ?? null) !== segment) continue;
+    if (segmentOf(cid) !== segment) continue;
     // Gap-fill: direct donors count their full type-1 total (sum of all
     // their gifts); donors with no direct gift count their soft credits,
     // deduped by hard_credit_gift_id (so 11 monthly $540s = $5,940).

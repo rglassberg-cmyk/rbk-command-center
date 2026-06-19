@@ -2,11 +2,15 @@
 
 > ⚠️ THIS IS THE ONLY TODO FILE. Update this after every session. Do not create new TODO or action item files. Archive any other planning docs by adding an ARCHIVED header. Phase build plans are reference-only.
 
-*Last updated: June 18, 2026*
+*Last updated: June 19, 2026*
 
 For the longer roadmap + horizon items + architecture history, see `RBKCC_VISION_AND_ROADMAP.md`. For implementation detail, see `CLAUDE_CONTEXT.md` ("Recent Changes" section).
 
 ---
+
+## ✅ Shipped (June 19, 2026)
+
+- ✅ **Board member overrides — joint-record trustees classified correctly** (firebase release 2026-06-19; Cloud Run revision # unread — gcloud reauth still pending). Trustees who give via a joint household record (no "Trustee" in their own roles_raw) were landing in Parent/Parents-of-Alumni/Alumni. New `board_member_overrides` table (created+seeded externally; 6 SAR rows) is now read in `overview/route.ts` + `segment-donors/route.ts`: `segmentOf(cid)` returns "Board Members" if cid is in the override set, else the existing `classifySegment`. Trustee roles_raw check untouched (still handles the majority). Board Members card got a ❓ tooltip; secondaryRole unchanged (Trustee-strip is a no-op for override-only members → real segment). DDL saved to `scripts/migrations/board-member-overrides.sql`. Verified all 6 IDs have FY26 Operating gifts + no Trustee in roles_raw. Untouched: other segments, lapsed/new/retained, other tabs. tsc + build clean. **Deploy:** firebase step shipped cleanly (SSR updated, hosting released; site 307, env vars intact); deploy.sh gcloud steps still blocked on `gcloud auth login` reauth (redundant this run). **TODO carryover:** run `gcloud auth login` so future `./deploy.sh` runs complete fully + revision numbers are readable.
 
 ## ✅ Shipped (June 18, 2026)
 

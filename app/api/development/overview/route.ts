@@ -496,10 +496,29 @@ export async function GET() {
     console.error('[OVERVIEW] constituents_cache lookup failed (non-fatal):', err);
   }
 
+  // Board Member overrides — spouse-record trustees whose gifts sit on a
+  // joint household record that has no "Trustee" in its own roles_raw, so
+  // classifySegment can't catch them. These constituent_ids are forced to
+  // the Board Members segment.
+  const boardOverrideIds = new Set<number>();
+  try {
+    const { data: overrideRows, error } = await supabaseAdmin
+      .from('board_member_overrides')
+      .select('constituent_id')
+      .eq('workspace_id', wsId);
+    if (error) console.error('[OVERVIEW] board_member_overrides query failed:', error);
+    for (const r of (overrideRows || [])) if (r.constituent_id != null) boardOverrideIds.add(r.constituent_id);
+  } catch (err) {
+    console.error('[OVERVIEW] board_member_overrides lookup failed (non-fatal):', err);
+  }
+
   // Segment a donor by their cached roles. Single source of truth used
-  // for both the segment cards and the lapsed-donor role pills.
+  // for both the segment cards and the lapsed-donor role pills. Board
+  // Member overrides win first (joint-record trustees).
   const segmentOf = (cid: number) =>
-    classifySegment(rolesRawByDonor.get(cid) ?? null, roleByDonor.get(cid) ?? null);
+    boardOverrideIds.has(cid)
+      ? 'Board Members'
+      : classifySegment(rolesRawByDonor.get(cid) ?? null, roleByDonor.get(cid) ?? null);
 
   // Build per-segment aggregates: received (type-1) + pledged (type-2)
   // + total, and a distinct-donor set per segment.

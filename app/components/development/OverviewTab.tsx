@@ -312,6 +312,15 @@ export default function OverviewTab() {
                         ⓘ
                       </span>
                     )}
+                    {s.segment === 'Board Members' && (
+                      <span
+                        title="Board Members are identified by Trustee role in Veracross. Some trustees give via joint household records and are included via manual override."
+                        className="text-slate-400 cursor-help"
+                        aria-label="What are Board Members?"
+                      >
+                        ❓
+                      </span>
+                    )}
                   </p>
                   <p className="text-slate-900 font-bold mt-1" style={{ fontSize: 20, fontVariantNumeric: 'tabular-nums' }}>
                     {formatMoney(s.total)}
