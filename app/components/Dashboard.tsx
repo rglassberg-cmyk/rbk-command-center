@@ -41,6 +41,17 @@ const ADMISSIONS_TAG_DEFS = [
   { label: 'Decision Pending', color: 'text-slate-700', bg: 'bg-slate-100' },
 ];
 
+// Veracross link for an admissions person. Applicants (not yet enrolled) live on
+// the admission-candidate record; enrolled / re-enrolling students live on the
+// student-ls record. Default to admission-candidate for anyone not confirmed
+// enrolled. Only used by the Admissions module — do NOT change Veracross links
+// elsewhere in the app.
+function veracrossAdmissionUrl(personId: number | string, isEnrolled: boolean): string {
+  return isEnrolled
+    ? `https://axiom.veracross.com/sar/#/detail/student-ls/${personId}/273-general`
+    : `https://axiom.veracross.com/sar/#/detail/admission-candidate/${personId}/3052-general`;
+}
+
 function sanitizeEmailHtml(html: string): string {
   if (!html) return '';
   if (!html.includes('<')) return `<p>${html.replace(/\n/g, '<br/>')}</p>`;
@@ -9042,10 +9053,10 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                                 <div key={`${s.source}-${s.id}`} className="flex items-center gap-2 py-2 px-2.5 rounded-lg hover:bg-slate-50 border border-slate-100">
                                                   <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-1.5">
-                                                      <a href={`https://axiom.veracross.com/sar/#/detail/student-ls/${s.id}/273-general`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-slate-800 hover:text-blue-600 transition-colors truncate">
+                                                      <a href={veracrossAdmissionUrl(s.id, s.source === 're')} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-slate-800 hover:text-blue-600 transition-colors truncate">
                                                         {displayName || <span className="inline-block h-4 w-28 bg-slate-200 rounded animate-pulse align-middle" />}
                                                       </a>
-                                                      <a href={`https://axiom.veracross.com/sar/#/detail/student-ls/${s.id}/273-general`} target="_blank" rel="noopener noreferrer" className="text-slate-300 hover:text-blue-500 transition-colors flex-shrink-0" title="Open in Veracross">
+                                                      <a href={veracrossAdmissionUrl(s.id, s.source === 're')} target="_blank" rel="noopener noreferrer" className="text-slate-300 hover:text-blue-500 transition-colors flex-shrink-0" title="Open in Veracross">
                                                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6m4-3h6v6m-11 5L21 3" /></svg>
                                                       </a>
                                                     </div>
@@ -9098,7 +9109,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                         <span className="text-sm font-medium text-slate-900">
                                           {applicantNames[a.applicant_id] || (applicantNamesLoading ? <span className="inline-block h-4 w-28 bg-slate-200 rounded animate-pulse align-middle" /> : `Applicant #${a.applicant_id}`)}
                                         </span>
-                                        <a href={`https://axiom.veracross.com/sar/#/detail/student-ls/${a.applicant_id}/273-general`} target="_blank" rel="noopener noreferrer" className="text-slate-300 hover:text-blue-500 transition-colors" title="Open in Veracross">
+                                        <a href={veracrossAdmissionUrl(a.applicant_id, false)} target="_blank" rel="noopener noreferrer" className="text-slate-300 hover:text-blue-500 transition-colors" title="Open in Veracross">
                                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" /></svg>
                                         </a>
                                       </div>
@@ -9140,7 +9151,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                     <div className="flex items-center justify-between mb-1">
                                       <div className="flex items-center gap-2">
                                         <span className="text-sm font-medium text-slate-900">{s.first_name} {s.last_name}</span>
-                                        <a href={`https://axiom.veracross.com/sar/#/detail/student-ls/${s.id}/273-general`} target="_blank" rel="noopener noreferrer" className="text-slate-300 hover:text-blue-500 transition-colors" title="Open in Veracross">
+                                        <a href={veracrossAdmissionUrl(s.id, true)} target="_blank" rel="noopener noreferrer" className="text-slate-300 hover:text-blue-500 transition-colors" title="Open in Veracross">
                                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" /></svg>
                                         </a>
                                       </div>
@@ -9295,7 +9306,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                   <div className="flex items-center justify-between mb-1">
                                     <div className="flex items-center gap-2">
                                       <span className="text-sm font-medium text-slate-900">{fullName}</span>
-                                      <a href={`https://axiom.veracross.com/sar/#/detail/student-ls/${s.id}/273-general`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-slate-300 hover:text-blue-500 transition-colors" title="Open in Veracross">
+                                      <a href={veracrossAdmissionUrl(s.id, true)} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-slate-300 hover:text-blue-500 transition-colors" title="Open in Veracross">
                                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" /></svg>
                                       </a>
                                     </div>
@@ -9379,7 +9390,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                   <div className="flex items-center justify-between mb-1">
                                     <div className="flex items-center gap-2">
                                       <span className="text-sm font-medium text-slate-900">{fullName}</span>
-                                      <a href={`https://axiom.veracross.com/sar/#/detail/student-ls/${a.applicant_id}/273-general`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-slate-300 hover:text-blue-500 transition-colors" title="Open in Veracross">
+                                      <a href={veracrossAdmissionUrl(a.applicant_id, false)} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-slate-300 hover:text-blue-500 transition-colors" title="Open in Veracross">
                                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" /></svg>
                                       </a>
                                     </div>
@@ -9464,7 +9475,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                     <div className="flex items-center justify-between mb-1">
                                       <div className="flex items-center gap-2">
                                         <span className="text-sm font-medium text-slate-900">{fullName}</span>
-                                        <a href={`https://axiom.veracross.com/sar/#/detail/student-ls/${a.applicant_id}/273-general`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-slate-300 hover:text-blue-500 transition-colors" title="Open in Veracross">
+                                        <a href={veracrossAdmissionUrl(a.applicant_id, false)} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-slate-300 hover:text-blue-500 transition-colors" title="Open in Veracross">
                                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" /></svg>
                                         </a>
                                       </div>
@@ -9597,7 +9608,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                   <div className="flex items-center justify-between mb-1">
                                     <div className="flex items-center gap-2">
                                       <span className="text-sm font-medium text-slate-900">{r.name}</span>
-                                      <a href={`https://axiom.veracross.com/sar/#/detail/student-ls/${r.personId}/273-general`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-slate-300 hover:text-blue-500 transition-colors" title="Open in Veracross">
+                                      <a href={veracrossAdmissionUrl(r.personId, r.source === 're')} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-slate-300 hover:text-blue-500 transition-colors" title="Open in Veracross">
                                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" /></svg>
                                       </a>
                                     </div>
@@ -9698,7 +9709,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                   <div className="flex items-center justify-between mb-1">
                                     <div className="flex items-center gap-2">
                                       <span className="text-sm font-medium text-slate-900">{row.name}</span>
-                                      <a href={`https://axiom.veracross.com/sar/#/detail/student-ls/${row.personId}/273-general`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-slate-300 hover:text-blue-500 transition-colors" title="Open in Veracross">
+                                      <a href={veracrossAdmissionUrl(row.personId, row.source === 're')} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-slate-300 hover:text-blue-500 transition-colors" title="Open in Veracross">
                                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" /></svg>
                                       </a>
                                     </div>
@@ -9901,7 +9912,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                   <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center gap-2">
                                       <span className="text-sm font-medium text-slate-900">{r.name}</span>
-                                      <a href={`https://axiom.veracross.com/sar/#/detail/student-ls/${r.personId}/273-general`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-slate-300 hover:text-blue-500 transition-colors" title="Open in Veracross">
+                                      <a href={veracrossAdmissionUrl(r.personId, r.source === 're')} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-slate-300 hover:text-blue-500 transition-colors" title="Open in Veracross">
                                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" /></svg>
                                       </a>
                                     </div>
@@ -10161,7 +10172,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                       {fullName}
                                     </span>
                                     {a.applicant_id != null && (
-                                      <a href={`https://axiom.veracross.com/sar/#/detail/student-ls/${a.applicant_id}/273-general`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-slate-300 hover:text-blue-500 transition-colors" title="Open in Veracross">
+                                      <a href={veracrossAdmissionUrl(a.applicant_id, false)} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-slate-300 hover:text-blue-500 transition-colors" title="Open in Veracross">
                                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" /></svg>
                                       </a>
                                     )}
