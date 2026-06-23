@@ -2,11 +2,15 @@
 
 > ⚠️ THIS IS THE ONLY TODO FILE. Update this after every session. Do not create new TODO or action item files. Archive any other planning docs by adding an ARCHIVED header. Phase build plans are reference-only.
 
-*Last updated: June 19, 2026*
+*Last updated: June 23, 2026*
 
 For the longer roadmap + horizon items + architecture history, see `RBKCC_VISION_AND_ROADMAP.md`. For implementation detail, see `CLAUDE_CONTEXT.md` ("Recent Changes" section).
 
 ---
+
+## ✅ Shipped (June 23, 2026)
+
+- ✅ **Admissions applicant Veracross links → admission-candidate page** (firebase release 2026-06-23; Cloud Run revision # unread — gcloud reauth still pending). In the Admissions module, the 11 Veracross deep-links now route applicants (not-yet-enrolled) to `…/detail/admission-candidate/{id}/3052-general` and enrolled / re-enrolling students to the existing `…/detail/student-ls/{id}/273-general`. New module-scope helper `veracrossAdmissionUrl(personId, isEnrolled)` in `Dashboard.tsx`. Classification: `a.applicant_id` rows (pending/waitlist/declined/overview applicants) → admission-candidate (isEnrolled=false); `ReEnrollmentStudent`/`reEnrollmentsData` `s.id` rows (notReEnrolling, projection_leaving) → student-ls (isEnrolled=true); `.source`-bearing rows (filteredCity drilldown, Pisgah, registration-incomplete, projection_combined/category) → `isEnrolled = source === 're'`. Default is admission-candidate for anyone not confirmed enrolled. **Untouched** per spec: `AfterSchoolTab.tsx` student-ls link + every non-Admissions Veracross link; only `Dashboard.tsx` changed. tsc + build clean. **Deploy:** firebase step shipped the code (SSR `Successful update operation`, hosting released; site 307, overview 401); deploy.sh gcloud-only steps aborted again on `gcloud auth login` reauth (redundant this run). **TODO carryover:** run `gcloud auth login` so future `./deploy.sh` runs complete fully + revision numbers are readable.
 
 ## ✅ Shipped (June 19, 2026)
 
