@@ -26,15 +26,28 @@ import { getEffectiveWorkspaceId } from '@/lib/impersonate';
 //     Soft credits affect ONLY the segment cards — NOT the headline
 //     Total Raised, the per-fund campaign table, or the donor/
 //     lapsed/new counts.
-//   - 2026-06-14: soft credits now GAP-FILL only. Per constituent, the
-//     segment `received` is the type-1 sum when they have ANY direct
-//     gift; soft credits are ignored for them (Veracross writes a
-//     type-3 soft-credit twin for every type-1 gift, so adding both
-//     double-counted every direct donor). A constituent with NO type-1
-//     row counts their type-3 rows where soft_credit_type IN (1, 2) —
-//     this is the ONLY case soft credits contribute, and it surfaces
-//     DAF/org- and household-only donors (soft_credit_type = 2) who
-//     were previously dropped from segments entirely.
+//   - 2026-06-14: soft credits GAP-FILL only — but the original rule
+//     ("count soft credits ONLY when the donor has NO type-1 row") was
+//     too strict for donors who BOTH give directly AND give through a
+//     DAF/foundation in the same year (the foundation's gift, soft-
+//     credited to them, got silently dropped because they happened to
+//     have a direct gift too).
+//   - 2026-06-25: precise twin-matching. A soft credit is a Veracross
+//     auto-generated TWIN of a direct gift iff its `hard_credit_gift_id`
+//     equals the `id` of one of THIS constituent's own type-1 gifts —
+//     in that case it's excluded (already counted via the type-1 row).
+//     A soft credit whose `hard_credit_gift_id` is NOT one of their own
+//     type-1 ids came from a different source (their family foundation /
+//     DAF gave directly and they received a soft credit) — it's a
+//     genuinely separate gift and IS counted. So segment `received` =
+//     SUM(type-1 amount) + SUM(non-twin soft-credit amount). This counts
+//     direct gifts once, foundation gifts once, and never double-counts
+//     the auto-generated twins. NOTE: type-1 rows carry
+//     `hard_credit_gift_id = NULL`; the twin's id points to the type-1
+//     gift's own record `id`, so type1GiftIds is collected from `id`,
+//     not `hard_credit_gift_id`. Soft credits stay scoped to gift_type=3
+//     (soft_credit_type 1/2) — type-5 pledge-soft-credits are a separate
+//     representation of the same pledge and would double-count.
 //   - FY bucket = the exact campaign string (`Operating 2025-2026`
 //     vs `Operating 2024-2025`), NOT the gift date. Pledge-payment
 //     gifts retroactively tagged to a prior campaign now stay in
@@ -90,11 +103,11 @@ const GIFT_TYPE_DONATION = 1;
 const GIFT_TYPE_PLEDGE = 2;
 // Veracross soft credits: gift_type = 3. soft_credit_type 1 = Donation Soft
 // Credit (DAF/org gave on the constituent's behalf), 2 = household soft
-// credit (spouse/household attribution). Counted toward SEGMENT cards only,
-// and ONLY for constituents with no direct (type-1) gift — see the
-// gap-fill rule in the scope note above. Veracross writes a soft-credit
-// twin for every direct gift, so stacking soft credits on a constituent
-// who already has a type-1 row double-counts.
+// credit (spouse/household attribution). Counted toward SEGMENT cards only.
+// Veracross writes a soft-credit twin for every direct gift, so a soft
+// credit is only counted when it is NOT a twin of one of the donor's own
+// type-1 gifts (twin = its hard_credit_gift_id matches a type-1 gift's id);
+// see the twin-matching gap-fill rule in the scope note above.
 const GIFT_TYPE_SOFT_CREDIT = 3;
 const SOFT_CREDIT_TYPE_DONATION = 1;
 const SOFT_CREDIT_TYPE_HOUSEHOLD = 2;
@@ -139,6 +152,7 @@ export function classifySegment(rolesRaw: string | null, role: string | null): s
 }
 
 interface GiftRow {
+  id: number;
   constituent_id: number | null;
   constituent_name: string | null;
   amount: number | null;
@@ -239,7 +253,7 @@ export async function GET() {
     while (true) {
       const { data, error } = await supabaseAdmin
         .from('gifts_cache')
-        .select('constituent_id, constituent_name, amount, pledge_balance, gift_type, soft_credit_type, hard_credit_gift_id, fund, fundraising_activity, date')
+        .select('id, constituent_id, constituent_name, amount, pledge_balance, gift_type, soft_credit_type, hard_credit_gift_id, fund, fundraising_activity, date')
         .eq('workspace_id', wsId)
         .in('gift_type', [GIFT_TYPE_DONATION, GIFT_TYPE_PLEDGE, GIFT_TYPE_SOFT_CREDIT])
         .ilike('fundraising_activity', `${OPERATING_CAMPAIGN_PREFIX}%`)
@@ -278,33 +292,36 @@ export async function GET() {
   const fundFY26 = new Map<string, number>();
   const fundFY25 = new Map<string, number>();
   // Per-donor FY26 giving for segment aggregation. We accumulate the
-  // three pools separately so the gap-fill rule can be applied AFTER the
-  // single pass (we can't know whether a donor has a direct gift until
-  // every row is seen): `type1` = SUM(amount) on type-1 gifts,
-  // `softAmounts` = the SET of distinct qualifying type-3 soft-credit
-  // amounts (soft_credit_type 1/2), `pledged` = SUM(pledge_balance) on
-  // type-2 gifts. Final segment `received` = type1 when `hasType1`, else
-  // the sum of `softAmounts`. Segment totals = received + pledged.
+  // pools separately so the twin-matching gap-fill rule can be applied
+  // AFTER the single pass (a soft credit's twin status depends on the
+  // donor's full set of type-1 gift ids):
+  //   `type1`        = SUM(amount) on type-1 gifts.
+  //   `type1GiftIds` = the SET of record `id`s of those type-1 gifts. A
+  //                    soft credit is a Veracross-generated TWIN iff its
+  //                    `hard_credit_gift_id` is in this set (type-1 rows
+  //                    themselves carry hard_credit_gift_id = NULL, so we
+  //                    collect their own `id`).
+  //   `softByKey`    = qualifying type-3 soft credits (soft_credit_type
+  //                    1/2), deduped by hard_credit_gift_id. Each value
+  //                    keeps {hcid, amount} so the twin test runs after
+  //                    the loop. Dedup is by hard_credit_gift_id (the
+  //                    sc_type 1 + 2 rows for one gift share an id;
+  //                    falls back to `amt_<n>` when the id is null), so
+  //                    11 monthly $540 soft credits sum to $5,940 — they
+  //                    are NOT collapsed by amount.
+  //   `pledged`      = SUM(pledge_balance) on type-2 gifts.
+  // Final segment `received` = type1 + SUM(amount of soft credits whose
+  // hcid is NOT a own-type-1 id). Segment totals = received + pledged.
   // `fy26SegmentDonors` (built after the loop) is every constituent who
-  // gave directly (type-1), pledged (type-2), or — absent a direct gift —
-  // has a qualifying soft credit.
-  //
-  // Soft credits are deduped by `hard_credit_gift_id`, NOT by amount.
-  // Veracross writes TWO soft-credit rows per gift (soft_credit_type=1
-  // Donation Soft Credit + soft_credit_type=2 household) that share the
-  // same hard_credit_gift_id, so we count each underlying gift once via
-  // `softKeys` (a Set of hard_credit_gift_id, falling back to `amt_<n>`
-  // when the id is null) and accumulate `soft` only on first sight of a
-  // key. Deduping by amount was wrong for donors with multiple same-amount
-  // gifts (e.g. 11 monthly $540 soft credits collapsed to one $540).
+  // gave directly (type-1), pledged (type-2), or has any qualifying soft
+  // credit.
   const fy26ByDonor = new Map<number, {
     type1: number;
-    softKeys: Set<number | string>;
-    soft: number;
+    type1GiftIds: Set<number>;
+    softByKey: Map<string, { hcid: number | null; amount: number }>;
     pledged: number;
     hasType1: boolean;
     hasType2: boolean;
-    hasSoft: boolean;
   }>();
   let fy26SegmentDonors = new Set<number>();
   // Last type-1/type-2 gift per donor per FY — feeds the lapsed (FY25)
@@ -345,7 +362,7 @@ export async function GET() {
 
     if (activity === FY26_CAMPAIGN) {
       const seg = fy26ByDonor.get(cid) ?? {
-        type1: 0, softKeys: new Set<number | string>(), soft: 0, pledged: 0, hasType1: false, hasType2: false, hasSoft: false,
+        type1: 0, type1GiftIds: new Set<number>(), softByKey: new Map<string, { hcid: number | null; amount: number }>(), pledged: 0, hasType1: false, hasType2: false,
       };
       if (isType1) {
         raisedFY26 += amt;
@@ -354,6 +371,7 @@ export async function GET() {
         recordLast(lastFy26GiftByDonor, cid, amt, g.date);
         fundFY26.set(fund, (fundFY26.get(fund) || 0) + amt);
         seg.type1 += amt;
+        seg.type1GiftIds.add(g.id);
         seg.hasType1 = true;
         fy26ByDonor.set(cid, seg);
       } else if (isType2) {
@@ -368,19 +386,17 @@ export async function GET() {
         // Soft credits feed segment math AND the lapsed/new/retained "gave"
         // set (gap-fill: a soft-credit-only constituent counts as having
         // given). They do NOT touch raisedFY26, the per-fund campaign table,
-        // or the type-1 headline donor count. Recorded by distinct amount
-        // (dedup of Veracross's type-1/type-2 soft-credit twins) and only
-        // used as `received` when the donor has no direct gift (resolved
-        // after the loop). `lastFy26SoftByDonor` is the gap-fill last-gift
-        // source for the new-donor drilldown (used only when the donor has
-        // no direct gift). Dedup by hard_credit_gift_id so each underlying
-        // gift counts once (sc_type 1 + 2 share an id).
-        const softKey = g.hard_credit_gift_id ?? `amt_${amt}`;
-        if (!seg.softKeys.has(softKey)) {
-          seg.softKeys.add(softKey);
-          seg.soft += amt;
+        // or the type-1 headline donor count. Stored by hard_credit_gift_id
+        // (sc_type 1 + 2 share an id → deduped to one underlying gift;
+        // falls back to `amt_<n>` when null) with {hcid, amount} so the
+        // after-loop twin test can drop only the soft credits whose hcid is
+        // one of THIS donor's own type-1 gift ids. `lastFy26SoftByDonor` is
+        // the gap-fill last-gift source for the new-donor drilldown (used
+        // only when the donor has no direct gift).
+        const softKey = g.hard_credit_gift_id != null ? String(g.hard_credit_gift_id) : `amt_${amt}`;
+        if (!seg.softByKey.has(softKey)) {
+          seg.softByKey.set(softKey, { hcid: g.hard_credit_gift_id, amount: amt });
         }
-        seg.hasSoft = true;
         fy26ByDonor.set(cid, seg);
         fy26GaveDonors.add(cid);
         recordLast(lastFy26SoftByDonor, cid, amt, g.date);
@@ -418,7 +434,7 @@ export async function GET() {
   // credit), which would otherwise be a $0 donor.
   fy26SegmentDonors = new Set<number>();
   for (const [cid, v] of fy26ByDonor) {
-    if (v.hasType1 || v.hasType2 || v.hasSoft) fy26SegmentDonors.add(cid);
+    if (v.hasType1 || v.hasType2 || v.softByKey.size > 0) fy26SegmentDonors.add(cid);
   }
 
   // Prior-year "gave" baseline for lapsed/new/retained. Prefer
@@ -528,11 +544,16 @@ export async function GET() {
   }
   for (const [cid, v] of fy26ByDonor) {
     if (!fy26SegmentDonors.has(cid)) continue; // drop non-qualifying $0 donors
-    // Gap-fill: direct donors count their type-1 sum (soft credits are
-    // their Veracross twins and ignored); donors with no direct gift
-    // count their qualifying soft credits, deduped by hard_credit_gift_id
-    // (so 11 monthly $540 soft credits sum to $5,940, not $540).
-    const received = v.hasType1 ? v.type1 : v.soft;
+    // Twin-matching gap-fill: count every direct (type-1) gift, PLUS every
+    // soft credit that is NOT a Veracross twin of one of this donor's own
+    // type-1 gifts (i.e. hcid not in type1GiftIds — it came from a DAF /
+    // foundation that gave directly). Twins are skipped (already counted via
+    // their type-1 row). softByKey is already deduped by hard_credit_gift_id.
+    let softFromOther = 0;
+    for (const { hcid, amount } of v.softByKey.values()) {
+      if (hcid == null || !v.type1GiftIds.has(hcid)) softFromOther += amount;
+    }
+    const received = v.type1 + softFromOther;
     const s = segmentMap.get(segmentOf(cid))!;
     s.donationsReceived += received;
     s.outstandingPledges += v.pledged;
