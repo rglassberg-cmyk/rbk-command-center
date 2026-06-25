@@ -143,28 +143,13 @@ exports.syncAfterSchoolPrograms = functions.pubsub
   });
 
 // ---------------------------------------------------------------------------
-// Giving History ingest — daily at 8am ET. Pulls the nightly Veracross
-// Operating gift-history CSV from gs://rbk-cmd-center-sftp/veracross/
-// giving-history/ (delivered via SFTP) into giving_history_cache.
+// Giving History ingest — scheduler REMOVED 2026-06-25. The nightly auto-
+// ingest of the Operating gift-history CSV is now manual-only, triggered
+// from the Development Overview "Sync Gift History" button (admin-only) →
+// POST /api/development/giving-history/ingest. The route + GCS pipeline are
+// unchanged; only the scheduled Cloud Function was deleted (via
+// `firebase functions:delete ingestGivingHistory --region us-central1`).
 // ---------------------------------------------------------------------------
-exports.ingestGivingHistory = functions.pubsub
-  .schedule('0 8 * * *')
-  .timeZone('America/New_York')
-  .onRun(async () => {
-    const res = await fetch(
-      'https://ssrrbkcmdcenter-429508710310.us-east1.run.app/api/development/giving-history/ingest',
-      {
-        method: 'POST',
-        headers: {
-          'X-Internal-Secret': process.env.INTERNAL_SYNC_SECRET || '',
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-    const data = await res.json();
-    console.log('[GIVING HISTORY INGEST]', data);
-    return null;
-  });
 
 // ---------------------------------------------------------------------------
 // Gifts sync — hourly on weekdays, daily on weekends

@@ -101,23 +101,27 @@ export default function OverviewTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lapsedOpen, setLapsedOpen] = useState(false);
-  // Admin-only "Import History" trigger state.
+  // Admin-only "Sync Gift History" trigger state. The result line stays
+  // visible until the next click (no auto-dismiss) so the admin can read it.
   const [importing, setImporting] = useState(false);
-  const [importMsg, setImportMsg] = useState<string | null>(null);
+  const [importResult, setImportResult] = useState<{ ok: boolean; text: string; fileModified: string | null } | null>(null);
 
   const runImport = useCallback(async () => {
     setImporting(true);
-    setImportMsg(null);
+    setImportResult(null);
     try {
       const res = await apiFetch('/api/development/giving-history/ingest', { method: 'POST' });
       const j = await res.json().catch(() => ({}));
-      if (!res.ok || !j.success) throw new Error(j.error || `Import failed (${res.status})`);
-      setImportMsg(`Imported ${Number(j.rows_upserted).toLocaleString()} records from ${j.file}`);
+      if (!res.ok || !j.success) throw new Error(j.error || `Sync failed (${res.status})`);
+      setImportResult({
+        ok: true,
+        text: `Synced ${Number(j.rows_upserted).toLocaleString()} records from ${j.file}`,
+        fileModified: j.file_modified ?? null,
+      });
     } catch (e) {
-      setImportMsg(`Import failed: ${(e as Error).message}`);
+      setImportResult({ ok: false, text: (e as Error).message, fileModified: null });
     } finally {
       setImporting(false);
-      setTimeout(() => setImportMsg(null), 8000);
     }
   }, []);
 
@@ -212,21 +216,41 @@ export default function OverviewTab() {
 
   return (
     <div className="space-y-8">
-      {/* Admin-only: manually trigger the giving-history CSV import. */}
+      {/* Admin-only: manually sync the giving-history CSV from GCS. The
+          result line below the button persists until the next click. */}
       {isAdmin && (
-        <div className="flex items-center justify-end gap-3 -mb-4">
-          {importMsg && <span className="text-xs text-slate-500">{importMsg}</span>}
+        <div className="flex flex-col items-end gap-1.5 -mb-4">
           <button
             onClick={runImport}
             disabled={importing}
-            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60"
-            title="Import the latest Operating Gift History Export from Gmail"
+            className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-lg border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-400 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+            title="Sync the latest Operating gift-history CSV from the Veracross SFTP drop"
           >
-            <svg className={`w-4 h-4 ${importing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            {importing ? 'Importing…' : 'Import History'}
+            {importing ? (
+              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+            )}
+            {importing ? 'Syncing…' : 'Sync Gift History'}
           </button>
+          {importResult && (
+            <span className={`text-xs text-right ${importResult.ok ? 'text-slate-500' : 'text-red-500'}`}>
+              {importResult.ok ? '✓ ' : '✗ '}{importResult.text}
+              {importResult.ok && importResult.fileModified && (
+                <span className="text-slate-400">
+                  {' · file dated '}
+                  {new Date(importResult.fileModified).toLocaleString(undefined, {
+                    month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+                  })}
+                </span>
+              )}
+            </span>
+          )}
         </div>
       )}
 

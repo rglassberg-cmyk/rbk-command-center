@@ -55,6 +55,11 @@ export async function POST(request: NextRequest) {
       return b.name.localeCompare(a.name);          // tie-break by name desc
     });
     const target = csvFiles[0];
+    // GCS last-modified timestamp of the file we're processing (ISO string),
+    // surfaced in the response so the UI can show how fresh the CSV is.
+    const fileModified = target.metadata?.updated
+      ? new Date(String(target.metadata.updated)).toISOString()
+      : null;
 
     // 2. Download + decode.
     const [buf] = await target.download();
@@ -94,7 +99,7 @@ export async function POST(request: NextRequest) {
       if (error) {
         console.error('[GIVING-HISTORY INGEST] upsert batch failed at', i, error);
         return NextResponse.json(
-          { error: 'Upsert failed', detail: error.message, file: target.name, rows_parsed: parsed.length, rows_upserted: upserted, skipped },
+          { error: 'Upsert failed', detail: error.message, file: target.name, file_modified: fileModified, rows_parsed: parsed.length, rows_upserted: upserted, skipped },
           { status: 500 },
         );
       }
@@ -105,6 +110,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       file: target.name,
+      file_modified: fileModified,
       rows_parsed: parsed.length,
       rows_upserted: upserted,
       skipped,
