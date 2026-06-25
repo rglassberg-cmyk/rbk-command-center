@@ -2,11 +2,15 @@
 
 > ⚠️ THIS IS THE ONLY TODO FILE. Update this after every session. Do not create new TODO or action item files. Archive any other planning docs by adding an ARCHIVED header. Phase build plans are reference-only.
 
-*Last updated: June 23, 2026*
+*Last updated: June 25, 2026*
 
 For the longer roadmap + horizon items + architecture history, see `RBKCC_VISION_AND_ROADMAP.md`. For implementation detail, see `CLAUDE_CONTEXT.md` ("Recent Changes" section).
 
 ---
+
+## ✅ Shipped (June 25, 2026)
+
+- ✅ **Soft-credit gap-fill twin-matched — DAF/foundation soft credits now count alongside direct gifts** (firebase release 2026-06-25; Cloud Run revision # unread — gcloud reauth still pending). The Development Overview segment cards + drilldown dropped foundation/DAF money for any donor who ALSO gave directly: the old rule counted soft credits ONLY when the donor had no type-1 gift. New rule (`overview/route.ts` + `segment-donors/route.ts`): a soft credit is an excluded Veracross twin **only** when its `hard_credit_gift_id` matches the record `id` of one of that constituent's own type-1 gifts; otherwise it came from a separate source (their foundation gave directly) and is counted. `received = SUM(type-1 amount) + SUM(non-twin soft-credit amount)`. Per-donor accumulator now tracks `type1GiftIds` (from each type-1 row's `id` — type-1 rows have NULL hard_credit_gift_id) + `softByKey` (deduped by hcid). Soft pool stays gift_type=3 (sc 1/2) — type-5 is a separate representation of the same pledge and would double-count. **Verified live (SQL):** Luxenberg 17707 = **$101,360** (was $2,360), Tsigutkin 9458 = **$55,000** (was $5,000); workspace-wide **131 donors gain +$827,885** (those who give both directly + via DAF/foundation; min +$54, max +$99k). Untouched: headline Total Raised/Donors, lapsed/new/retained counts (the "gave" sets are provably unchanged), Board Members priority/overrides, all other tabs/routes. **Spec deviation (documented):** the brief said to build `type1GiftIds` from type-1 rows' `hard_credit_gift_id`, but those are NULL in gifts_cache — implemented the prose intent ("own type-1 gift IDs") by collecting the record `id` instead. tsc + build clean. firebase shipped (site 307, both routes 401). **TODO carryover:** run `gcloud auth login` so future `./deploy.sh` runs complete fully + revision numbers are readable.
 
 ## ✅ Shipped (June 23, 2026)
 
