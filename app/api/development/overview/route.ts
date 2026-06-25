@@ -85,7 +85,6 @@ import { getEffectiveWorkspaceId } from '@/lib/impersonate';
 //   raisedFY26  ≈ $6,297,617
 //   donorsFY26  ≈ 880–1,000
 
-const OPERATING_CAMPAIGN_PREFIX = 'Operating ';
 const FY26_CAMPAIGN = 'Operating 2025-2026';
 // Last-year campaign is DERIVED from the current one (current minus 1) —
 // never hardcode the prior-year string, so the Campaign Giving by Fund
@@ -241,11 +240,14 @@ export async function GET() {
     }
   } catch { /* fail open */ }
 
-  // Single paginated read of every Operating gift (type 1 + 2 for the
-  // headline/campaign/lapsed math, plus type 3 for the segment cards).
-  // At SAR this is small enough (<5k rows across multiple years) to scan
-  // in memory; aggregating client-side keeps the route self-contained
-  // without RPCs or materialized views.
+  // Single paginated read of the FY26 + FY25 Operating gifts (type 1 + 2
+  // for the headline/campaign/lapsed math, plus type 3 for the segment
+  // cards). Scoped with an explicit `.in([FY25_CAMPAIGN, FY26_CAMPAIGN])`
+  // rather than a `LIKE 'Operating %'` prefix so future Operating campaigns
+  // (e.g. 'Operating 2026-2027' pledges booked early) can NEVER leak into
+  // FY26 segment totals — the loop below ALSO exact-matches each campaign
+  // string, so this is defense-in-depth. At SAR this is <5k rows; we scan
+  // it in memory and aggregate client-side (no RPCs / materialized views).
   const gifts: GiftRow[] = [];
   try {
     let from = 0;
@@ -256,7 +258,7 @@ export async function GET() {
         .select('id, constituent_id, constituent_name, amount, pledge_balance, gift_type, soft_credit_type, hard_credit_gift_id, fund, fundraising_activity, date')
         .eq('workspace_id', wsId)
         .in('gift_type', [GIFT_TYPE_DONATION, GIFT_TYPE_PLEDGE, GIFT_TYPE_SOFT_CREDIT])
-        .ilike('fundraising_activity', `${OPERATING_CAMPAIGN_PREFIX}%`)
+        .in('fundraising_activity', [FY25_CAMPAIGN, FY26_CAMPAIGN])
         .range(from, from + pageSize - 1);
       if (error) {
         console.error('[OVERVIEW] gifts query failed:', error);
