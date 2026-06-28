@@ -86,12 +86,6 @@ import { getEffectiveWorkspaceId } from '@/lib/impersonate';
 //   donorsFY26  ≈ 880–1,000
 
 const FY26_CAMPAIGN = 'Operating 2025-2026';
-// The "Other" segment must only include donors whose qualifying soft credits
-// (if any) all come from this fund. A donor classified "Other" who has any
-// soft credit from a named fund (Guardian Circle, Anniversary Dinner, etc.)
-// is excluded from Other — that money belongs to a real person's segment and
-// would otherwise double-count here. See the Other-filter in the segment loop.
-const GRANTS_FUND = 'OP: Grants';
 // Last-year campaign is DERIVED from the current one (current minus 1) —
 // never hardcode the prior-year string, so the Campaign Giving by Fund
 // FY25 column (and the lapsed/new set math) auto-rolls forward next
@@ -327,9 +321,6 @@ export async function GET() {
     type1: number;
     type1GiftIds: Set<number>;
     softByKey: Map<string, { hcid: number | null; amount: number }>;
-    // Funds of every qualifying soft credit (sc_type 1/2) this donor received
-    // in FY26 — used by the "Other" segment grants-only filter below.
-    softFunds: Set<string>;
     pledged: number;
     hasType1: boolean;
     hasType2: boolean;
@@ -350,6 +341,12 @@ export async function GET() {
     if (!prior || date > prior.date) map.set(cid, { amount, date });
   };
   const nameByDonor = new Map<number, string>();
+  // FY26 type-1/type-2 gift record id → the constituent who made it. Used
+  // after the loop to find family foundations / DAFs whose own gift was
+  // soft-credited to a DIFFERENT constituent (a named-segment individual) —
+  // those orgs are already represented via that person's segment and must be
+  // excluded from "Other" so they don't double-count. See softCreditedOrgs.
+  const type1GiftToConstituent = new Map<number, number>();
 
   for (const g of gifts) {
     if (g.constituent_id == null) continue;
@@ -373,7 +370,7 @@ export async function GET() {
 
     if (activity === FY26_CAMPAIGN) {
       const seg = fy26ByDonor.get(cid) ?? {
-        type1: 0, type1GiftIds: new Set<number>(), softByKey: new Map<string, { hcid: number | null; amount: number }>(), softFunds: new Set<string>(), pledged: 0, hasType1: false, hasType2: false,
+        type1: 0, type1GiftIds: new Set<number>(), softByKey: new Map<string, { hcid: number | null; amount: number }>(), pledged: 0, hasType1: false, hasType2: false,
       };
       if (isType1) {
         raisedFY26 += amt;
@@ -384,6 +381,7 @@ export async function GET() {
         seg.type1 += amt;
         seg.type1GiftIds.add(g.id);
         seg.hasType1 = true;
+        type1GiftToConstituent.set(g.id, cid);
         fy26ByDonor.set(cid, seg);
       } else if (isType2) {
         raisedFY26 += pledgeBal;
@@ -392,6 +390,7 @@ export async function GET() {
         fundFY26.set(fund, (fundFY26.get(fund) || 0) + pledgeBal);
         seg.pledged += pledgeBal;
         seg.hasType2 = true;
+        type1GiftToConstituent.set(g.id, cid);
         fy26ByDonor.set(cid, seg);
       } else if (isSoftCredit) {
         // Soft credits feed segment math AND the lapsed/new/retained "gave"
@@ -408,8 +407,6 @@ export async function GET() {
         if (!seg.softByKey.has(softKey)) {
           seg.softByKey.set(softKey, { hcid: g.hard_credit_gift_id, amount: amt });
         }
-        // Record the fund of this soft credit for the "Other" grants-only filter.
-        seg.softFunds.add(fund);
         fy26ByDonor.set(cid, seg);
         fy26GaveDonors.add(cid);
         recordLast(lastFy26SoftByDonor, cid, amt, g.date);
@@ -438,6 +435,24 @@ export async function GET() {
         recordLast(lastFy25SoftByDonor, cid, amt, g.date);
       }
     }
+  }
+
+  // Family foundations / DAFs to exclude from "Other": any constituent whose
+  // own FY26 gift was soft-credited to a DIFFERENT constituent. That recipient
+  // (a named-segment individual — Parent, Grandparent, Board Member, …) already
+  // carries the money in their segment, so leaving the org in Other would
+  // double-count it. Second pass over the raw gifts: for every FY26 type-3
+  // soft credit pointing at a known type-1/type-2 gift, if the recipient isn't
+  // the gift's owner, the owner (the org) is "already represented". Orgs that
+  // give only to OP: Grants with NO soft credit to a household (e.g.
+  // UJA-Federation) never appear here and correctly stay in Other.
+  const softCreditedOrgs = new Set<number>();
+  for (const g of gifts) {
+    if (g.constituent_id == null) continue;
+    if ((g.fundraising_activity ?? '') !== FY26_CAMPAIGN) continue;
+    if (g.gift_type !== GIFT_TYPE_SOFT_CREDIT || g.hard_credit_gift_id == null) continue;
+    const owner = type1GiftToConstituent.get(g.hard_credit_gift_id);
+    if (owner != null && owner !== g.constituent_id) softCreditedOrgs.add(owner);
   }
 
   // A constituent counts toward a segment if they gave directly (type-1),
@@ -558,14 +573,12 @@ export async function GET() {
   for (const [cid, v] of fy26ByDonor) {
     if (!fy26SegmentDonors.has(cid)) continue; // drop non-qualifying $0 donors
     const segName = segmentOf(cid);
-    // "Other" grants-only filter: a donor with no named segment role is only a
-    // genuine "Other" donor if their soft credits are all from OP: Grants (or
-    // they have none — direct gifts only). If they received any soft credit
-    // from a named fund (Guardian Circle, Anniversary Dinner, Shavuot Appeal,
-    // etc.), that money belongs to a real person's segment and would otherwise
-    // double-count in Other, so they're excluded from Other entirely. Named
-    // segments are unaffected.
-    if (segName === 'Other' && ![...v.softFunds].every(f => f === GRANTS_FUND)) continue;
+    // "Other" double-count filter: exclude a foundation/DAF whose own FY26 gift
+    // was soft-credited to a named-segment individual (that person's segment
+    // already counts the money). Named segments are unaffected. UJA-style orgs
+    // that give only to OP: Grants with no household soft credit are NOT in
+    // softCreditedOrgs and stay in Other.
+    if (segName === 'Other' && softCreditedOrgs.has(cid)) continue;
     // Twin-matching gap-fill: count every direct (type-1) gift, PLUS every
     // soft credit that is NOT a Veracross twin of one of this donor's own
     // type-1 gifts (i.e. hcid not in type1GiftIds — it came from a DAF /
