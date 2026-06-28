@@ -2,11 +2,15 @@
 
 > ⚠️ THIS IS THE ONLY TODO FILE. Update this after every session. Do not create new TODO or action item files. Archive any other planning docs by adding an ARCHIVED header. Phase build plans are reference-only.
 
-*Last updated: June 25, 2026*
+*Last updated: June 28, 2026*
 
 For the longer roadmap + horizon items + architecture history, see `RBKCC_VISION_AND_ROADMAP.md`. For implementation detail, see `CLAUDE_CONTEXT.md` ("Recent Changes" section).
 
 ---
+
+## ✅ Shipped (June 28, 2026)
+
+- ✅ **"Other" segment grants-only filter + Board Members drilldown secondary-role summary** (firebase release 2026-06-28; Cloud Run revision # unread — gcloud reauth still pending). Heidi QA. **(1)** "Other" was double-counting role-less records whose soft credits came from named funds (Guardian Circle, Anniversary Dinner, Shavuot Appeal). Now an Other-classified donor is included only if their qualifying FY26 soft credits are all from `OP: Grants` (or they have none — direct gifts only); any non-grants soft credit excludes them from Other. Applied in `overview/route.ts` (Other card total + count) and `segment-donors/route.ts` (Other drilldown) via a new per-donor `softFunds: Set<string>`; gated to `segment === 'Other'` so named segments are untouched. Verified `OP: Grants` matches the data exactly (1 grants-only donor; 1,342/1,343 FY26 soft-credit donors carry a named-fund soft credit). **(2)** Board Members drilldown (`OverviewTab.tsx`) gained a summary bar above the list: one SEGMENT_STYLE-colored pill per `secondaryRole` group showing total giving + trustee count, sorted by total desc, Board-Members-only. Untouched: segment classification, headline totals, Board priority/overrides, lapsed/new/retained, soft-credit dedup-by-hcid, all other tabs/routes. tsc + build clean; firebase shipped (site 307, both routes 401). **TODO carryover:** run `gcloud auth login` so future `./deploy.sh` runs complete fully + revision numbers are readable.
 
 ## ✅ Shipped (June 25, 2026)
 
