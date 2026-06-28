@@ -24,6 +24,10 @@ import { classifySegment } from '../route';
 // constituent, sorted by total DESC. (2026-06-14 gap-fill spec.)
 
 const FY26_CAMPAIGN = 'Operating 2025-2026';
+// "Other" segment grants-only filter — see the overview route for the full
+// rationale. A donor classified "Other" only belongs in the Other drilldown
+// if their qualifying soft credits are all from this fund (or they have none).
+const GRANTS_FUND = 'OP: Grants';
 const GIFT_TYPE_DONATION = 1;
 const GIFT_TYPE_PLEDGE = 2;
 const GIFT_TYPE_SOFT_CREDIT = 3;
@@ -50,6 +54,7 @@ interface GiftRow {
   gift_type: number;
   soft_credit_type: number | null;
   hard_credit_gift_id: number | null;
+  fund: string | null;
   date: string | null;
 }
 
@@ -103,7 +108,7 @@ export async function GET(request: NextRequest) {
     while (true) {
       const { data, error } = await supabaseAdmin
         .from('gifts_cache')
-        .select('id, constituent_id, constituent_name, amount, pledge_balance, gift_type, soft_credit_type, hard_credit_gift_id, date')
+        .select('id, constituent_id, constituent_name, amount, pledge_balance, gift_type, soft_credit_type, hard_credit_gift_id, fund, date')
         .eq('workspace_id', wsId)
         .eq('fundraising_activity', FY26_CAMPAIGN)
         .in('gift_type', [GIFT_TYPE_DONATION, GIFT_TYPE_PLEDGE, GIFT_TYPE_SOFT_CREDIT])
@@ -140,6 +145,8 @@ export async function GET(request: NextRequest) {
     type1: number;
     type1GiftIds: Set<number>;
     softByKey: Map<string, { hcid: number | null; amount: number }>;
+    // Funds of every qualifying soft credit — used by the "Other" filter.
+    softFunds: Set<string>;
     pledged: number;
     hasType1: boolean;
     hasType2: boolean;
@@ -153,7 +160,7 @@ export async function GET(request: NextRequest) {
     if (g.gift_type === GIFT_TYPE_SOFT_CREDIT && !isSoft) continue;
     const cid = g.constituent_id;
     const entry = byDonor.get(cid) ?? {
-      name: '', type1: 0, type1GiftIds: new Set<number>(), softByKey: new Map<string, { hcid: number | null; amount: number }>(), pledged: 0, hasType1: false, hasType2: false, lastGiftDate: null,
+      name: '', type1: 0, type1GiftIds: new Set<number>(), softByKey: new Map<string, { hcid: number | null; amount: number }>(), softFunds: new Set<string>(), pledged: 0, hasType1: false, hasType2: false, lastGiftDate: null,
     };
     if (g.constituent_name && !entry.name) entry.name = g.constituent_name;
     if (g.gift_type === GIFT_TYPE_DONATION) { entry.type1 += Number(g.amount || 0); entry.type1GiftIds.add(g.id); entry.hasType1 = true; }
@@ -163,6 +170,7 @@ export async function GET(request: NextRequest) {
       if (!entry.softByKey.has(softKey)) {
         entry.softByKey.set(softKey, { hcid: g.hard_credit_gift_id, amount: Number(g.amount || 0) });
       }
+      entry.softFunds.add((g.fund && g.fund.trim()) || '(No fund)');
     }
     if (g.date && (!entry.lastGiftDate || g.date > entry.lastGiftDate)) entry.lastGiftDate = g.date;
     byDonor.set(cid, entry);
@@ -221,6 +229,10 @@ export async function GET(request: NextRequest) {
     // Drop constituents with no qualifying attribution (would be $0).
     if (!(v.hasType1 || v.hasType2 || v.softByKey.size > 0)) continue;
     if (segmentOf(cid) !== segment) continue;
+    // "Other" grants-only filter (mirrors the overview route): exclude an
+    // Other-classified donor if any of their soft credits came from a named
+    // fund (not OP: Grants) — that money is counted in a real person's segment.
+    if (segment === 'Other' && ![...v.softFunds].every(f => f === GRANTS_FUND)) continue;
     // Twin-matching gap-fill: count every direct (type-1) gift, PLUS every
     // soft credit that is NOT a Veracross twin of one of this donor's own
     // type-1 gifts (hcid not in type1GiftIds — it came from a DAF /

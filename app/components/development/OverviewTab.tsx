@@ -188,6 +188,25 @@ export default function OverviewTab() {
     return q ? rows.filter(r => r.name.toLowerCase().includes(q)) : rows;
   }, [drawer, data, drawerSearch, segCache]);
 
+  // Board Members drilldown only: group the trustees by the segment they'd
+  // otherwise classify into (secondaryRole) with a count + total giving per
+  // group, sorted by total desc. Reflects the current search filter (groups
+  // drawerRows). Empty for every other drilldown.
+  const boardSecondarySummary = useMemo(() => {
+    if (!(drawer?.kind === 'segment' && drawer.segment === 'Board Members')) return [];
+    const groups = new Map<string, { total: number; count: number }>();
+    for (const d of drawerRows as SegmentDonor[]) {
+      const role = d.secondaryRole || 'Other';
+      const g = groups.get(role) ?? { total: 0, count: 0 };
+      g.total += d.donationsReceived;
+      g.count += 1;
+      groups.set(role, g);
+    }
+    return [...groups.entries()]
+      .map(([role, g]) => ({ role, total: g.total, count: g.count }))
+      .sort((a, b) => b.total - a.total);
+  }, [drawer, drawerRows]);
+
   if (loading) {
     return (
       <div>
@@ -540,6 +559,22 @@ export default function OverviewTab() {
             </div>
 
             <div className="flex-1 overflow-y-auto">
+              {/* Board Members only: secondary-segment summary (count + total
+                  giving per role the trustee would otherwise classify as). */}
+              {drawer.kind === 'segment' && drawer.segment === 'Board Members' && boardSecondarySummary.length > 0 && (
+                <div className="px-6 py-3 border-b border-slate-100 flex flex-wrap gap-2">
+                  {boardSecondarySummary.map(g => {
+                    const st = SEGMENT_STYLE[g.role] ?? SEGMENT_STYLE.Other;
+                    return (
+                      <span key={g.role} className={`inline-flex items-baseline gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium ${st.pillCls}`}>
+                        <span>{g.role}</span>
+                        <span className="font-semibold" style={{ fontVariantNumeric: 'tabular-nums' }}>{formatMoney(g.total)}</span>
+                        <span className="opacity-70">· {g.count} {g.count === 1 ? 'trustee' : 'trustees'}</span>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
               {drawer.kind === 'segment' && segLoading && !segCache.has(drawer.segment) ? (
                 <div className="flex items-center justify-center gap-2 text-sm text-slate-400 py-12">
                   <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
