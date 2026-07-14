@@ -76,28 +76,49 @@ export async function openGroupDm(
   slackUserIds: string[],
   botToken: string,
 ): Promise<string | null> {
-  if (!slackUserIds.length || !botToken) return null;
+  if (!slackUserIds.length || !botToken) {
+    console.error('[NOTIFY SLACK ERROR] openGroupDm called with', {
+      userCount: slackUserIds.length,
+      users: slackUserIds.join(','),
+      hasToken: !!botToken,
+    });
+    return null;
+  }
+  const usersCsv = slackUserIds.join(',');
   try {
+    console.log('[NOTIFY SLACK] conversations.open users:', usersCsv);
     const res = await fetch('https://slack.com/api/conversations.open', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${botToken}`,
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json; charset=utf-8',
       },
-      body: JSON.stringify({ users: slackUserIds.join(',') }),
+      body: JSON.stringify({ users: usersCsv }),
     });
     const json = (await res.json().catch(() => ({}))) as {
       ok?: boolean;
       channel?: { id?: string };
       error?: string;
+      needed?: string;
+      provided?: string;
     };
+    // Full, untruncated response so Cloud Run logs show the exact Slack
+    // error (e.g. missing_scope + needed/provided scopes, invalid_users).
+    console.log('[NOTIFY SLACK] conversations.open response:', JSON.stringify(json));
     if (json.ok !== true || !json.channel?.id) {
-      console.warn('[openGroupDm] Slack error:', JSON.stringify(json).slice(0, 300));
+      console.error('[NOTIFY SLACK ERROR] conversations.open failed', {
+        users: usersCsv,
+        httpStatus: res.status,
+        slackError: json.error,
+        needed: json.needed,
+        provided: json.provided,
+        response: JSON.stringify(json),
+      });
       return null;
     }
     return json.channel.id;
   } catch (err) {
-    console.warn('[openGroupDm] fetch threw:', err);
+    console.error('[NOTIFY SLACK ERROR] conversations.open threw:', err, 'users:', usersCsv);
     return null;
   }
 }
@@ -126,14 +147,23 @@ export async function postSlackMessage(
         ...(opts.thread_ts ? { thread_ts: opts.thread_ts } : {}),
       }),
     });
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; ts?: string; error?: string };
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; ts?: string; error?: string; needed?: string; provided?: string };
+    console.log('[NOTIFY SLACK] chat.postMessage response:', JSON.stringify(json));
     if (json.ok !== true) {
-      console.warn('[postSlackMessage] Slack error:', JSON.stringify(json).slice(0, 300));
+      console.error('[NOTIFY SLACK ERROR] chat.postMessage failed', {
+        channel,
+        threadTs: opts.thread_ts ?? null,
+        httpStatus: res.status,
+        slackError: json.error,
+        needed: json.needed,
+        provided: json.provided,
+        response: JSON.stringify(json),
+      });
       return null;
     }
     return json.ts ?? null;
   } catch (err) {
-    console.warn('[postSlackMessage] fetch threw:', err);
+    console.error('[NOTIFY SLACK ERROR] chat.postMessage threw:', err, 'channel:', channel);
     return null;
   }
 }

@@ -9,7 +9,7 @@
 
 Next.js 16 app serving as a unified operations dashboard for Rebecca (RBK) and Emily. Deployed to Firebase Hosting at **https://rbk-cmd-center.web.app**, with Supabase as the database and Firebase Auth (Google OAuth) for authentication.
 
-**Latest Cloud Run revision:** `ssrrbkcmdcenter` (firebase hosting release 2026-07-14c; exact revision # unread — gcloud still needs `gcloud auth login` reauth). **Latest deploy:** July 14, 2026 (@Notify follow-ups: Tasks visible to all users + Admissions note pre-fill; earlier same day: This Week at SAR URL → vercel, cross-module @Notify).
+**Latest Cloud Run revision:** `ssrrbkcmdcenter` (firebase hosting release 2026-07-14d; exact revision # unread — gcloud still needs `gcloud auth login` reauth). **Latest deploy:** July 14, 2026 (@Notify Slack group-DM diagnostic logging; earlier same day: @Notify tasks-for-all + Admissions note pre-fill, This Week at SAR URL → vercel, cross-module @Notify).
 
 **Tech stack:** Next.js 16 + React 19 + Tailwind CSS (v4, `@tailwindcss/typography`) + Tiptap (rich text) + Supabase + Firebase (Auth, Hosting, Cloud Functions). Fonts: Geist (UI), Source Serif 4 (home greeting). ALL authenticated users auto-redirect from `/` to `/home` unless `?nav=` or `?projectPanel=` params are present. The old Dashboard at `/` is only accessible via sidebar nav items that pass `?nav=` params. ALL users see "Home" in sidebar (no more "Dashboard" item for anyone). `shouldRedirectHome` is always true.
 
@@ -719,6 +719,18 @@ Phase F per-workspace integration credentials. **Service-role only** — RLS den
 - **Vercel:** Deprecated (deployment dead as of June 2025)
 
 ## Recent Changes
+
+### @Notify Slack group DM — diagnostic logging + flow verified (2026-07-14)
+
+Firebase release 2026-07-14d (Cloud Run revision # unread — gcloud reauth pending). The @Notify group DM was silently failing (`slack_thread_ts`/`slack_channel_id` null on all notify tasks) because the Slack errors went to `console.warn` truncated to 300 chars with no context. This deploy adds loud, structured logging so the exact Slack failure is readable in Cloud Run logs — **no functional flow change was needed**.
+
+**Flow verified correct (STEP 2).** `openGroupDm` in `lib/slackNotifications.ts` already matches the required MPIM flow exactly: (1) `POST conversations.open` with a **comma-separated string** `{ users: slackUserIds.join(',') }` (not an array), (2) read `channel.id` from the response, (3) `chat.postMessage` with `{ channel: <that id>, blocks, text }`. No mistake to fix — the diagnosis's "common mistakes" (array instead of CSV, skipping conversations.open, wrong channel) were all already avoided. The `mpim:write` scope was added + the app reinstalled out-of-band; whether the DB/env bot token carries the new scope will be confirmed by the logs below.
+
+**Logging added (STEP 1).** All `[NOTIFY SLACK ERROR]`-prefixed via `console.error`, full untruncated Slack responses:
+- `openGroupDm` / `postSlackMessage` (`lib/slackNotifications.ts`): log the outgoing user CSV / channel, then the **full** `conversations.open` / `chat.postMessage` JSON response, and on failure a structured error with `httpStatus`, `slackError`, and Slack's `needed`/`provided` scope fields (surfaces `missing_scope` precisely). Content-Type on conversations.open set to `application/json; charset=utf-8`.
+- `app/api/notify/route.ts`: before the call, logs `[NOTIFY SLACK] preparing group DM` with `participantSlackIds`, `participantCount`, `hasBotToken`, and `participantsMissingSlackId` (members dropped for having no `slack_user_id`). Then distinct `[NOTIFY SLACK ERROR]` branches for: no bot token, `< 2` participants with a Slack ID (Slack rejects a single-user MPIM), `openGroupDm` returned null, and `postSlackMessage` returned null — so the log pinpoints exactly which stage failed. The catch now uses `console.error`. Slack remains best-effort — task creation is never blocked.
+
+**How to diagnose (for the next session / user):** trigger an @Notify, then read Cloud Run logs for the `[NOTIFY SLACK]` / `[NOTIFY SLACK ERROR]` lines (`gcloud run services logs read ssrrbkcmdcenter --region=us-east1 --project=rbk-cmd-center --limit=200 | grep 'NOTIFY SLACK'`, or the GCP/Firebase console). The most likely findings: (a) `slackError: 'missing_scope'` with `needed: 'mpim:write'` ⇒ the stored bot token predates the reinstall — reconnect Slack in Admin → Integrations (or reseed the token) so the new scope is picked up; (b) `fewer than 2 participants with a Slack ID` ⇒ the sender and/or the tagged member has no `slack_user_id` in `workspace_members` (several viewers currently don't). **I could not read the logs myself this run — gcloud needs `gcloud auth login` reauth.** tsc + build clean; firebase shipped (site 307, `/api/notify` 401=auth).
 
 ### @Notify follow-ups — Tasks visible to all users + Admissions note pre-fill (2026-07-14)
 

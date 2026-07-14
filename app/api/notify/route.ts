@@ -108,13 +108,41 @@ export async function POST(request: NextRequest) {
   let slackChannelId: string | null = null;
   try {
     const { botToken } = await getSlackCredentials(wsId);
+    // Log the full picture up front so Cloud Run shows exactly why a DM
+    // did or didn't go out: participant Slack IDs, count, token presence,
+    // and who (if anyone) was dropped for having no slack_user_id.
+    const missingSlack = [sender, ...tagged, ...assistants]
+      .filter(m => !m.slack_user_id)
+      .map(m => m.display_name || m.email);
+    console.log('[NOTIFY SLACK] preparing group DM', {
+      workspaceId: wsId,
+      sender: senderName,
+      tagged: taggedNames,
+      participantSlackIds,
+      participantCount: participantSlackIds.length,
+      hasBotToken: !!botToken,
+      participantsMissingSlackId: missingSlack,
+    });
+
     // Need >= 2 distinct participants for a group DM (Slack rejects a
     // single-user MPIM). If only the sender has a Slack id, skip Slack
     // but still create the tasks.
-    if (botToken && participantSlackIds.length >= 2) {
+    if (!botToken) {
+      console.error('[NOTIFY SLACK ERROR] no Slack bot token for workspace', wsId, '— skipping group DM (tasks still created)');
+    } else if (participantSlackIds.length < 2) {
+      console.error('[NOTIFY SLACK ERROR] fewer than 2 participants with a Slack ID — cannot open a group DM (tasks still created)', {
+        participantSlackIds,
+        participantsMissingSlackId: missingSlack,
+      });
+    } else {
       const channel = await openGroupDm(participantSlackIds, botToken);
-      if (channel) {
+      if (!channel) {
+        console.error('[NOTIFY SLACK ERROR] openGroupDm returned null — group DM not opened (see conversations.open log above)', {
+          participantSlackIds,
+        });
+      } else {
         slackChannelId = channel;
+        console.log('[NOTIFY SLACK] group DM channel opened:', channel);
         const headline = `*${senderName}* tagged *${taggedNames}* from *${context || 'the Command Center'}*`;
         slackThreadTs = await postSlackMessage(channel, botToken, {
           text: `${senderName} tagged ${taggedNames} from ${context || 'the Command Center'}`,
@@ -134,11 +162,18 @@ export async function POST(request: NextRequest) {
             },
           ],
         });
+        if (!slackThreadTs) {
+          console.error('[NOTIFY SLACK ERROR] postSlackMessage returned null — DM not sent (see chat.postMessage log above)', {
+            channel,
+          });
+        } else {
+          console.log('[NOTIFY SLACK] group DM sent, thread ts:', slackThreadTs);
+        }
       }
     }
   } catch (err) {
     // Slack is best-effort — never block task creation on a Slack failure.
-    console.warn('[notify] Slack group DM failed (non-fatal):', err);
+    console.error('[NOTIFY SLACK ERROR] group DM block threw (non-fatal, tasks still created):', err);
   }
 
   // --- Create a task for each tagged member (not the sender, not assistants) ---
