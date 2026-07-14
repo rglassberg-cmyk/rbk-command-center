@@ -16,6 +16,7 @@ import AfterSchoolTab from './AfterSchoolTab';
 // top-level `guardian-circle` nav route was retired on 2026-05-15.
 import SimchasSendNoteModal, { type SimchasSendNotePayload } from './SimchasSendNoteModal';
 import SlackSendModal from './shared/SlackSendModal';
+import NotifyButton from './shared/NotifyButton';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { ShimmerCards } from './ui/Shimmer';
 import { apiFetch } from '@/lib/apiFetch';
@@ -40,6 +41,27 @@ const ADMISSIONS_TAG_DEFS = [
   { label: 'Priority Family', color: 'text-blue-700', bg: 'bg-blue-50' },
   { label: 'Decision Pending', color: 'text-slate-700', bg: 'bg-slate-100' },
 ];
+
+// Per-module context label for the cross-module @Notify button. Keyed by
+// activeNav so the button in the content-area header always describes the
+// module the user is looking at.
+const NOTIFY_CONTEXT_LABELS: Record<string, string> = {
+  dashboard: 'Home',
+  inbox: 'Email Inbox',
+  agenda: 'Meeting Agenda',
+  tasks: 'Tasks',
+  projects: 'Projects',
+  simchas: 'Simchas & Shivas',
+  'student-logs': 'Student Logs',
+  absences: 'Student Absences',
+  admissions: 'Admissions & Enrollment',
+  after_school: 'After School Programs',
+  development: 'Development',
+  lever: 'Recruiting',
+  emily: "Emily's Queue",
+  gemara: 'Gemara',
+  communications: 'Communications',
+};
 
 // Veracross link for an admissions person. Applicants (not yet enrolled) live on
 // the admission-candidate record; enrolled / re-enrolling students live on the
@@ -782,6 +804,8 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
   const [showCompletedAdmissions, setShowCompletedAdmissions] = useState(false);
   const [fromDevCollapsed, setFromDevCollapsed] = useState(false);
   const [fromAdmCollapsed, setFromAdmCollapsed] = useState(true);
+  const [fromNotifyCollapsed, setFromNotifyCollapsed] = useState(false);
+  const [showCompletedNotify, setShowCompletedNotify] = useState(false);
   // Click-to-expand state for From Development / From Admissions cards.
   // One open at a time across both sections (a single string id is
   // sufficient since `tasks.id` is unique).
@@ -3781,6 +3805,11 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
         )}
 
         <div className="p-8">
+          {/* Cross-module @Notify — tag teammates, open a Slack group DM,
+              and drop a task on their list. Context reflects the active module. */}
+          <div className="flex justify-end -mt-2 mb-2">
+            <NotifyButton context={NOTIFY_CONTEXT_LABELS[activeNav] ?? 'Command Center'} />
+          </div>
           {/* Dashboard View */}
           {activeNav === 'dashboard' && (
             <div className="space-y-8">
@@ -5567,6 +5596,102 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   {/* Source-tagged groups: cross-module auto-created tasks (e.g. donor
                       note @RBK mentions). Rendered above Drafts to Approve. The
                       original RBK column derived tasks remain below as "My Tasks". */}
+                  {/* Needs Your Reply — cross-module @Notify tasks. Matched by
+                      assignee_key OR display_name so members without an
+                      assignee_key still see their own notify tasks. */}
+                  {(() => {
+                    const myKeys = [myAssigneeKeyLower, myDisplayName?.toLowerCase()].filter(Boolean);
+                    const notifyTasks = sourcedTasks.filter(t => t.source === 'notify' && myKeys.includes(t.assigned_to?.toLowerCase() ?? ''));
+                    const notifyPending = notifyTasks.filter(t => t.status !== 'done');
+                    const notifyDone = notifyTasks.filter(t => t.status === 'done');
+                    if (notifyTasks.length === 0) return null;
+                    return (
+                      <div className="mb-4">
+                        <button
+                          onClick={() => setFromNotifyCollapsed(c => !c)}
+                          className="flex items-center gap-2 text-sm font-semibold text-blue-700 hover:text-blue-900 transition-colors mb-2"
+                        >
+                          <svg className={`w-3.5 h-3.5 transition-transform ${!fromNotifyCollapsed ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                          Needs Your Reply
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{notifyPending.length}</span>
+                        </button>
+                        {!fromNotifyCollapsed && (
+                          <div className="space-y-1.5">
+                            {notifyPending.map(t => {
+                              const isExpanded = expandedSourcedTaskId === t.id;
+                              return (
+                              <div
+                                key={t.id}
+                                onClick={() => setExpandedSourcedTaskId(prev => prev === t.id ? null : t.id)}
+                                className={`bg-white border border-slate-200 rounded-lg px-3 py-2 cursor-pointer hover:bg-slate-50 transition-colors ${isExpanded ? 'ring-1 ring-blue-200' : ''}`}
+                              >
+                                <div className="flex items-start gap-2">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); toggleSourcedTaskStatus(t); }}
+                                    className="mt-0.5 w-4 h-4 rounded border border-slate-300 hover:border-blue-500 flex items-center justify-center flex-shrink-0"
+                                    title="Mark resolved"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm text-slate-800 break-words">{t.title}</p>
+                                    {t.source_ref && (
+                                      <p className="text-[11px] text-slate-500 mt-0.5">{t.source_ref}</p>
+                                    )}
+                                  </div>
+                                  <svg className={`w-3.5 h-3.5 text-slate-400 flex-shrink-0 mt-1 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                </div>
+                                {isExpanded && (
+                                  <div className="mt-2 pt-2 border-t border-slate-100 space-y-2" onClick={(e) => e.stopPropagation()}>
+                                    {t.description && (
+                                      <p className="text-sm text-slate-600 whitespace-pre-wrap max-h-40 overflow-y-auto">{t.description}</p>
+                                    )}
+                                    <button
+                                      onClick={() => toggleSourcedTaskStatus(t)}
+                                      className="text-xs font-medium px-2.5 py-1 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                                    >
+                                      Mark resolved
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                              );
+                            })}
+                            {notifyDone.length > 0 && (
+                              <>
+                                <button
+                                  onClick={() => setShowCompletedNotify(s => !s)}
+                                  className="text-[11px] text-slate-400 hover:text-slate-600 transition-colors mt-1"
+                                >
+                                  {showCompletedNotify ? 'Hide' : 'Show'} resolved ({notifyDone.length})
+                                </button>
+                                {showCompletedNotify && notifyDone.map(t => (
+                                  <div key={t.id} className="bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 flex items-start gap-2 opacity-70">
+                                    <button
+                                      onClick={() => toggleSourcedTaskStatus(t)}
+                                      className="mt-0.5 w-4 h-4 rounded bg-blue-500 border border-blue-500 flex items-center justify-center flex-shrink-0 text-white"
+                                      title="Reopen"
+                                    >
+                                      <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    </button>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm text-slate-500 line-through break-words">{t.title}</p>
+                                      {t.source_ref && (
+                                        <p className="text-[11px] text-slate-400 mt-0.5">{t.source_ref}</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   {(() => {
                     const devTasks = sourcedTasks.filter(t => t.source === 'development' && t.assigned_to?.toLowerCase() === myAssigneeKeyLower);
                     const devPending = devTasks.filter(t => t.status !== 'done');
@@ -9321,6 +9446,10 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                   {isExpanded && (
                                     <div className="border-t border-slate-100 mt-4 pt-4" onClick={e => e.stopPropagation()}>
                                       <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Notes &amp; Tags</p>
+                                      <div className="flex items-center justify-between mb-2">
+                                        <span className="text-[11px] text-slate-400">Notify a teammate about this candidate</span>
+                                        <NotifyButton context={annotationsName} />
+                                      </div>
                                       <DonorAnnotations
                                         constituentName={annotationsName}
                                         constituentId={annotationsId}
@@ -9405,6 +9534,10 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                   {isExpanded && (
                                     <div className="border-t border-slate-100 mt-4 pt-4" onClick={e => e.stopPropagation()}>
                                       <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Notes &amp; Tags</p>
+                                      <div className="flex items-center justify-between mb-2">
+                                        <span className="text-[11px] text-slate-400">Notify a teammate about this candidate</span>
+                                        <NotifyButton context={annotationsName} />
+                                      </div>
                                       <DonorAnnotations
                                         constituentName={annotationsName}
                                         constituentId={annotationsId}
@@ -9490,7 +9623,11 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                     {isExpanded && (
                                       <div className="border-t border-slate-100 mt-4 pt-4" onClick={e => e.stopPropagation()}>
                                         <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Notes &amp; Tags</p>
-                                        <DonorAnnotations
+                                        <div className="flex items-center justify-between mb-2">
+                                        <span className="text-[11px] text-slate-400">Notify a teammate about this candidate</span>
+                                        <NotifyButton context={annotationsName} />
+                                      </div>
+                                      <DonorAnnotations
                                           constituentName={annotationsName}
                                           constituentId={annotationsId}
                                           tags={admissionsDrilldownTags.get(annotationsName) ?? []}
@@ -9624,6 +9761,10 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                   {isExpanded && (
                                     <div className="border-t border-slate-100 mt-4 pt-4" onClick={e => e.stopPropagation()}>
                                       <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Notes &amp; Tags</p>
+                                      <div className="flex items-center justify-between mb-2">
+                                        <span className="text-[11px] text-slate-400">Notify a teammate about this candidate</span>
+                                        <NotifyButton context={annotationsName} />
+                                      </div>
                                       <DonorAnnotations
                                         constituentName={annotationsName}
                                         constituentId={annotationsId}
@@ -9724,6 +9865,10 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                   {isExpanded && (
                                     <div className="border-t border-slate-100 mt-4 pt-4" onClick={e => e.stopPropagation()}>
                                       <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Notes &amp; Tags</p>
+                                      <div className="flex items-center justify-between mb-2">
+                                        <span className="text-[11px] text-slate-400">Notify a teammate about this candidate</span>
+                                        <NotifyButton context={annotationsName} />
+                                      </div>
                                       <DonorAnnotations
                                         constituentName={annotationsName}
                                         constituentId={annotationsId}
@@ -10005,6 +10150,10 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                   {isExpanded && (
                                     <div className="border-t border-slate-100 mt-4 pt-4" onClick={e => e.stopPropagation()}>
                                       <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Notes &amp; Tags</p>
+                                      <div className="flex items-center justify-between mb-2">
+                                        <span className="text-[11px] text-slate-400">Notify a teammate about this candidate</span>
+                                        <NotifyButton context={annotationsName} />
+                                      </div>
                                       <DonorAnnotations
                                         constituentName={annotationsName}
                                         constituentId={annotationsId}
@@ -10206,6 +10355,10 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                 {isExpanded && (
                                   <div className="border-t border-slate-100 mt-4 pt-4" onClick={e => e.stopPropagation()}>
                                     <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Notes &amp; Tags</p>
+                                    <div className="flex items-center justify-between mb-2">
+                                      <span className="text-[11px] text-slate-400">Notify a teammate about this candidate</span>
+                                      <NotifyButton context={annotationsName} />
+                                    </div>
                                     <DonorAnnotations
                                       constituentName={annotationsName}
                                       constituentId={annotationsId}

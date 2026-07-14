@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getEffectiveWorkspaceId } from '@/lib/impersonate';
-import { sendTaskSlack, type SlackTask } from '@/lib/slackNotifications';
+import { sendTaskSlack, postSlackMessage, type SlackTask } from '@/lib/slackNotifications';
+import { getSlackCredentials } from '@/lib/getIntegration';
+import { getMemberByEmail } from '@/lib/getWorkspaceMemberByAssignee';
 import { normalizeToCapitalized } from '@/lib/assignees';
 
 const normalizeAssignedTo = normalizeToCapitalized;
@@ -127,6 +129,20 @@ export async function PATCH(request: NextRequest) {
   // If assigned_to is being changed, read the prior value first so we only
   // fire the Slack DM when the assignee actually changes (not on a no-op
   // PATCH that just re-asserts the same value).
+  // When a task is being marked done, load its @Notify Slack thread
+  // coordinates (if any) so we can post a "✓ resolved" reply back into
+  // the group DM after the update succeeds.
+  let notifyThread: { source: string | null; slack_thread_ts: string | null; slack_channel_id: string | null } | null = null;
+  if (body.status === 'done') {
+    const { data: existing } = await supabaseAdmin
+      .from('tasks')
+      .select('source, slack_thread_ts, slack_channel_id')
+      .eq('id', body.id)
+      .eq('workspace_id', wsId)
+      .single();
+    if (existing) notifyThread = existing;
+  }
+
   let priorAssignedTo: string | null = null;
   let dmTaskShape: SlackTask | null = null;
   if (body.assigned_to !== undefined) {
@@ -180,6 +196,30 @@ export async function PATCH(request: NextRequest) {
     dmTaskShape
   ) {
     void sendTaskSlack(wsId, body.assigned_to, dmTaskShape, session.user.email);
+  }
+
+  // @Notify resolve loop: when a 'notify'-sourced task is marked done,
+  // reply in its Slack thread. Fire-and-forget — never block the response.
+  if (
+    body.status === 'done' &&
+    notifyThread?.source === 'notify' &&
+    notifyThread.slack_thread_ts &&
+    notifyThread.slack_channel_id
+  ) {
+    void (async () => {
+      try {
+        const { botToken } = await getSlackCredentials(wsId);
+        if (!botToken) return;
+        const actor = await getMemberByEmail(wsId, session.user!.email!);
+        const actorName = actor?.display_name || session.user!.email!.split('@')[0];
+        await postSlackMessage(notifyThread!.slack_channel_id!, botToken, {
+          text: `✓ ${actorName} marked this resolved`,
+          thread_ts: notifyThread!.slack_thread_ts!,
+        });
+      } catch (err) {
+        console.warn('[tasks PATCH] notify resolve reply failed (non-fatal):', err);
+      }
+    })();
   }
 
   return NextResponse.json({ success: true });

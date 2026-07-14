@@ -24,6 +24,7 @@ interface MentionableUser {
   fullName: string;
   email: string;
   slackId: string | null;
+  role: string;
 }
 
 // Mirrors the `name` field semantics in DonorAnnotations.tsx: prefer the
@@ -84,6 +85,7 @@ export async function GET(request: NextRequest) {
     fullName: r.display_name || r.email.split('@')[0] || r.email,
     email: r.email,
     slackId: r.slack_user_id,
+    role: r.role,
   }));
 
   return NextResponse.json({ users });

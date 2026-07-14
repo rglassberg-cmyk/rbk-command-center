@@ -2,11 +2,15 @@
 
 > ⚠️ THIS IS THE ONLY TODO FILE. Update this after every session. Do not create new TODO or action item files. Archive any other planning docs by adding an ARCHIVED header. Phase build plans are reference-only.
 
-*Last updated: June 28, 2026*
+*Last updated: July 14, 2026*
 
 For the longer roadmap + horizon items + architecture history, see `RBKCC_VISION_AND_ROADMAP.md`. For implementation detail, see `CLAUDE_CONTEXT.md` ("Recent Changes" section).
 
 ---
+
+## ✅ Shipped (July 14, 2026)
+
+- ✅ **Cross-module @Notify — Slack group DM + task creation with reply loop** (firebase release 2026-07-14; Cloud Run revision # unread — gcloud reauth still pending). New `@` NotifyButton lets any workspace member tag ≥1 teammate, fire a Slack **group DM** (sender + tagged + each tagged member's assistant, deduped by slack_user_id), and drop a `tasks` row on each tagged member's list. When a resulting task is marked done, `PATCH /api/tasks` posts `✓ <name> marked this resolved` back into the Slack thread. **New:** `app/components/shared/NotifyButton.tsx` (self-contained popover: message textarea + searchable multi-select person picker w/ role badges + chips), `POST /api/notify` route, `openGroupDm` + `postSlackMessage` helpers in `lib/slackNotifications.ts`. **Migration** `scripts/migrations/tasks-slack-thread.sql` (applied live): added `tasks.slack_thread_ts` + `slack_channel_id`, dropped the `tasks_assigned_to_check` CHECK (was hard-limited to the 5 assignee keys; @Notify assigns to any member by `assignee_key ?? display_name`). **Dashboard:** content-area NotifyButton at top-right of every module (context by `activeNav` via `NOTIFY_CONTEXT_LABELS`), a "Needs Your Reply" sourced-task group in the Tasks column (source='notify', matched by assignee_key OR display_name), and per-candidate NotifyButton in all 7 Admissions drilldown Notes panels (context "Admissions: <name>"). `mentionable-users` route extended to return `role`. **Scope deviations (documented in CLAUDE.md):** Step 4 = one content-area button per module (not 13 header edits); Step 5 pre-fills context but not note-text (lives in DonorAnnotations internal state); `source_ref`=context, `source`='notify' (no context_label/task_type columns); **viewers** (most tagged members) don't have the Tasks page in their sidebar so they currently only get the Slack DM — an in-app resolve surface for viewers is a follow-up. tsc + build clean; `./deploy.sh` firebase step shipped (SSR `Successful update operation`, hosting released; site 307, `/api/notify` 401=auth). gcloud finalize step aborted on reauth (redundant). **TODO carryover:** run `gcloud auth login` so future `./deploy.sh` runs complete fully + revision numbers are readable. **Follow-up:** surface notify tasks in a viewer-accessible list; optionally pre-fill the Admissions per-candidate NotifyButton message with the live note text.
 
 ## ✅ Shipped (June 28, 2026)
 

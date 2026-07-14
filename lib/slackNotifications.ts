@@ -69,6 +69,75 @@ export async function sendSlackDM(
   }
 }
 
+// Open (or find) a Slack group DM (MPIM) for a list of user IDs and
+// return its channel id. Slack dedupes — calling this with the same set
+// of users returns the same channel. Returns null on any failure.
+export async function openGroupDm(
+  slackUserIds: string[],
+  botToken: string,
+): Promise<string | null> {
+  if (!slackUserIds.length || !botToken) return null;
+  try {
+    const res = await fetch('https://slack.com/api/conversations.open', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${botToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ users: slackUserIds.join(',') }),
+    });
+    const json = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      channel?: { id?: string };
+      error?: string;
+    };
+    if (json.ok !== true || !json.channel?.id) {
+      console.warn('[openGroupDm] Slack error:', JSON.stringify(json).slice(0, 300));
+      return null;
+    }
+    return json.channel.id;
+  } catch (err) {
+    console.warn('[openGroupDm] fetch threw:', err);
+    return null;
+  }
+}
+
+// Post a Block Kit message to a Slack channel/conversation. Returns the
+// message ts (thread root) on success, or null on failure. `thread_ts`
+// posts the message as a threaded reply. Never throws.
+export async function postSlackMessage(
+  channel: string,
+  botToken: string,
+  opts: { text: string; blocks?: unknown[]; thread_ts?: string },
+): Promise<string | null> {
+  if (!channel || !botToken) return null;
+  try {
+    const res = await fetch(SLACK_POST_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${botToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        channel,
+        text: opts.text,
+        mrkdwn: true,
+        ...(opts.blocks ? { blocks: opts.blocks } : {}),
+        ...(opts.thread_ts ? { thread_ts: opts.thread_ts } : {}),
+      }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; ts?: string; error?: string };
+    if (json.ok !== true) {
+      console.warn('[postSlackMessage] Slack error:', JSON.stringify(json).slice(0, 300));
+      return null;
+    }
+    return json.ts ?? null;
+  } catch (err) {
+    console.warn('[postSlackMessage] fetch threw:', err);
+    return null;
+  }
+}
+
 // Look up a workspace_member's slack_user_id by email. Returns null
 // when no match or any error.
 export async function getSlackUserIdByEmail(
