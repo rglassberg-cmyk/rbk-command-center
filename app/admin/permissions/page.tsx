@@ -296,7 +296,9 @@ export default function PermissionsPage() {
   const [addDisplayName, setAddDisplayName] = useState('');
   const [addTitle, setAddTitle] = useState('');
   const [addRole, setAddRole] = useState<'owner' | 'assistant' | 'viewer'>('viewer');
-  const [addModules, setAddModules] = useState<Record<string, boolean>>({});
+  // Tasks defaults ON for new viewers — everyone needs the Tasks page to
+  // see their @Notify "Needs Your Reply" items. Admin can still uncheck it.
+  const [addModules, setAddModules] = useState<Record<string, boolean>>({ tasks: true });
   const [addDivisions, setAddDivisions] = useState<string[]>([]);
   const [addSaving, setAddSaving] = useState(false);
   // Remove flow state — id of the row currently being deleted (for spinner).
@@ -534,7 +536,7 @@ export default function PermissionsPage() {
     setAddDisplayName('');
     setAddTitle('');
     setAddRole('viewer');
-    setAddModules({});
+    setAddModules({ tasks: true });
     setAddDivisions([]);
     setShowAddForm(false);
   };

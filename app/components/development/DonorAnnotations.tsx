@@ -266,12 +266,18 @@ export function NotesList({
   onDelete,
   saving = false,
   users = MENTIONABLE_USERS,
+  onDraftChange,
 }: {
   notes: DonorNote[];
   onAdd: (note: string) => void;
   onDelete: (id: string) => void;
   saving?: boolean;
   users?: MentionableUser[];
+  // Fires whenever the draft note text changes. Lets a parent mirror the
+  // in-progress note (e.g. into a ref) without lifting the draft state —
+  // used by the Admissions NotifyButton pre-fill. Called on every keystroke
+  // so keep the handler cheap (a ref write, not a setState).
+  onDraftChange?: (text: string) => void;
 }) {
   const [draft, setDraft] = useState('');
   const [caret, setCaret] = useState(0);
@@ -298,6 +304,7 @@ export function NotesList({
     const next = before + inserted + after;
     const nextCaret = before.length + inserted.length;
     setDraft(next);
+    onDraftChange?.(next);
     setMentionState(null);
     // Move focus + caret back into the input. Guarded for SSR even though
     // this handler only fires on a user click — defense-in-depth so the
@@ -319,6 +326,7 @@ export function NotesList({
     if (!t) return;
     onAdd(t);
     setDraft('');
+    onDraftChange?.('');
     setMentionState(null);
   };
 
@@ -358,6 +366,7 @@ export function NotesList({
               const v = e.target.value;
               const pos = e.target.selectionStart ?? v.length;
               setDraft(v);
+              onDraftChange?.(v);
               setCaret(pos);
               updateMentionState(v, pos);
             }}
@@ -424,11 +433,16 @@ export default function DonorAnnotations({
   onTagsChange,
   mentionableUsers,
   tagDefs,
+  onDraftChange,
 }: {
   constituentName: string;
   constituentId?: string | null;
   tags: DonorTag[];
   onTagsChange: (next: DonorTag[]) => void;
+  // Mirrors the in-progress note draft to the parent (used by the
+  // Admissions NotifyButton pre-fill). Optional — development call sites
+  // don't pass it, so their behavior is unchanged.
+  onDraftChange?: (text: string) => void;
   // Optional pre-resolved list. When omitted, the component fetches
   // /api/workspace/mentionable-users on mount. The hardcoded
   // MENTIONABLE_USERS fallback seeds the initial state so the autocomplete
@@ -554,6 +568,7 @@ export default function DonorAnnotations({
             onDelete={handleDeleteNote}
             saving={saving}
             users={resolvedUsers}
+            onDraftChange={onDraftChange}
           />
         )}
       </div>

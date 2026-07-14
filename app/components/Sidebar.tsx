@@ -259,6 +259,30 @@ export default function Sidebar({
           </div>
         </div>}
 
+        {/* Tasks — always available, even to viewers whose full Daily
+            section is hidden above. Ensures every workspace member can
+            reach their "Needs Your Reply" @Notify tasks. */}
+        {(role === 'viewer' && allowedModules) && (
+          <div>
+            <p className="text-[10px] text-slate-400 font-semibold tracking-widest uppercase px-3 mb-2">Daily</p>
+            <div className="space-y-0.5">
+              <button
+                onClick={() => handleNav('tasks')}
+                className={`w-full flex items-center gap-3.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  activeNav === 'tasks'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+                Tasks
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Academics */}
         {(effectiveModules?.absences !== false || effectiveModules?.admissions !== false || effectiveModules?.after_school !== false) && <div>
           <button

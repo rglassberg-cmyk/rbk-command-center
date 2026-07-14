@@ -25,6 +25,12 @@ interface NotifyButtonProps {
   message?: string;
   onSent?: () => void;
   className?: string;
+  // Optional lazy message source, read at the moment the popover opens.
+  // Used by the Admissions candidate cards to pre-fill the notify message
+  // with whatever the user has currently typed in the note field (which
+  // lives in a ref, so no re-render churn). Takes precedence over `message`
+  // when opening.
+  getMessage?: () => string;
 }
 
 const ROLE_BADGE: Record<string, { label: string; cls: string }> = {
@@ -38,7 +44,7 @@ function initialOf(m: WorkspaceMember): string {
   return (src[0] || '?').toUpperCase();
 }
 
-export default function NotifyButton({ context, message, onSent, className }: NotifyButtonProps) {
+export default function NotifyButton({ context, message, onSent, className, getMessage }: NotifyButtonProps) {
   const [open, setOpen] = useState(false);
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [membersLoaded, setMembersLoaded] = useState(false);
@@ -160,7 +166,17 @@ export default function NotifyButton({ context, message, onSent, className }: No
     <div ref={containerRef} className={`relative inline-block ${className ?? ''}`}>
       <button
         type="button"
-        onClick={(e) => { e.stopPropagation(); setOpen(o => !o); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!open) {
+            // Opening — seed the message from the lazy source (e.g. the
+            // candidate's current note draft) if one was provided.
+            if (getMessage) setText(getMessage());
+            setOpen(true);
+          } else {
+            setOpen(false);
+          }
+        }}
         title="Notify a teammate"
         className="inline-flex items-center justify-center w-7 h-7 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
       >

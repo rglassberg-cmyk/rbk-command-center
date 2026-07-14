@@ -1451,6 +1451,12 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
   // Tracks which student card in the drilldown list is currently expanded
   // to show its DonorAnnotations panel. One open at a time.
   const [expandedAdmissionsStudent, setExpandedAdmissionsStudent] = useState<string | null>(null);
+  // Live mirror of each Admissions candidate's in-progress note draft, keyed
+  // by the "Admissions: <name>" annotationsName. Written by
+  // DonorAnnotations.onDraftChange (a plain ref write — no re-render) and
+  // read by that candidate's NotifyButton getMessage() on open, so the
+  // notify message pre-fills with whatever note text the user has typed.
+  const admissionsNoteDraftRef = useRef<Record<string, string>>({});
   const [overviewDrilldownFilter, setOverviewDrilldownFilter] = useState<'all' | 'enrolled' | 'pending' | 'declined'>('all');
   const [applicantNames, setApplicantNames] = useState<Record<number, string>>({});
   const [applicantNamesLoading, setApplicantNamesLoading] = useState(false);
@@ -9448,10 +9454,11 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                       <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Notes &amp; Tags</p>
                                       <div className="flex items-center justify-between mb-2">
                                         <span className="text-[11px] text-slate-400">Notify a teammate about this candidate</span>
-                                        <NotifyButton context={annotationsName} />
+                                        <NotifyButton context={annotationsName} getMessage={() => admissionsNoteDraftRef.current[annotationsName] ?? ''} />
                                       </div>
                                       <DonorAnnotations
                                         constituentName={annotationsName}
+                                        onDraftChange={(t) => { admissionsNoteDraftRef.current[annotationsName] = t; }}
                                         constituentId={annotationsId}
                                         tags={admissionsDrilldownTags.get(annotationsName) ?? []}
                                         onTagsChange={(next) => updateAdmissionsTag(annotationsName, next)}
@@ -9536,10 +9543,11 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                       <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Notes &amp; Tags</p>
                                       <div className="flex items-center justify-between mb-2">
                                         <span className="text-[11px] text-slate-400">Notify a teammate about this candidate</span>
-                                        <NotifyButton context={annotationsName} />
+                                        <NotifyButton context={annotationsName} getMessage={() => admissionsNoteDraftRef.current[annotationsName] ?? ''} />
                                       </div>
                                       <DonorAnnotations
                                         constituentName={annotationsName}
+                                        onDraftChange={(t) => { admissionsNoteDraftRef.current[annotationsName] = t; }}
                                         constituentId={annotationsId}
                                         tags={admissionsDrilldownTags.get(annotationsName) ?? []}
                                         onTagsChange={(next) => updateAdmissionsTag(annotationsName, next)}
@@ -9625,10 +9633,11 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                         <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Notes &amp; Tags</p>
                                         <div className="flex items-center justify-between mb-2">
                                         <span className="text-[11px] text-slate-400">Notify a teammate about this candidate</span>
-                                        <NotifyButton context={annotationsName} />
+                                        <NotifyButton context={annotationsName} getMessage={() => admissionsNoteDraftRef.current[annotationsName] ?? ''} />
                                       </div>
                                       <DonorAnnotations
                                           constituentName={annotationsName}
+                                        onDraftChange={(t) => { admissionsNoteDraftRef.current[annotationsName] = t; }}
                                           constituentId={annotationsId}
                                           tags={admissionsDrilldownTags.get(annotationsName) ?? []}
                                           onTagsChange={(next) => updateAdmissionsTag(annotationsName, next)}
@@ -9763,10 +9772,11 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                       <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Notes &amp; Tags</p>
                                       <div className="flex items-center justify-between mb-2">
                                         <span className="text-[11px] text-slate-400">Notify a teammate about this candidate</span>
-                                        <NotifyButton context={annotationsName} />
+                                        <NotifyButton context={annotationsName} getMessage={() => admissionsNoteDraftRef.current[annotationsName] ?? ''} />
                                       </div>
                                       <DonorAnnotations
                                         constituentName={annotationsName}
+                                        onDraftChange={(t) => { admissionsNoteDraftRef.current[annotationsName] = t; }}
                                         constituentId={annotationsId}
                                         tags={admissionsDrilldownTags.get(annotationsName) ?? []}
                                         onTagsChange={(next) => updateAdmissionsTag(annotationsName, next)}
@@ -9867,10 +9877,11 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                       <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Notes &amp; Tags</p>
                                       <div className="flex items-center justify-between mb-2">
                                         <span className="text-[11px] text-slate-400">Notify a teammate about this candidate</span>
-                                        <NotifyButton context={annotationsName} />
+                                        <NotifyButton context={annotationsName} getMessage={() => admissionsNoteDraftRef.current[annotationsName] ?? ''} />
                                       </div>
                                       <DonorAnnotations
                                         constituentName={annotationsName}
+                                        onDraftChange={(t) => { admissionsNoteDraftRef.current[annotationsName] = t; }}
                                         constituentId={annotationsId}
                                         tags={admissionsDrilldownTags.get(annotationsName) ?? []}
                                         onTagsChange={(next) => updateAdmissionsTag(annotationsName, next)}
@@ -10152,10 +10163,11 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                       <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Notes &amp; Tags</p>
                                       <div className="flex items-center justify-between mb-2">
                                         <span className="text-[11px] text-slate-400">Notify a teammate about this candidate</span>
-                                        <NotifyButton context={annotationsName} />
+                                        <NotifyButton context={annotationsName} getMessage={() => admissionsNoteDraftRef.current[annotationsName] ?? ''} />
                                       </div>
                                       <DonorAnnotations
                                         constituentName={annotationsName}
+                                        onDraftChange={(t) => { admissionsNoteDraftRef.current[annotationsName] = t; }}
                                         constituentId={annotationsId}
                                         tags={admissionsDrilldownTags.get(annotationsName) ?? []}
                                         onTagsChange={(next) => updateAdmissionsTag(annotationsName, next)}
@@ -10357,10 +10369,11 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                     <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Notes &amp; Tags</p>
                                     <div className="flex items-center justify-between mb-2">
                                       <span className="text-[11px] text-slate-400">Notify a teammate about this candidate</span>
-                                      <NotifyButton context={annotationsName} />
+                                      <NotifyButton context={annotationsName} getMessage={() => admissionsNoteDraftRef.current[annotationsName] ?? ''} />
                                     </div>
                                     <DonorAnnotations
                                       constituentName={annotationsName}
+                                        onDraftChange={(t) => { admissionsNoteDraftRef.current[annotationsName] = t; }}
                                       constituentId={annotationsId}
                                       tags={admissionsDrilldownTags.get(annotationsName) ?? []}
                                       onTagsChange={(next) => updateAdmissionsTag(annotationsName, next)}

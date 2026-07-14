@@ -9,7 +9,7 @@
 
 Next.js 16 app serving as a unified operations dashboard for Rebecca (RBK) and Emily. Deployed to Firebase Hosting at **https://rbk-cmd-center.web.app**, with Supabase as the database and Firebase Auth (Google OAuth) for authentication.
 
-**Latest Cloud Run revision:** `ssrrbkcmdcenter` (firebase hosting release 2026-07-14b; exact revision # unread — gcloud still needs `gcloud auth login` reauth). **Latest deploy:** July 14, 2026 (This Week at SAR iframe URL → vercel; earlier same day: cross-module @Notify).
+**Latest Cloud Run revision:** `ssrrbkcmdcenter` (firebase hosting release 2026-07-14c; exact revision # unread — gcloud still needs `gcloud auth login` reauth). **Latest deploy:** July 14, 2026 (@Notify follow-ups: Tasks visible to all users + Admissions note pre-fill; earlier same day: This Week at SAR URL → vercel, cross-module @Notify).
 
 **Tech stack:** Next.js 16 + React 19 + Tailwind CSS (v4, `@tailwindcss/typography`) + Tiptap (rich text) + Supabase + Firebase (Auth, Hosting, Cloud Functions). Fonts: Geist (UI), Source Serif 4 (home greeting). ALL authenticated users auto-redirect from `/` to `/home` unless `?nav=` or `?projectPanel=` params are present. The old Dashboard at `/` is only accessible via sidebar nav items that pass `?nav=` params. ALL users see "Home" in sidebar (no more "Dashboard" item for anyone). `shouldRedirectHome` is always true.
 
@@ -719,6 +719,16 @@ Phase F per-workspace integration credentials. **Service-role only** — RLS den
 - **Vercel:** Deprecated (deployment dead as of June 2025)
 
 ## Recent Changes
+
+### @Notify follow-ups — Tasks visible to all users + Admissions note pre-fill (2026-07-14)
+
+Firebase release 2026-07-14c (Cloud Run revision # unread — gcloud reauth pending). Two follow-ups to the cross-module @Notify feature.
+
+**FIX 1 — Tasks page reachable by every workspace member.** The Sidebar's entire **Daily** section (Dashboard/Inbox/Agenda/Tasks/Compose) is gated by `!(role === 'viewer' && allowedModules)`, so viewers-with-`allowed_modules` (i.e. most members) never saw Tasks and couldn't reach their @Notify "Needs Your Reply" items. Rather than un-hiding the whole Daily section for viewers (which would also expose Inbox/Agenda/Compose — out of scope), a **standalone Tasks nav block** now renders in `Sidebar.tsx` for exactly the hidden case (`role === 'viewer' && allowedModules`), showing just the Tasks button under a "Daily" label. The Dashboard `activeNav === 'tasks'` branch has no role gate and `handleNav('tasks')` from `/home` routes to `/?nav=tasks` (which `app/page.tsx` honors without bouncing to `/home`), so viewers reach the tasks view end-to-end; their notify tasks match by `assignee_key` OR `display_name`. In `app/admin/permissions/page.tsx` the Add-User form now defaults `addModules` to `{ tasks: true }` (both the initial `useState` and `resetAddForm`), so new viewers get `tasks` in their `allowed_modules` automatically. The Tasks module toggle is unchanged in the permissions grid (admins can still see/manage/uncheck it) — only the default flipped on.
+
+**FIX 2 — Admissions candidate NotifyButton pre-fills the note text.** The note draft lives in `NotesList`'s internal `draft` state (inside `DonorAnnotations`) and wasn't readable by the sibling NotifyButton. Chose a **ref-based** approach (no Dashboard re-render per keystroke, avoiding jank in the 9k-line component): `NotesList`/`DonorAnnotations` gained an optional `onDraftChange?: (text: string) => void` fired on every draft change (the 3 `setDraft` sites); Dashboard passes `onDraftChange={(t) => { admissionsNoteDraftRef.current[annotationsName] = t; }}` (a plain ref write) into all 7 Admissions drilldown `DonorAnnotations`. `NotifyButton` gained an optional `getMessage?: () => string` read at the moment the popover opens (takes precedence over the static `message` prop); the 7 candidate buttons pass `getMessage={() => admissionsNoteDraftRef.current[annotationsName] ?? ''}`. Net: type a note on a candidate → click `@` → the popover message is pre-filled with the current note text, editable independently. **Note save + notify remain two separate actions** — `onDraftChange` only mirrors the draft; saving the note is untouched. Development call sites of `DonorAnnotations` don't pass `onDraftChange`, so their behavior is unchanged.
+
+**Untouched** per spec: the @Notify Slack group-DM logic, task creation + resolve loop, the permissions Tasks toggle behavior, all other module functionality. `npx tsc --noEmit` + `npm run build` clean; `./deploy.sh` firebase step shipped (SSR `Successful update operation`, hosting released; site 307). gcloud finalize aborted on reauth (redundant).
 
 ### This Week at SAR — iframe URL moved to Vercel (2026-07-14)
 
