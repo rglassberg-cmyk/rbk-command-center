@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 
-const IFRAME_URL = 'https://thisweek-sar.netlify.app/';
+const IFRAME_URL = 'https://this-week-at-sar.vercel.app/';
 const LOAD_TIMEOUT = 10000; // 10 seconds
 
 export default function ThisWeekCard() {
