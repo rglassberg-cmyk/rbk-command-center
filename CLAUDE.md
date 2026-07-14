@@ -9,7 +9,7 @@
 
 Next.js 16 app serving as a unified operations dashboard for Rebecca (RBK) and Emily. Deployed to Firebase Hosting at **https://rbk-cmd-center.web.app**, with Supabase as the database and Firebase Auth (Google OAuth) for authentication.
 
-**Latest Cloud Run revision:** `ssrrbkcmdcenter` (firebase hosting release 2026-07-14; exact revision # unread — gcloud still needs `gcloud auth login` reauth). **Latest deploy:** July 14, 2026 (cross-module @Notify).
+**Latest Cloud Run revision:** `ssrrbkcmdcenter` (firebase hosting release 2026-07-14b; exact revision # unread — gcloud still needs `gcloud auth login` reauth). **Latest deploy:** July 14, 2026 (This Week at SAR iframe URL → vercel; earlier same day: cross-module @Notify).
 
 **Tech stack:** Next.js 16 + React 19 + Tailwind CSS (v4, `@tailwindcss/typography`) + Tiptap (rich text) + Supabase + Firebase (Auth, Hosting, Cloud Functions). Fonts: Geist (UI), Source Serif 4 (home greeting). ALL authenticated users auto-redirect from `/` to `/home` unless `?nav=` or `?projectPanel=` params are present. The old Dashboard at `/` is only accessible via sidebar nav items that pass `?nav=` params. ALL users see "Home" in sidebar (no more "Dashboard" item for anyone). `shouldRedirectHome` is always true.
 
@@ -719,6 +719,10 @@ Phase F per-workspace integration credentials. **Service-role only** — RLS den
 - **Vercel:** Deprecated (deployment dead as of June 2025)
 
 ## Recent Changes
+
+### This Week at SAR — iframe URL moved to Vercel (2026-07-14)
+
+Firebase release 2026-07-14b (Cloud Run revision # unread — gcloud reauth pending). `app/components/home/ThisWeekCard.tsx` `IFRAME_URL` changed from `https://thisweek-sar.netlify.app/` → `https://this-week-at-sar.vercel.app/` (the "This Week at SAR" calendar embed moved hosts). The constant feeds the card's `<iframe src>` **and** its two "Open in new tab" / "Open This Week at SAR" `<a href>` links. **A deploy was required** even though it's a one-line URL change: it's a `'use client'` component, so the URL is compiled into the client JS bundle at build time and the live site serves the pre-built bundle — the change would not reach production without `npm run build` + `./deploy.sh`. tsc/build clean; firebase step shipped (SSR `Successful update operation`, hosting released; site 307). gcloud finalize step aborted on reauth (redundant — firebase finalized its own release). Committed separately from the @Notify work as `Update This Week at SAR link to this-week-at-sar.vercel.app`.
 
 ### Cross-module @Notify — Slack group DM + task creation with reply loop (2026-07-14)
 
