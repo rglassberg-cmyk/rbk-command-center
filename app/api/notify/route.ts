@@ -102,6 +102,8 @@ export async function POST(request: NextRequest) {
   const taggedNames = tagged
     .map(t => t.display_name || t.email.split('@')[0] || t.email)
     .join(', ');
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rbk-cmd-center.web.app';
+  const tasksUrl = `${appUrl}/?nav=tasks`;
 
   // --- Send the Slack group DM ---
   let slackThreadTs: string | null = null;
@@ -152,11 +154,31 @@ export async function POST(request: NextRequest) {
               text: { type: 'mrkdwn', text: `${headline}\n${message}` },
             },
             {
+              type: 'actions',
+              elements: [
+                {
+                  type: 'button',
+                  text: { type: 'plain_text', text: 'Open in Command Center', emoji: true },
+                  url: tasksUrl,
+                  action_id: 'notify_open_command_center',
+                },
+                {
+                  type: 'button',
+                  style: 'primary',
+                  text: { type: 'plain_text', text: '✓ Mark Resolved', emoji: true },
+                  action_id: 'notify_mark_resolved',
+                  // Static marker — the interactions route derives the task
+                  // from the clicking user + the message's own ts/channel.
+                  value: 'mark_resolved',
+                },
+              ],
+            },
+            {
               type: 'context',
               elements: [
                 {
                   type: 'mrkdwn',
-                  text: 'Reply in this thread · Mark resolved in the Command Center',
+                  text: 'Reply in this thread, or tap *Mark Resolved* when you’ve handled it.',
                 },
               ],
             },

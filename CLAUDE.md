@@ -9,7 +9,7 @@
 
 Next.js 16 app serving as a unified operations dashboard for Rebecca (RBK) and Emily. Deployed to Firebase Hosting at **https://rbk-cmd-center.web.app**, with Supabase as the database and Firebase Auth (Google OAuth) for authentication.
 
-**Latest Cloud Run revision:** `ssrrbkcmdcenter` (firebase hosting release 2026-07-14d; exact revision # unread — gcloud still needs `gcloud auth login` reauth). **Latest deploy:** July 14, 2026 (@Notify Slack group-DM diagnostic logging; earlier same day: @Notify tasks-for-all + Admissions note pre-fill, This Week at SAR URL → vercel, cross-module @Notify).
+**Latest Cloud Run revision:** `ssrrbkcmdcenter` (firebase hosting release 2026-07-14e; exact revision # unread — gcloud still needs `gcloud auth login` reauth). **Latest deploy:** July 14, 2026 (@Notify interactive Slack "Mark Resolved" button + Command Center link + /api/slack/interactions route; earlier same day: @Notify Slack diagnostic logging, tasks-for-all + Admissions note pre-fill, This Week at SAR URL → vercel, cross-module @Notify).
 
 **Tech stack:** Next.js 16 + React 19 + Tailwind CSS (v4, `@tailwindcss/typography`) + Tiptap (rich text) + Supabase + Firebase (Auth, Hosting, Cloud Functions). Fonts: Geist (UI), Source Serif 4 (home greeting). ALL authenticated users auto-redirect from `/` to `/home` unless `?nav=` or `?projectPanel=` params are present. The old Dashboard at `/` is only accessible via sidebar nav items that pass `?nav=` params. ALL users see "Home" in sidebar (no more "Dashboard" item for anyone). `shouldRedirectHome` is always true.
 
@@ -719,6 +719,18 @@ Phase F per-workspace integration credentials. **Service-role only** — RLS den
 - **Vercel:** Deprecated (deployment dead as of June 2025)
 
 ## Recent Changes
+
+### @Notify — interactive Slack "Mark Resolved" button + Command Center link (2026-07-14)
+
+Firebase release 2026-07-14e (Cloud Run revision # unread — gcloud reauth pending). The @Notify group DM now carries two buttons under the message, and marking a task resolved works directly from Slack.
+
+**Message buttons (`app/api/notify/route.ts`).** The Block Kit message gained an `actions` block with: (1) **Open in Command Center** — a url button → `${NEXT_PUBLIC_APP_URL || 'https://rbk-cmd-center.web.app'}/?nav=tasks` (client-side link, works even before Interactivity is configured); (2) **✓ Mark Resolved** — an interactive `primary` button, `action_id: 'notify_mark_resolved'`. The context footer was reworded to "Reply in this thread, or tap *Mark Resolved* when you've handled it."
+
+**New route `POST /api/slack/interactions`.** Handles Slack `block_actions` payloads (form-encoded `payload` field). On a `notify_mark_resolved` click: resolves the clicking Slack user → `workspace_members` row, finds THAT user's open `source='notify'` task on the message's thread (matched by `slack_thread_ts` = the button message's `ts` — precise even though Slack reuses one MPIM channel id across repeat DMs; falls back to `slack_channel_id` if the ts is absent, and to `assigned_to IN (assignee_key, display_name, email)`), marks it `done` + stamps `completed_at`, and posts `✓ <name> marked this resolved` into the thread via `postSlackMessage` (same reply text as the PATCH `/api/tasks` resolve loop — no double-fire since that path only runs on the HTTP PATCH). Each tagged member resolves only their own task, so the button stays useful for everyone in the DM. Always acks Slack with `200 { ok: true }` (even on parse/lookup miss) so Slack doesn't retry; the "Open in Command Center" url button's interaction is ignored (action_id mismatch). Added to the middleware auth-matcher exclusion list (Slack has no session cookie).
+
+**Slack request signature verification (STEP 2D).** `verifySlackSignature(request, rawBody)` computes the `v0=` HMAC-SHA256 over `v0:{x-slack-request-timestamp}:{rawBody}` using `process.env.SLACK_SIGNING_SECRET` and compares with a length-guarded `crypto.timingSafeEqual` (+ a 5-minute replay guard on the timestamp). **Non-fatal when the secret is unset** — returns `true` (skip) and logs a warning, so the endpoint works today; once `SLACK_SIGNING_SECRET` is added to the Cloud Run env, an invalid/stale signature is rejected with 401. The raw body is read once (`request.text()`) and reused for both verification and payload parsing.
+
+**MANUAL SETUP REQUIRED (one-time, by user):** api.slack.com/apps → Command Center app → **Interactivity & Shortcuts → turn ON → Request URL `https://ssrrbkcmdcenter-429508710310.us-east1.run.app/api/slack/interactions` → Save Changes.** Until this is set, the "Mark Resolved" button posts nothing (the url button still works). Optionally add `SLACK_SIGNING_SECRET` to Cloud Run to secure the endpoint. **Untouched** per spec: morning briefings, Buzz, task-assignment DMs, the @Notify Slack group-DM open/post flow, and all other routes/modules. tsc + build clean; firebase shipped (site 307; unsigned `/api/slack/interactions` POST acks 200 = live + non-fatal without the secret).
 
 ### @Notify Slack group DM — diagnostic logging + flow verified (2026-07-14)
 
