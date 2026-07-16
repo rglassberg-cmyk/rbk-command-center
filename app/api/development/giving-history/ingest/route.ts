@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
         fiscal_year: r.fiscal_year,
         soft_credit_type_text: r.soft_credit_type_text,
         studio_hard_credit_id: r.studio_hard_credit_id,
+        fund: r.fund,
       }));
       const { error } = await supabaseAdmin
         .from('giving_history_cache')

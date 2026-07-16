@@ -13,6 +13,16 @@
 //   9 Fiscal Year (e.g. "FY 05" — normalized to "FY05")
 //  10 Fundraising Activity (e.g. "Operating 2004-2005")
 //  11 Constituent ID (numeric)
+//  12 Fund (e.g. "OP: Grants" — ADDED 2026-07-16 by Veracross)
+//
+// ⚠️ Fund column position (col 12, 0-indexed 11) is an ASSUMPTION: the
+// Veracross export was updated to include Fund, but the build environment
+// could not read the object from GCS (rglassberg@ ADC lacks
+// storage.objects.get) to confirm the exact header order. We assume Fund
+// was appended as the LAST column, after Constituent ID — the typical
+// Veracross export ordering. This keeps every pre-existing column index
+// (0-10) unchanged. If Veracross instead inserted Fund mid-order, the
+// positional reads below would shift and need correcting.
 
 export interface GivingHistoryRow {
   gift_record_id: string;
@@ -27,6 +37,7 @@ export interface GivingHistoryRow {
   fiscal_year: string;
   soft_credit_type_text: string;
   studio_hard_credit_id: string;
+  fund: string;
 }
 
 const GIFT_TYPE_MAP: Record<string, number> = {
@@ -126,6 +137,9 @@ export function parseGivingHistoryCSV(csvText: string): GivingHistoryRow[] {
       fiscal_year: normalizeFiscalYear(cols[8] ?? ''),
       soft_credit_type_text: (cols[6] ?? '').trim(),
       studio_hard_credit_id: (cols[7] ?? '').trim(),
+      // Col 12 (0-indexed 11) — Fund. Defaults to '' when the row predates
+      // the Fund column (old 11-column format) or the cell is empty.
+      fund: (cols[11] ?? '').trim(),
     });
   }
   return out;

@@ -512,6 +512,47 @@ export async function GET() {
   }
   console.log(`[OVERVIEW] prior-year baseline source=${fy25BaselineSource} campaign=${FY25_CAMPAIGN} size=${fy25Baseline.size}`);
 
+  // FY25 per-fund totals — prefer giving_history_cache (complete FY25 history).
+  // gifts_cache is missing pre-April-2025 gifts, so its `fundFY25` (built in the
+  // main loop above) understates the FY25 Campaign-Giving-by-Fund column. Same
+  // rule as that path: type-1 + type-2 only, soft credits excluded (the `.in`
+  // filter selects only 1 and 2). Paginated — the FY25 type-1/2 slice is ~3.2k
+  // rows, well over Supabase's 1000-row default cap. Falls back to the
+  // gifts_cache-derived `fundFY25` when the history table has no FY25 rows yet.
+  //
+  // NOTE: giving_history_cache has no `pledge_balance` column (the Veracross
+  // export carries only `amount`), so type-2 here contributes its face-value
+  // `amount` rather than the outstanding `pledge_balance` the gifts_cache path
+  // uses. Acceptable tradeoff: the FY25 column is a historical reference and
+  // completeness matters more than the pledge-balance nuance; the FY26 column
+  // (which reconciles with the headline) is untouched and still gifts_cache.
+  const fundFY25History = new Map<string, number>();
+  try {
+    let ffrom = 0;
+    const fpage = 1000;
+    while (true) {
+      const { data, error } = await supabaseAdmin
+        .from('giving_history_cache')
+        .select('fund, gift_type, amount')
+        .eq('workspace_id', wsId)
+        .eq('fundraising_activity', FY25_CAMPAIGN)
+        .in('gift_type', [1, 2])
+        .range(ffrom, ffrom + fpage - 1);
+      if (error) { console.error('[OVERVIEW] giving_history FY25 fund query failed:', error); break; }
+      if (!data || data.length === 0) break;
+      for (const r of data) {
+        const f = (typeof r.fund === 'string' && r.fund.trim()) ? r.fund.trim() : '(No fund)';
+        fundFY25History.set(f, (fundFY25History.get(f) || 0) + Number(r.amount || 0));
+      }
+      if (data.length < fpage) break;
+      ffrom += fpage;
+    }
+  } catch (err) {
+    console.error('[OVERVIEW] giving_history FY25 fund lookup failed (non-fatal):', err);
+  }
+  const fundFY25Final = fundFY25History.size > 0 ? fundFY25History : fundFY25;
+  console.log(`[OVERVIEW] FY25 per-fund source=${fundFY25History.size > 0 ? 'giving_history_cache' : 'gifts_cache'} funds=${fundFY25Final.size}`);
+
   // Pull role + roles_raw from constituents_cache for every donor we
   // saw (FY26 segment donors + FY25 baseline donors for lapsed pills).
   // Chunked IN(...) to keep individual queries small.
@@ -609,12 +650,12 @@ export async function GET() {
   // buckets, sorted by FY26 desc. Sums use the Total Raised formula
   // (type-1 amount + type-2 pledge_balance) so per-fund subtotals
   // reconcile with the headline.
-  const allFunds = new Set<string>([...fundFY26.keys(), ...fundFY25.keys()]);
+  const allFunds = new Set<string>([...fundFY26.keys(), ...fundFY25Final.keys()]);
   const campaigns = Array.from(allFunds)
     .map(fund => ({
       fund,
       raisedFY26: fundFY26.get(fund) || 0,
-      raisedFY25: fundFY25.get(fund) || 0,
+      raisedFY25: fundFY25Final.get(fund) || 0,
     }))
     .filter(c => c.raisedFY26 > 0 || c.raisedFY25 > 0)
     .sort((a, b) => b.raisedFY26 - a.raisedFY26);
