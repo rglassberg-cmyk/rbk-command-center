@@ -1,7 +1,7 @@
 # RBK Command Center — Claude Context
 > Full ecosystem context: ~/Desktop/DevProjects/_context/LHASA_CONTEXT.md
 > Workflow preferences: ~/Desktop/DevProjects/_context/BECCA_WORKFLOW.md
-> Latest session handoff: RBKCC_HANDOFF_2026-07-14.md (repo root + ~/Desktop/); prior: RBKCC_HANDOFF_2026-06-18.md
+> Latest session handoff: RBKCC_HANDOFF_2026-07-17.md (repo root + ~/Desktop/); prior: RBKCC_HANDOFF_2026-07-14.md, RBKCC_HANDOFF_2026-06-18.md
 > Last updated: July 14, 2026
 
 # RBK Command Center — Project Context
