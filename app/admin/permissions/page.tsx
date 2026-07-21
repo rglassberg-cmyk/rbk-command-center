@@ -175,8 +175,9 @@ interface SubPermission {
 
 const SUB_PERMISSIONS: Record<string, SubPermission[]> = {
   admissions: [
-    { key: 'edit_enrollment_budget', label: 'Edit Enrollment Budget', description: 'Can edit the budgeted enrollment numbers per grade' },
-    { key: 'edit_enrollment_data', label: 'Edit Enrollment Data', description: 'Can modify enrollment projection data' },
+    { key: 'admissions_manager', label: 'Admissions Manager', description: 'Can always see Enrollment Projection, unlock/lock it for others, and edit enrollment data' },
+    { key: 'edit_enrollment_budget', label: 'Edit Enrollment Budget', description: 'Can edit budgeted enrollment numbers per grade' },
+    { key: 'edit_enrollment_data', label: 'Edit Enrollment Data', description: 'Can edit Pisgah numbers and student grade assignments' },
   ],
   lever: [
     { key: 'offer_approvals', label: 'Offer Approvals', description: 'See and act on offer approval requests' },

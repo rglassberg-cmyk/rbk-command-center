@@ -4,6 +4,7 @@ import { getGradeFilterForMember } from '@/lib/divisions';
 import { getEffectiveDivisions } from '@/lib/impersonate';
 import { applyDivisionParam } from '@/lib/divisionParam';
 import { getVeracrossCredentials } from '@/lib/getIntegration';
+import { hasSubPermission } from '@/lib/modules';
 import { supabaseAdmin } from '@/lib/supabase';
 import { type NextRequest } from 'next/server';
 
@@ -247,15 +248,18 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// PATCH — owner-only toggle of the projection-unlock flag. This is how Emily
-// or Becca unlock (or re-lock) Projection mode in Jan 2027 without a deploy.
+// PATCH — toggle the projection-unlock flag. Allowed for site owners AND users
+// with the admissions_manager sub-permission (e.g. Emily/Debra), so they can
+// unlock/re-lock Projection for everyone in Jan 2027 without a deploy.
 export async function PATCH(request: NextRequest) {
   const session = await getAuthSession();
   if (!session?.user?.email || !session.workspaceId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  if (session.role !== 'owner') {
-    return NextResponse.json({ error: 'Only workspace owners can change this setting' }, { status: 403 });
+  const isAdmissionsManager =
+    session.role === 'owner' || hasSubPermission(session.allowedModules, 'admissions', 'admissions_manager');
+  if (!isAdmissionsManager) {
+    return NextResponse.json({ error: 'Only owners or admissions managers can change this setting' }, { status: 403 });
   }
 
   let body: { enrollment_projection_enabled?: unknown };

@@ -1504,6 +1504,13 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
   const [budgetEditingGrade, setBudgetEditingGrade] = useState<string | null>(null);
   const [budgetEditValue, setBudgetEditValue] = useState('');
   const [budgetSavedGrade, setBudgetSavedGrade] = useState<string | null>(null);
+  // Manually-entered Pisgah counts for the Current Enrollment table, keyed by
+  // grade label, persisted to workspace_settings 'pisgah_counts'. Overrides the
+  // derived-from-student_group count when set.
+  const [pisgahCounts, setPisgahCounts] = useState<Record<string, number>>({});
+  const [pisgahEditingGrade, setPisgahEditingGrade] = useState<number | null>(null);
+  const [pisgahEditValue, setPisgahEditValue] = useState('');
+  const [pisgahSavedGrade, setPisgahSavedGrade] = useState<number | null>(null);
 
   // Grade override state
   interface GradeOverride { override_grade: string; reason: string | null; original_grade: string | null; student_name: string | null; updated_by: string | null; updated_at: string; is_pisgah: boolean; }
@@ -1675,6 +1682,21 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeNav]);
 
+  // Fetch manually-entered Pisgah counts (Current Enrollment) when admissions loads
+  useEffect(() => {
+    if (activeNav !== 'admissions') return;
+    (async () => {
+      try {
+        const res = await fetch('/api/admissions/enrollment-settings');
+        if (res.ok) {
+          const data = await res.json();
+          setPisgahCounts(data.pisgah_counts || {});
+        }
+      } catch { /* silent */ }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeNav]);
+
   // Fetch grade overrides when admissions tab loads
   useEffect(() => {
     if (activeNav !== 'admissions') return;
@@ -1754,6 +1776,23 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ gradeCode, count }),
+      });
+    } catch { /* silent */ }
+  };
+
+  // Save a manual Pisgah count for a grade (Current Enrollment table). Persists
+  // the whole map to workspace_settings 'pisgah_counts' keyed by grade LABEL.
+  const savePisgah = async (gradeNum: number, gradeLabel: string, count: number) => {
+    const nextMap = { ...pisgahCounts, [gradeLabel]: count };
+    setPisgahCounts(nextMap);
+    setPisgahEditingGrade(null);
+    setPisgahSavedGrade(gradeNum);
+    setTimeout(() => setPisgahSavedGrade(prev => prev === gradeNum ? null : prev), 1500);
+    try {
+      await apiFetch('/api/admissions/enrollment-settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'pisgah_counts', value: nextMap }),
       });
     } catch { /* silent */ }
   };
@@ -8713,6 +8752,15 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                     const currentYearLabel = `${_ceStart}-${String((_ceStart + 1) % 100).padStart(2, '0')}`;
                     const projectionYearLabel = `${_ceStart + 1}-${String((_ceStart + 2) % 100).padStart(2, '0')}`;
                     const isOwnerRole = role === 'owner';
+                    // Granular enrollment permissions (sub-permissions seeded in
+                    // allowed_modules; owners implicitly get all).
+                    const isAdmissionsManager = role === 'owner' || hasSubPermission(allowedModules, 'admissions', 'admissions_manager');
+                    const canEditEnrollment = isAdmissionsManager
+                      || hasSubPermission(allowedModules, 'admissions', 'edit_enrollment_budget')
+                      || hasSubPermission(allowedModules, 'admissions', 'edit_enrollment_data');
+                    // Who may see the Projection view: everyone when unlocked;
+                    // only admissions managers when locked.
+                    const canSeeProjection = projectionUnlocked || isAdmissionsManager;
 
                     // Existing Enrollment Projection content — UNCHANGED. Now
                     // captured into a variable so the Current-Enrollment toggle
@@ -8921,7 +8969,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                             // 2. Other users need: module enabled + sub-permission granted
                                             // 3. Use hasSubPermission(modules, moduleKey, subKey)
                                             // 4. Add new sub-permissions in SUB_PERMISSIONS on the permissions page
-                                            const canEdit = role === 'owner' || hasSubPermission(allowedModules, 'admissions', 'edit_enrollment_budget');
+                                            const canEdit = canEditEnrollment;
                                             const gap = budgeted > 0 ? gRegistered - budgeted : null;
                                             return (
                                               <span
@@ -9465,7 +9513,44 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                         </div>
                                       </td>
                                       <td className="py-2 px-3 text-slate-500">{schoolLevelForGrade(g)}</td>
-                                      <td className="py-2 px-2 text-center text-slate-400 italic">{pisgahCount > 0 ? pisgahCount : '—'}</td>
+                                      <td className="py-2 px-2 text-center" onClick={canEditEnrollment ? (e) => e.stopPropagation() : undefined}>
+                                        {pisgahEditingGrade === g ? (
+                                          <input
+                                            type="number"
+                                            autoFocus
+                                            className="w-14 text-center text-xs border-b-2 border-blue-500 outline-none bg-transparent py-0.5"
+                                            value={pisgahEditValue}
+                                            onChange={(e) => setPisgahEditValue(e.target.value)}
+                                            onKeyDown={(e) => {
+                                              if (e.key === 'Enter') savePisgah(g, gradeLabel, Number(pisgahEditValue) || 0);
+                                              if (e.key === 'Escape') setPisgahEditingGrade(null);
+                                            }}
+                                            onBlur={() => savePisgah(g, gradeLabel, Number(pisgahEditValue) || 0)}
+                                          />
+                                        ) : (() => {
+                                          const manual = pisgahCounts[gradeLabel];
+                                          const displayVal = manual != null ? manual : (pisgahCount > 0 ? pisgahCount : null);
+                                          return (
+                                            <span
+                                              className={`inline-flex items-center gap-1 ${canEditEnrollment ? 'cursor-pointer group' : ''} ${pisgahSavedGrade === g ? 'text-green-600' : ''}`}
+                                              onClick={() => {
+                                                if (!canEditEnrollment) return;
+                                                setPisgahEditingGrade(g);
+                                                setPisgahEditValue(String(manual ?? (pisgahCount > 0 ? pisgahCount : '')));
+                                              }}
+                                            >
+                                              {displayVal != null ? (
+                                                <span className={`text-xs ${canEditEnrollment ? 'text-slate-600 font-medium' : 'text-slate-400 italic'}`}>{displayVal}</span>
+                                              ) : (
+                                                <span className="text-slate-300 italic group-hover:text-slate-400 transition-colors">
+                                                  —
+                                                  {canEditEnrollment && <svg className="w-3 h-3 inline ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity not-italic" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>}
+                                                </span>
+                                              )}
+                                            </span>
+                                          );
+                                        })()}
+                                      </td>
                                     </tr>
                                   );
                                 })}
@@ -9522,6 +9607,9 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                     );
 
                     // ── Compose: toggle + dynamic header, then the active view.
+                    // Projection is shown in the toggle only to those who may see
+                    // it (unlocked → everyone; locked → admissions managers).
+                    const showProjectionView = enrollmentViewMode === 'projection' && canSeeProjection;
                     return (
                       <>
                         {/* Segmented toggle */}
@@ -9529,30 +9617,32 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                           <div className="inline-flex gap-1 bg-slate-100 rounded-lg p-1 w-fit">
                             <button
                               onClick={() => setEnrollmentViewMode('current')}
-                              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${enrollmentViewMode === 'current' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${!showProjectionView ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                             >
                               Current Enrollment
                             </button>
-                            <button
-                              onClick={() => setEnrollmentViewMode('projection')}
-                              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5 ${enrollmentViewMode === 'projection' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'} ${!projectionUnlocked ? 'opacity-70' : ''}`}
-                            >
-                              {!projectionUnlocked && <span aria-hidden>🔒</span>}
-                              Enrollment Projection
-                            </button>
+                            {canSeeProjection && (
+                              <button
+                                onClick={() => setEnrollmentViewMode('projection')}
+                                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5 ${showProjectionView ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'} ${!projectionUnlocked ? 'opacity-70' : ''}`}
+                              >
+                                {!projectionUnlocked && <span aria-hidden>🔒</span>}
+                                Enrollment Projection
+                              </button>
+                            )}
                           </div>
                           <h2 className="text-lg font-bold text-slate-900">
-                            {enrollmentViewMode === 'current'
+                            {!showProjectionView
                               ? `Current Enrollment — ${currentYearLabel} School Year`
                               : `Enrollment Projection — ${projectionYearLabel} School Year`}
                           </h2>
                         </div>
 
-                        {enrollmentViewMode === 'current' ? (
+                        {!showProjectionView ? (
                           currentEnrollmentView
                         ) : projectionUnlocked ? (
                           <>
-                            {isOwnerRole && (
+                            {isAdmissionsManager && (
                               <div className="flex justify-end mb-3">
                                 <button
                                   onClick={() => toggleProjectionUnlock(false)}
@@ -9567,7 +9657,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                           </>
                         ) : (
                           <div className="relative">
-                            {/* Locked banner overlay */}
+                            {/* Locked banner overlay (only admissions managers reach here) */}
                             <div className="absolute inset-0 z-20 flex items-start justify-center pt-10 px-4">
                               <div className="bg-white rounded-xl border border-slate-200 shadow-lg p-6 max-w-md text-center">
                                 <div className="text-3xl mb-2">🔒</div>
@@ -9575,7 +9665,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                 <p className="text-sm text-slate-500 mb-4">
                                   Re-enrollment for {projectionYearLabel} opens in January 2027. This view will be available when registration opens.
                                 </p>
-                                {isOwnerRole && (
+                                {isAdmissionsManager && (
                                   <button
                                     onClick={() => toggleProjectionUnlock(true)}
                                     disabled={projectionToggleBusy}
