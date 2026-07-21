@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 // Lightweight GET endpoint to read workspace fields from the httpOnly session cookie
 // Used by AuthProvider to populate WorkspaceContext on the client
 const EMPTY_WORKSPACE = {
-  workspace_id: null, role: null, modules: null, module_config: null,
+  workspace_id: null, role: null, is_super_admin: false, modules: null, module_config: null,
   allowed_modules: null, display_name: null, workspaces: [],
   current_member: null, assistant: null, principal: null,
   workspace_owner_email: null, workspace_brand: null,
@@ -31,6 +31,7 @@ export async function GET() {
     return NextResponse.json({
       workspace_id: data.workspace_id || null,
       role: data.role || null,
+      is_super_admin: data.is_super_admin === true,
       modules: data.modules || null,
       module_config: data.module_config || null,
       allowed_modules: data.allowed_modules || null,

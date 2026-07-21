@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Storage } from '@google-cloud/storage';
-import { getAuthSession } from '@/lib/auth';
+import { getAuthSession, sessionIsSuperAdmin } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { parseGivingHistoryCSV } from '@/lib/parseGivingHistoryCSV';
 
@@ -17,7 +17,6 @@ import { parseGivingHistoryCSV } from '@/lib/parseGivingHistoryCSV';
 export const maxDuration = 300;
 
 const SAR_WORKSPACE_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
-const ADMIN_EMAIL = 'rglassberg@saracademy.org';
 const BUCKET = 'rbk-cmd-center-sftp';
 const PREFIX = 'veracross/giving-history/';
 
@@ -28,7 +27,7 @@ export async function POST(request: NextRequest) {
   const hasSecret = !!secret && accepted.includes(secret);
   if (!hasSecret) {
     const session = await getAuthSession();
-    if (session?.user?.email?.toLowerCase() !== ADMIN_EMAIL) {
+    if (!sessionIsSuperAdmin(session)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
   }

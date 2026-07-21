@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getAuthSession } from '@/lib/auth';
+import { getAuthSession, sessionIsSuperAdmin } from '@/lib/auth';
 
-const ADMIN_EMAIL = 'rglassberg@saracademy.org';
 
 interface TokenResponse {
   access_token: string;
@@ -40,7 +39,7 @@ async function getDevTokenWithOnlineGifts(): Promise<string> {
 
 export async function GET() {
   const session = await getAuthSession();
-  if (!session?.user?.email || session.user.email.toLowerCase() !== ADMIN_EMAIL) {
+  if (!sessionIsSuperAdmin(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

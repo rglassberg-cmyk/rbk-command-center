@@ -24,6 +24,8 @@ interface SidebarProps {
   activeNav: string;
   setActiveNav: (nav: string) => void;
   role: string | null;
+  // System builder / super-admin (Becca) — gates the Admin link + impersonation.
+  isSuperAdmin?: boolean;
   allowedModules: Record<string, boolean> | null;
   effectiveModules: Record<string, boolean> | null;
   workspaceId: string | null;
@@ -59,6 +61,7 @@ export default function Sidebar({
   activeNav,
   setActiveNav,
   role,
+  isSuperAdmin = false,
   allowedModules,
   effectiveModules,
   workspaceId,
@@ -77,8 +80,10 @@ export default function Sidebar({
   onNavClick,
   googleTasksConnected = false,
 }: SidebarProps) {
-  const isRealAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL;
-  // isAdmin: true only for Becca's real email AND not impersonating someone else
+  // Super-admin (Becca) — primary signal is is_super_admin; ADMIN_EMAIL kept
+  // only as a transitional fallback for the super-admin's own account.
+  const isRealAdmin = isSuperAdmin || user?.email?.toLowerCase() === ADMIN_EMAIL;
+  // isAdmin: true only for the super-admin AND not impersonating someone else
   const isAdmin = isRealAdmin && !impersonating;
   const pathname = usePathname();
   const router = useRouter();

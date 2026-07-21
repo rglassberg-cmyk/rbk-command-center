@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '@/lib/apiFetch';
 import { formatMoney } from '@/lib/format';
 import { ShimmerStatCards, ShimmerCards } from '../ui/Shimmer';
-import { useAuth } from '../AuthProvider';
+import { useAuth, useWorkspace } from '../AuthProvider';
 
 const ADMIN_EMAIL = 'rglassberg@saracademy.org';
 
@@ -96,7 +96,10 @@ function formatShortDate(iso: string): string {
 
 export default function OverviewTab() {
   const { user } = useAuth();
-  const isAdmin = (user?.email ?? '').toLowerCase() === ADMIN_EMAIL;
+  const { isSuperAdmin } = useWorkspace();
+  // Super-admin (Becca) gates the "Sync Gift History" import. Primary signal is
+  // is_super_admin; ADMIN_EMAIL kept only as a transitional fallback for her.
+  const isAdmin = isSuperAdmin || (user?.email ?? '').toLowerCase() === ADMIN_EMAIL;
   const [data, setData] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

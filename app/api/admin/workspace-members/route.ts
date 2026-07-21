@@ -6,12 +6,20 @@ const ADMIN_EMAIL = 'rglassberg@saracademy.org';
 // Roles permitted by the workspace_members.role CHECK constraint.
 const VALID_ROLES = new Set(['owner', 'assistant', 'viewer']);
 
+// Admin-panel access = super-admin. Primary signal is is_super_admin (from the
+// session cookie); ADMIN_EMAIL kept only as a transitional fallback for the
+// super-admin's own account so a stale cookie can't lock her out.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function isSuperAdminSession(session: any): boolean {
+  return session?.isSuperAdmin === true || session?.user?.email?.toLowerCase() === ADMIN_EMAIL;
+}
+
 export async function GET() {
   const session = await getAuthSession();
   if (!session?.user?.email) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  if (session.user.email.toLowerCase() !== ADMIN_EMAIL) {
+  if (!isSuperAdminSession(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -19,7 +27,7 @@ export async function GET() {
     // Fetch all workspace members
     const { data: members, error: membersError } = await supabaseAdmin
       .from('workspace_members')
-      .select('id, email, display_name, role, workspace_id, allowed_modules, divisions, title, assignee_key, slack_user_id, assistant_to, testing_features')
+      .select('id, email, display_name, role, workspace_id, allowed_modules, divisions, title, assignee_key, slack_user_id, assistant_to, testing_features, is_super_admin')
       .order('display_name', { ascending: true, nullsFirst: false });
 
     if (membersError) {
@@ -57,6 +65,7 @@ export async function GET() {
         slack_user_id: m.slack_user_id ?? null,
         assistant_to: m.assistant_to ?? null,
         testing_features: Array.isArray(m.testing_features) ? m.testing_features : [],
+        is_super_admin: m.is_super_admin === true,
       }))
       .sort((a, b) => {
         const nameA = (a.display_name || a.email.split('@')[0]).toLowerCase();
@@ -84,7 +93,7 @@ export async function POST(request: NextRequest) {
   if (!session?.user?.email) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  if (session.user.email.toLowerCase() !== ADMIN_EMAIL) {
+  if (!isSuperAdminSession(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

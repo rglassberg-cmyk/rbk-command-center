@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthSession } from '@/lib/auth';
+import { getAuthSession, sessionIsSuperAdmin } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { TESTING_FEATURES } from '@/lib/testingFeatures';
-
-const ADMIN_EMAIL = 'rglassberg@saracademy.org';
 
 // Reads workspaces.promoted_features for the caller's active workspace
 // and joins it against the TESTING_FEATURES registry. Admin-only —
@@ -30,7 +28,7 @@ export async function GET() {
   if (!session?.user?.email) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  if (session.user.email.toLowerCase() !== ADMIN_EMAIL) {
+  if (!sessionIsSuperAdmin(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   if (!session.workspaceId) {
@@ -50,7 +48,7 @@ export async function PATCH(request: NextRequest) {
   if (!session?.user?.email) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  if (session.user.email.toLowerCase() !== ADMIN_EMAIL) {
+  if (!sessionIsSuperAdmin(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   if (!session.workspaceId) {

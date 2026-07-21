@@ -103,19 +103,22 @@ export async function POST(request: NextRequest) {
     // render "Connect Google Tasks" vs. "Google Tasks connected" without
     // a follow-up fetch.
     let googleTasksConnected = false;
+    // Super-admin (system builder, e.g. Becca) vs. a plain workspace owner
+    // (e.g. RBK). Gates the admin panel + admin-only actions.
+    let defaultIsSuperAdmin = false;
 
     try {
       // Primary lookup: all rows by Firebase UID
       let { data: members } = await supabaseAdmin
         .from('workspace_members')
-        .select('id, workspace_id, role, display_name, user_id, allowed_modules, testing_features')
+        .select('id, workspace_id, role, display_name, user_id, allowed_modules, testing_features, is_super_admin')
         .eq('user_id', firebaseUser.localId);
 
       // Fallback lookup: by email (case-insensitive, handles placeholder user_ids)
       if (!members || members.length === 0) {
         const { data: emailMembers } = await supabaseAdmin
           .from('workspace_members')
-          .select('id, workspace_id, role, display_name, user_id, allowed_modules, testing_features')
+          .select('id, workspace_id, role, display_name, user_id, allowed_modules, testing_features, is_super_admin')
           .ilike('email', email.trim());
 
         if (emailMembers && emailMembers.length > 0) {
@@ -175,6 +178,7 @@ export async function POST(request: NextRequest) {
         defaultTestingFeatures = Array.isArray((defaultMember as any).testing_features)
           ? (defaultMember as any).testing_features
           : [];
+        defaultIsSuperAdmin = (defaultMember as any).is_super_admin === true;
         defaultWorkspaceOwnerEmail = (defaultWs as any)?.owner_email || null;
         defaultWorkspaceBrand = (defaultWs as any)?.brand || null;
         defaultPromotedFeatures = Array.isArray((defaultWs as any)?.promoted_features)
@@ -259,6 +263,7 @@ export async function POST(request: NextRequest) {
       },
       workspace_id: defaultWorkspaceId,
       role: defaultRole,
+      is_super_admin: defaultIsSuperAdmin,
       display_name: defaultDisplayName,
       modules: defaultModules,
       module_config: defaultModuleConfig,

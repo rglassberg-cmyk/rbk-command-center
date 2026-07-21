@@ -3,11 +3,10 @@
 // is skipped (no overwrite). Admin-gated.
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthSession } from '@/lib/auth';
+import { getAuthSession, sessionIsSuperAdmin } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { invalidateIntegrationCache } from '@/lib/getIntegration';
 
-const ADMIN_EMAIL = 'rglassberg@saracademy.org';
 
 interface MigrationResult {
   type: string;
@@ -20,7 +19,7 @@ export async function POST(request: NextRequest) {
   if (!session?.user?.email) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  if (session.user.email.toLowerCase() !== ADMIN_EMAIL) {
+  if (!sessionIsSuperAdmin(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

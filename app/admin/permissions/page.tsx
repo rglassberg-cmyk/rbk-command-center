@@ -29,6 +29,8 @@ interface Member {
   // Sprint 5: per-user opt-in flags for in-development features. See
   // lib/testingFeatures.ts for the registry.
   testing_features: string[];
+  // System builder / super-admin (Becca) — distinct from a plain owner (RBK).
+  is_super_admin?: boolean;
 }
 
 const DASHBOARD_COLUMNS = [
@@ -254,7 +256,12 @@ const MODULE_PILL: Record<string, string> = {
 export default function PermissionsPage() {
   const router = useRouter();
   const { user, signOut, loading: authLoading } = useAuth();
-  const { workspaceId, role, allowedModules, effectiveModules, workspaces, switchWorkspace, impersonating, startImpersonation, stopImpersonation, assistant } = useWorkspace();
+  const { workspaceId, role, isSuperAdmin, allowedModules, effectiveModules, workspaces, switchWorkspace, impersonating, startImpersonation, stopImpersonation, assistant } = useWorkspace();
+  // Admin-panel access = super-admin (Becca). Primary signal is is_super_admin;
+  // ADMIN_EMAIL kept only as a transitional fallback for her own account so a
+  // stale session cookie can't lock her out. RBK (owner, not super-admin) is
+  // correctly excluded.
+  const canAccessAdmin = isSuperAdmin || user?.email?.toLowerCase() === ADMIN_EMAIL;
 
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>('users');
@@ -337,14 +344,14 @@ export default function PermissionsPage() {
 
   useEffect(() => {
     if (!authLoading && user) {
-      if (user.email?.toLowerCase() !== ADMIN_EMAIL) {
+      if (!canAccessAdmin) {
         router.replace('/home');
       }
     }
     if (!authLoading && !user) {
       router.replace('/login');
     }
-  }, [authLoading, user, router]);
+  }, [authLoading, user, canAccessAdmin, router]);
 
   const fetchMembers = useCallback(async () => {
     setLoading(true);
@@ -369,10 +376,10 @@ export default function PermissionsPage() {
   }, []);
 
   useEffect(() => {
-    if (!authLoading && user && user.email?.toLowerCase() === ADMIN_EMAIL) {
+    if (!authLoading && user && canAccessAdmin) {
       fetchMembers();
     }
-  }, [authLoading, user, fetchMembers]);
+  }, [authLoading, user, canAccessAdmin, fetchMembers]);
 
   // Load integrations when the Integrations tab opens.
   useEffect(() => {
@@ -944,7 +951,7 @@ export default function PermissionsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, briefingSubTab]);
 
-  if (authLoading || !user || user.email?.toLowerCase() !== ADMIN_EMAIL) {
+  if (authLoading || !user || !canAccessAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <svg className="w-8 h-8 animate-spin text-slate-300" fill="none" viewBox="0 0 24 24">
@@ -1118,6 +1125,9 @@ export default function PermissionsPage() {
                                 <span className="block text-sm font-medium text-slate-800 truncate">{memberDisplayName(m)}</span>
                                 <span className="block text-xs text-slate-400 truncate">{m.email}</span>
                               </span>
+                              {m.is_super_admin && (
+                                <span className="text-[10px] font-semibold rounded px-1.5 py-0.5 flex-shrink-0 bg-amber-100 text-amber-700 flex items-center gap-0.5" title="Super Admin (system builder)">⚡ SA</span>
+                              )}
                               <span className={`text-[10px] font-medium rounded px-1.5 py-0.5 flex-shrink-0 ${
                                 m.role === 'viewer' ? 'bg-slate-100 text-slate-600' : m.role === 'assistant' ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700'
                               }`}>{m.role}</span>
@@ -1135,7 +1145,10 @@ export default function PermissionsPage() {
                         </div>
                       ) : (() => {
                         const u = selectedUser;
-                        const isAdmin = u.email.toLowerCase() === ADMIN_EMAIL;
+                        // Protect the super-admin's own row from role change /
+                        // removal (primary signal is_super_admin; ADMIN_EMAIL
+                        // kept as a transitional fallback for that account).
+                        const isAdmin = u.is_super_admin || u.email.toLowerCase() === ADMIN_EMAIL;
                         const isViewer = u.role === 'viewer';
                         return (
                           <div className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100">
@@ -1166,6 +1179,9 @@ export default function PermissionsPage() {
                                     title="Click to edit name"
                                   >
                                     <h3 className="text-lg font-bold text-slate-900 truncate">{memberDisplayName(u)}</h3>
+                                    {u.is_super_admin && (
+                                      <span className="text-[10px] font-semibold rounded px-1.5 py-0.5 flex-shrink-0 bg-amber-100 text-amber-700" title="Super Admin (system builder)">⚡ SA</span>
+                                    )}
                                     <svg className="w-3.5 h-3.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-label="Edit name">
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                     </svg>

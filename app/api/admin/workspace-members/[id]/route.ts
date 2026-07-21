@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthSession } from '@/lib/auth';
+import { getAuthSession, sessionIsSuperAdmin } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 
+// Retained only for the delete-protection fallback below (protects the
+// super-admin's own row). Access gating uses sessionIsSuperAdmin.
 const ADMIN_EMAIL = 'rglassberg@saracademy.org';
 
 const VALID_ROLES = new Set(['owner', 'assistant', 'viewer']);
@@ -14,7 +16,7 @@ export async function PATCH(
   if (!session?.user?.email) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  if (session.user.email.toLowerCase() !== ADMIN_EMAIL) {
+  if (!sessionIsSuperAdmin(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -95,21 +97,21 @@ export async function DELETE(
   if (!session?.user?.email) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  if (session.user.email.toLowerCase() !== ADMIN_EMAIL) {
+  if (!sessionIsSuperAdmin(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   const { id } = await params;
 
   try {
-    // Refuse to delete the admin row.
+    // Refuse to delete the super-admin row (fallback to the ADMIN_EMAIL match).
     const { data: target } = await supabaseAdmin
       .from('workspace_members')
-      .select('email')
+      .select('email, is_super_admin')
       .eq('id', id)
       .single();
-    if (target?.email?.toLowerCase() === ADMIN_EMAIL) {
-      return NextResponse.json({ error: 'Cannot remove the admin account from the UI' }, { status: 400 });
+    if (target?.is_super_admin === true || target?.email?.toLowerCase() === ADMIN_EMAIL) {
+      return NextResponse.json({ error: 'Cannot remove the super-admin account from the UI' }, { status: 400 });
     }
 
     const { error } = await supabaseAdmin

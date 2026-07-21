@@ -74,6 +74,10 @@ export interface WorkspaceBrand {
 interface WorkspaceContextType {
   workspaceId: string | null;
   role: 'owner' | 'assistant' | 'viewer' | null;
+  // System builder / super-admin (e.g. Becca), distinct from a plain
+  // workspace owner (e.g. RBK). Reflects the REAL session (not adjusted by
+  // impersonation). Gates the admin panel + admin-only actions.
+  isSuperAdmin: boolean;
   modules: Record<string, boolean> | null;
   moduleConfig: Record<string, any> | null;
   allowedModules: Record<string, boolean> | null;
@@ -116,6 +120,7 @@ function readImpersonation(): ImpersonationTarget | null {
 const WorkspaceContext = createContext<WorkspaceContextType>({
   workspaceId: null,
   role: null,
+  isSuperAdmin: false,
   modules: null,
   moduleConfig: null,
   allowedModules: null,
@@ -178,6 +183,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   const [workspace, setWorkspace] = useState<WorkspaceContextType>({
     workspaceId: imp ? imp.workspace_id : null,
     role: imp ? (imp.role as 'owner' | 'assistant' | 'viewer') : null,
+    isSuperAdmin: false,
     modules: null,
     moduleConfig: null,
     allowedModules: null,
@@ -302,6 +308,9 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
         setWorkspace({
           workspaceId: effectiveId,
           role: effectiveRole,
+          // Super-admin reflects the REAL session cookie, never impersonation
+          // (same rationale as googleTasksConnected below).
+          isSuperAdmin: data.is_super_admin === true,
           modules: wsModules,
           moduleConfig,
           allowedModules: memberAllowed,
@@ -353,7 +362,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       if (firebaseUser) {
         loadWorkspaceFromSession();
       } else {
-        setWorkspace({ workspaceId: null, role: null, modules: null, moduleConfig: null, allowedModules: null, effectiveModules: null, displayName: null, workspaces: [], switchWorkspace, impersonating: null, startImpersonation, stopImpersonation, currentMember: null, assistant: null, principal: null, workspaceOwnerEmail: null, workspaceBrand: null, googleTasksConnected: false, testingFeatures: [], promotedFeatures: [] });
+        setWorkspace({ workspaceId: null, role: null, isSuperAdmin: false, modules: null, moduleConfig: null, allowedModules: null, effectiveModules: null, displayName: null, workspaces: [], switchWorkspace, impersonating: null, startImpersonation, stopImpersonation, currentMember: null, assistant: null, principal: null, workspaceOwnerEmail: null, workspaceBrand: null, googleTasksConnected: false, testingFeatures: [], promotedFeatures: [] });
       }
     });
     return unsubscribe;
@@ -390,7 +399,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     await fetch('/api/auth/signout', { method: 'POST' });
     await firebaseSignOut(auth);
     setImpersonating(null);
-    setWorkspace({ workspaceId: null, role: null, modules: null, moduleConfig: null, allowedModules: null, effectiveModules: null, displayName: null, workspaces: [], switchWorkspace, impersonating: null, startImpersonation, stopImpersonation, currentMember: null, assistant: null, principal: null, workspaceOwnerEmail: null, workspaceBrand: null, googleTasksConnected: false, testingFeatures: [], promotedFeatures: [] });
+    setWorkspace({ workspaceId: null, role: null, isSuperAdmin: false, modules: null, moduleConfig: null, allowedModules: null, effectiveModules: null, displayName: null, workspaces: [], switchWorkspace, impersonating: null, startImpersonation, stopImpersonation, currentMember: null, assistant: null, principal: null, workspaceOwnerEmail: null, workspaceBrand: null, googleTasksConnected: false, testingFeatures: [], promotedFeatures: [] });
   }, [switchWorkspace, startImpersonation, stopImpersonation]);
 
   return (

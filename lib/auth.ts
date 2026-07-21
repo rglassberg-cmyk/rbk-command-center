@@ -43,6 +43,9 @@ interface AuthSession {
   accessToken?: string;
   workspaceId?: string | null;
   role?: string | null;
+  // System builder / super-admin (e.g. Becca), distinct from a plain
+  // workspace owner (e.g. RBK). Gates the admin panel + admin-only actions.
+  isSuperAdmin?: boolean;
   modules?: Record<string, boolean> | null;
   moduleConfig?: Record<string, any> | null;
   allowedModules?: Record<string, boolean> | null;
@@ -72,6 +75,20 @@ export function isEmailAllowed(email: string): boolean {
   return allowedEmails.includes(email.toLowerCase());
 }
 
+// Super-admin (system builder, e.g. Becca) gate for admin-only server routes.
+// PRIMARY signal is the session's is_super_admin flag; the hardcoded email is
+// kept ONLY as a transitional fallback for the super-admin's own account so a
+// pre-deploy (is_super_admin-less) session cookie can't lock her out. Safe to
+// remove once all sessions have rotated. Never grants anyone but that account.
+const SUPER_ADMIN_FALLBACK_EMAIL = 'rglassberg@saracademy.org';
+export function sessionIsSuperAdmin(
+  session: { isSuperAdmin?: boolean; user?: { email?: string | null } } | null | undefined,
+): boolean {
+  if (!session) return false;
+  return session.isSuperAdmin === true
+    || session.user?.email?.toLowerCase() === SUPER_ADMIN_FALLBACK_EMAIL;
+}
+
 export async function getAuthSession(): Promise<AuthSession | null> {
   try {
     const cookieStore = await cookies();
@@ -96,6 +113,7 @@ export async function getAuthSession(): Promise<AuthSession | null> {
       accessToken: data.accessToken || undefined,
       workspaceId: data.workspace_id || null,
       role: data.role || null,
+      isSuperAdmin: data.is_super_admin === true,
       modules: data.modules || null,
       moduleConfig: data.module_config || null,
       allowedModules: data.allowed_modules || null,

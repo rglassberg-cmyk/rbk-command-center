@@ -341,7 +341,7 @@ const projectPriorityConfig: Record<string, { bg: string; text: string }> = {
 
 export default function Dashboard({ emails: initialEmails, calendarEvents }: Props) {
   const { user, signOut, loading: authLoading } = useAuth();
-  const { workspaceId, role, modules, moduleConfig, effectiveModules, allowedModules, workspaces, switchWorkspace, impersonating, startImpersonation, stopImpersonation, displayName: wsDisplayName, currentMember, assistant, principal, workspaceOwnerEmail, workspaceBrand, googleTasksConnected } = useWorkspace();
+  const { workspaceId, role, isSuperAdmin, modules, moduleConfig, effectiveModules, allowedModules, workspaces, switchWorkspace, impersonating, startImpersonation, stopImpersonation, displayName: wsDisplayName, currentMember, assistant, principal, workspaceOwnerEmail, workspaceBrand, googleTasksConnected } = useWorkspace();
   const { emails, setEmails, isConnected, refreshEmails } = useRealtimeEmails(initialEmails, workspaceId);
 
   // Configurable inbox labels per workspace (fall back to generic defaults)
@@ -3825,6 +3825,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
           activeNav={activeNav}
           setActiveNav={setActiveNav}
           role={role}
+          isSuperAdmin={isSuperAdmin}
           allowedModules={allowedModules}
           effectiveModules={effectiveModules}
           workspaceId={workspaceId}
@@ -8751,10 +8752,10 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                     const _ceStart = _ceNow.getMonth() >= 6 ? _ceNow.getFullYear() : _ceNow.getFullYear() - 1;
                     const currentYearLabel = `${_ceStart}-${String((_ceStart + 1) % 100).padStart(2, '0')}`;
                     const projectionYearLabel = `${_ceStart + 1}-${String((_ceStart + 2) % 100).padStart(2, '0')}`;
-                    const isOwnerRole = role === 'owner';
-                    // Granular enrollment permissions (sub-permissions seeded in
-                    // allowed_modules; owners implicitly get all).
-                    const isAdmissionsManager = role === 'owner' || hasSubPermission(allowedModules, 'admissions', 'admissions_manager');
+                    // Granular enrollment permissions. Elevation comes from
+                    // is_super_admin (the system admin, Becca) — NOT a plain
+                    // workspace owner (RBK), who is a regular end user here.
+                    const isAdmissionsManager = isSuperAdmin || hasSubPermission(allowedModules, 'admissions', 'admissions_manager');
                     const canEditEnrollment = isAdmissionsManager
                       || hasSubPermission(allowedModules, 'admissions', 'edit_enrollment_budget')
                       || hasSubPermission(allowedModules, 'admissions', 'edit_enrollment_data');
@@ -10480,8 +10481,8 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                       </>
                                     )}
                                   </div>
-                                  {/* Grade override + Pisgah toggle — for users with edit_enrollment_data permission */}
-                                  {(role === 'owner' || hasSubPermission(allowedModules, 'admissions', 'edit_enrollment_data')) && (() => {
+                                  {/* Grade override + Pisgah toggle — super-admin or edit_enrollment_data permission */}
+                                  {(isSuperAdmin || hasSubPermission(allowedModules, 'admissions', 'edit_enrollment_data')) && (() => {
                                     const isPisgah = gradeOverrides[String(r.personId)]?.is_pisgah || false;
                                     return (
                                       <div className="mt-2 flex items-center gap-2" onClick={e => e.stopPropagation()}>

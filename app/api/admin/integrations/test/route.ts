@@ -4,7 +4,7 @@
 // Never returns the credential value itself.
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthSession } from '@/lib/auth';
+import { getAuthSession, sessionIsSuperAdmin } from '@/lib/auth';
 import {
   getVeracrossCredentials,
   getSlackCredentials,
@@ -12,7 +12,6 @@ import {
   getAnthropicCredentials,
 } from '@/lib/getIntegration';
 
-const ADMIN_EMAIL = 'rglassberg@saracademy.org';
 
 async function testVeracross(workspaceId: string): Promise<{ ok: boolean; error?: string }> {
   const { clientId, clientSecret, schoolCode } = await getVeracrossCredentials(workspaceId);
@@ -107,7 +106,7 @@ export async function POST(request: NextRequest) {
   if (!session?.user?.email) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  if (session.user.email.toLowerCase() !== ADMIN_EMAIL) {
+  if (!sessionIsSuperAdmin(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

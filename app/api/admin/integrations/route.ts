@@ -10,16 +10,15 @@
 // stay in workspace_integrations.credentials (RLS-locked).
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthSession } from '@/lib/auth';
+import { getAuthSession, sessionIsSuperAdmin } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { invalidateIntegrationCache, type IntegrationType } from '@/lib/getIntegration';
 
-const ADMIN_EMAIL = 'rglassberg@saracademy.org';
 const VALID_TYPES: IntegrationType[] = ['veracross', 'slack', 'lever', 'anthropic', 'rise_vision'];
 
-function gate(email?: string | null): NextResponse | null {
-  if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (email.toLowerCase() !== ADMIN_EMAIL) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+function gate(session: Awaited<ReturnType<typeof getAuthSession>>): NextResponse | null {
+  if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!sessionIsSuperAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   return null;
 }
 
@@ -51,7 +50,7 @@ function redact(row: IntegrationRow) {
 
 export async function GET(request: NextRequest) {
   const session = await getAuthSession();
-  const blocked = gate(session?.user?.email);
+  const blocked = gate(session);
   if (blocked) return blocked;
 
   const wsId = new URL(request.url).searchParams.get('workspace_id') || session?.workspaceId;
@@ -74,7 +73,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const session = await getAuthSession();
-  const blocked = gate(session?.user?.email);
+  const blocked = gate(session);
   if (blocked) return blocked;
 
   let body: { workspace_id?: string; integration_type?: string; credentials?: Record<string, string> };
@@ -128,7 +127,7 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   const session = await getAuthSession();
-  const blocked = gate(session?.user?.email);
+  const blocked = gate(session);
   if (blocked) return blocked;
 
   const url = new URL(request.url);
