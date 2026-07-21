@@ -1441,6 +1441,22 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
   const [admissionsDrilldown, setAdmissionsDrilldown] = useState<{ type: 'grade' | 'status' | 'response' | 'projection_grade' | 'projection_combined' | 'projection_category' | 'projection_leaving' | 'projection_pending' | 'projection_pisgah' | 'projection_incomplete' | 'projection_waitlist'; value: number; label: string } | null>(null);
   const [admissionsDrilldownSearch, setAdmissionsDrilldownSearch] = useState('');
   const [admissionsDrilldownFilter, setAdmissionsDrilldownFilter] = useState<'all' | 'new' | 're'>('all');
+  // ── Enrollment Projection tab: Current-Enrollment vs Projection toggle ──
+  // After Veracross rolled the school year over, /v3/students grade_level
+  // reflects each student's NEXT-year grade. "Current Enrollment" (26-27
+  // headcount, from /api/admissions/current-enrollment) is always available;
+  // "Enrollment Projection" (27-28 pipeline, the existing content) stays
+  // locked behind workspace_settings 'enrollment_projection_enabled' until an
+  // owner unlocks it in Jan 2027.
+  type CurrentEnrollmentStudent = { id: number; first_name: string; last_name: string; grade_level: number; enrollment_status: number; campus: string; pisgah?: boolean };
+  const [enrollmentViewMode, setEnrollmentViewMode] = useState<'current' | 'projection'>('current');
+  const [currentEnrollmentData, setCurrentEnrollmentData] = useState<CurrentEnrollmentStudent[] | null>(null);
+  const [currentEnrollmentCounts, setCurrentEnrollmentCounts] = useState<Record<number, number>>({});
+  const [currentEnrollmentTotal, setCurrentEnrollmentTotal] = useState(0);
+  const [currentEnrollmentLoading, setCurrentEnrollmentLoading] = useState(false);
+  const [projectionUnlocked, setProjectionUnlocked] = useState(false);
+  const [projectionToggleBusy, setProjectionToggleBusy] = useState(false);
+  const [currentEnrollmentDrilldownGrade, setCurrentEnrollmentDrilldownGrade] = useState<number | null>(null);
   // Per-student notes + tags inside the admissions drilldown side panel.
   // Bulk-fetched once per session (gated by loadedAdmissionsTagsRef) and
   // keyed on the full prefixed "Admissions: <fullName>" string so unrelated
@@ -1570,6 +1586,54 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
     fetchAdmissions(false, activeDivisionAdmissions);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeDivisionAdmissions]);
+
+  // Current Enrollment (26-27 headcount) — fetched when the Enrollment
+  // Projection tab is open, and re-fetched on division change. Also surfaces
+  // the projection-unlock flag so the UI knows whether to lock Projection mode.
+  const fetchCurrentEnrollment = useCallback(async (division: 'academy' | 'hs' | 'both' = 'academy') => {
+    setCurrentEnrollmentLoading(true);
+    try {
+      const res = await apiFetch(`/api/admissions/current-enrollment?division=${division}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCurrentEnrollmentData(data.students || []);
+        setCurrentEnrollmentCounts(data.countsByGrade || {});
+        setCurrentEnrollmentTotal(data.totalEnrolled || 0);
+        setProjectionUnlocked(!!data.enrollment_projection_enabled);
+      }
+    } catch (e) {
+      console.error('Failed to fetch current enrollment:', e);
+    }
+    setCurrentEnrollmentLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (activeNav !== 'admissions' || admissionsTab !== 'projection') return;
+    fetchCurrentEnrollment(activeDivisionAdmissions);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeNav, admissionsTab, activeDivisionAdmissions]);
+
+  // Owner-only: unlock/re-lock Projection mode (writes workspace_settings).
+  const toggleProjectionUnlock = useCallback(async (next: boolean) => {
+    setProjectionToggleBusy(true);
+    try {
+      const res = await apiFetch('/api/admissions/current-enrollment', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enrollment_projection_enabled: next }),
+      });
+      if (res.ok) {
+        setProjectionUnlocked(next);
+        if (!next) setEnrollmentViewMode('current');
+      } else {
+        const d = await res.json().catch(() => ({}));
+        alert(d.error || 'Failed to update setting');
+      }
+    } catch {
+      alert('Failed to update setting');
+    }
+    setProjectionToggleBusy(false);
+  }, []);
 
   useEffect(() => {
     if (activeNav !== 'admissions') return;
@@ -8206,7 +8270,7 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                   Admissions Overview
                 </button>
                 <button
-                  onClick={() => { setAdmissionsTab('projection'); setAdmissionsSearchTerm(''); }}
+                  onClick={() => { setAdmissionsTab('projection'); setAdmissionsSearchTerm(''); setEnrollmentViewMode('current'); }}
                   className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${admissionsTab === 'projection' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                   Enrollment Projection
@@ -8634,7 +8698,19 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                       return count;
                     };
 
-                    return (
+                    // Dynamic school-year labels. If month index >= 6 (July+),
+                    // the current school year starts this calendar year; else
+                    // it started last year. Projection year = current + 1.
+                    const _ceNow = new Date();
+                    const _ceStart = _ceNow.getMonth() >= 6 ? _ceNow.getFullYear() : _ceNow.getFullYear() - 1;
+                    const currentYearLabel = `${_ceStart}-${String((_ceStart + 1) % 100).padStart(2, '0')}`;
+                    const projectionYearLabel = `${_ceStart + 1}-${String((_ceStart + 2) % 100).padStart(2, '0')}`;
+                    const isOwnerRole = role === 'owner';
+
+                    // Existing Enrollment Projection content — UNCHANGED. Now
+                    // captured into a variable so the Current-Enrollment toggle
+                    // + projection lock/unlock wrapper can compose around it.
+                    const projectionContent = (
                       <>
                         {/* School level summary cards */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -9296,6 +9372,205 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                                 ))}
                               </div>
                             )}
+                          </div>
+                        )}
+                      </>
+                    );
+
+                    // ── Current Enrollment view (26-27 headcount only) ──────
+                    const schoolLevelForGrade = (g: number) =>
+                      ELC_GRADES.includes(g) ? 'ELC'
+                      : LOWER_GRADES.includes(g) ? 'Lower School'
+                      : MIDDLE_GRADES.includes(g) ? 'Middle School'
+                      : g >= 9 ? 'High School' : '—';
+                    const curGradeRows = ADMISSIONS_GRADE_SORT.filter(g => (currentEnrollmentCounts[g] || 0) > 0);
+                    const curMaxCount = Math.max(1, ...curGradeRows.map(g => currentEnrollmentCounts[g] || 0));
+                    const curCountFor = (grades: number[]) => grades.reduce((sum, g) => sum + (currentEnrollmentCounts[g] || 0), 0);
+                    const curDrillStudents = currentEnrollmentDrilldownGrade == null
+                      ? []
+                      : (currentEnrollmentData || [])
+                          .filter(s => s.grade_level === currentEnrollmentDrilldownGrade)
+                          .sort((a, b) => a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name));
+
+                    const currentEnrollmentView = (currentEnrollmentLoading && !currentEnrollmentData) ? (
+                      <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-400">Loading current enrollment…</div>
+                    ) : (
+                      <>
+                        {/* School-level summary cards (current enrolled counts) */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                          {([
+                            { label: 'ELC', subtitle: 'Infant/Toddler – Kindergarten', count: curCountFor(ELC_GRADES), border: 'border-l-teal-400' },
+                            { label: 'Lower School', subtitle: '1st Grade – 5th Grade', count: curCountFor(LOWER_GRADES), border: 'border-l-blue-400' },
+                            { label: 'Middle School', subtitle: '6th Grade – 8th Grade', count: curCountFor(MIDDLE_GRADES), border: 'border-l-purple-400' },
+                          ] as const).map(card => (
+                            <div key={card.label} className={`bg-white rounded-xl border border-slate-200 border-l-4 ${card.border} shadow-sm px-5 py-4`}>
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-900">{card.label}</p>
+                                  <p className="text-xs text-slate-400">{card.subtitle}</p>
+                                </div>
+                                <p className="text-2xl font-bold text-slate-700">{card.count}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Total enrolled */}
+                        <div className="bg-white rounded-xl border border-slate-200 border-t-4 border-t-green-500 shadow-sm p-5 mb-6 inline-block min-w-[200px]">
+                          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Total Enrolled</p>
+                          <p className="text-3xl font-bold text-green-700">{currentEnrollmentTotal}</p>
+                          <p className="text-xs text-slate-400 mt-1">{currentYearLabel} school year</p>
+                        </div>
+
+                        {/* By Grade — headcount, click a row to see student names */}
+                        <div className="bg-white rounded-xl border border-slate-200 p-5 mb-6">
+                          <h3 className="font-semibold text-slate-900 mb-4">By Grade</h3>
+                          {curGradeRows.length === 0 ? (
+                            <p className="text-sm text-slate-400">No current enrollment data</p>
+                          ) : (
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="border-b border-slate-200">
+                                  <th className="text-left py-2 pr-4 font-medium text-slate-500">Grade</th>
+                                  <th className="text-center py-2 px-2 font-medium text-slate-900">Enrolled</th>
+                                  <th className="py-2 pl-3 font-medium text-slate-500 w-24">Progress</th>
+                                  <th className="text-left py-2 px-3 font-medium text-slate-500">School Level</th>
+                                  <th className="text-center py-2 px-2 font-medium text-slate-400 italic">Pisgah</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {curGradeRows.map(g => {
+                                  const count = currentEnrollmentCounts[g] || 0;
+                                  const gradeLabel = ADMISSIONS_GRADE_LABELS[g] || `Grade ${g}`;
+                                  const pisgahCount = (currentEnrollmentData || []).filter(s => s.grade_level === g && s.pisgah).length;
+                                  const open = currentEnrollmentDrilldownGrade === g;
+                                  return (
+                                    <tr
+                                      key={g}
+                                      onClick={() => setCurrentEnrollmentDrilldownGrade(prev => prev === g ? null : g)}
+                                      className={`border-b border-slate-100 cursor-pointer hover:bg-slate-50 transition-colors ${open ? 'bg-blue-50' : ''}`}
+                                    >
+                                      <td className="py-2 pr-4 font-medium text-slate-700">{gradeLabel}</td>
+                                      <td className="py-2 px-2 text-center font-semibold text-slate-900">{count}</td>
+                                      <td className="py-2 pl-3">
+                                        <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                                          <div className="h-full rounded-full bg-green-500" style={{ width: `${(count / curMaxCount) * 100}%` }} />
+                                        </div>
+                                      </td>
+                                      <td className="py-2 px-3 text-slate-500">{schoolLevelForGrade(g)}</td>
+                                      <td className="py-2 px-2 text-center text-slate-400 italic">{pisgahCount > 0 ? pisgahCount : '—'}</td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          )}
+
+                          {/* Drilldown — student names for the selected grade */}
+                          {currentEnrollmentDrilldownGrade != null && (
+                            <div className="mt-4 pt-4 border-t border-slate-200">
+                              <div className="flex items-center justify-between mb-3">
+                                <h4 className="text-sm font-semibold text-slate-900">
+                                  {ADMISSIONS_GRADE_LABELS[currentEnrollmentDrilldownGrade] || `Grade ${currentEnrollmentDrilldownGrade}`} — {curDrillStudents.length} student{curDrillStudents.length !== 1 ? 's' : ''}
+                                </h4>
+                                <button onClick={() => setCurrentEnrollmentDrilldownGrade(null)} className="text-slate-400 hover:text-slate-600 text-sm">×</button>
+                              </div>
+                              {curDrillStudents.length === 0 ? (
+                                <p className="text-sm text-slate-400">No students to show</p>
+                              ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                  {curDrillStudents.map(s => (
+                                    <a
+                                      key={s.id}
+                                      href={veracrossAdmissionUrl(s.id, true)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center justify-between gap-2 border border-slate-200 rounded-lg px-3 py-2 hover:border-blue-300 hover:bg-blue-50/40 transition-colors group"
+                                    >
+                                      <span className="text-sm text-slate-800 truncate">
+                                        {s.first_name} {s.last_name}
+                                        {s.pisgah && <span className="ml-1.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">Pisgah</span>}
+                                      </span>
+                                      <svg className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" /></svg>
+                                    </a>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    );
+
+                    // ── Compose: toggle + dynamic header, then the active view.
+                    return (
+                      <>
+                        {/* Segmented toggle */}
+                        <div className="flex flex-col gap-3 mb-6">
+                          <div className="inline-flex gap-1 bg-slate-100 rounded-lg p-1 w-fit">
+                            <button
+                              onClick={() => setEnrollmentViewMode('current')}
+                              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${enrollmentViewMode === 'current' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                              Current Enrollment
+                            </button>
+                            <button
+                              onClick={() => setEnrollmentViewMode('projection')}
+                              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5 ${enrollmentViewMode === 'projection' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'} ${!projectionUnlocked ? 'opacity-70' : ''}`}
+                            >
+                              {!projectionUnlocked && <span aria-hidden>🔒</span>}
+                              Enrollment Projection
+                            </button>
+                          </div>
+                          <h2 className="text-lg font-bold text-slate-900">
+                            {enrollmentViewMode === 'current'
+                              ? `Current Enrollment — ${currentYearLabel} School Year`
+                              : `Enrollment Projection — ${projectionYearLabel} School Year`}
+                          </h2>
+                        </div>
+
+                        {enrollmentViewMode === 'current' ? (
+                          currentEnrollmentView
+                        ) : projectionUnlocked ? (
+                          <>
+                            {isOwnerRole && (
+                              <div className="flex justify-end mb-3">
+                                <button
+                                  onClick={() => toggleProjectionUnlock(false)}
+                                  disabled={projectionToggleBusy}
+                                  className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1 disabled:opacity-50"
+                                >
+                                  🔒 {projectionToggleBusy ? 'Locking…' : 'Lock projection'}
+                                </button>
+                              </div>
+                            )}
+                            {projectionContent}
+                          </>
+                        ) : (
+                          <div className="relative">
+                            {/* Locked banner overlay */}
+                            <div className="absolute inset-0 z-20 flex items-start justify-center pt-10 px-4">
+                              <div className="bg-white rounded-xl border border-slate-200 shadow-lg p-6 max-w-md text-center">
+                                <div className="text-3xl mb-2">🔒</div>
+                                <h3 className="font-semibold text-slate-900 mb-2">Enrollment Projection is locked</h3>
+                                <p className="text-sm text-slate-500 mb-4">
+                                  Re-enrollment for {projectionYearLabel} opens in January 2027. This view will be available when registration opens.
+                                </p>
+                                {isOwnerRole && (
+                                  <button
+                                    onClick={() => toggleProjectionUnlock(true)}
+                                    disabled={projectionToggleBusy}
+                                    className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                                  >
+                                    {projectionToggleBusy ? 'Unlocking…' : 'Unlock Projection Mode'}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            {/* Grayed-out projection content behind the banner */}
+                            <div className="opacity-40 pointer-events-none select-none">
+                              {projectionContent}
+                            </div>
                           </div>
                         )}
                       </>
