@@ -9,18 +9,25 @@ import { type NextRequest } from 'next/server';
 
 // ── Current Enrollment (26-27 headcount) ────────────────────────────────
 //
-// WHY THIS ROUTE EXISTS: after Veracross rolled the school year over, the
-// /v3/students `grade_level` field now reflects each student's NEXT-year
-// (27-28) grade. The main /api/admissions route (re-enrollment projection)
-// leans on that. But the "Current Enrollment" view needs each student's
-// CURRENT (26-27) grade, which is only reliable from the year-scoped
-// academics/enrollments endpoint (school_year=2026). So this route reads
-// enrollments for 2026 for the authoritative current grade, and joins the
-// /v3/students roster only for stable, rollover-independent fields (name,
-// campus, household, student_group for Pisgah) keyed by person_id.
+// DATA SOURCE — /v3/students (the roster), NOT academics/enrollments.
 //
-// It also returns the workspace_settings 'enrollment_projection_enabled'
-// flag so the UI knows whether to show Projection mode locked or unlocked.
+// The original build used Veracross `academics/enrollments?school_year=2026`,
+// on the assumption that the post-rollover `/v3/students.grade_level` reflected
+// each student's NEXT-year grade. Live probing (2026-07-21) disproved that:
+//   • `academics/enrollments` returns COURSE enrollments (one row per class),
+//     with the grade in `grade_level_id` (NOT `grade_level`) — so the old
+//     filter read `undefined → 0` and dropped every row → "0 for all grades."
+//   • Worse, in July only ~691 persons (mostly HS) have 26-27 class schedules
+//     built; Academy course schedules aren't loaded yet, so that endpoint can
+//     never give a full Academy headcount this time of year.
+//   • The `/v3/students` roster (1700 rows, all active, `grade_level` fully
+//     populated in the admissions numbering) IS the current 26-27 grade — its
+//     grades match the HS students' 26-27 course `grade_level_id` exactly. This
+//     is the same source `/api/admissions` already uses for `currentYearCounts`,
+//     so the two views agree.
+//
+// Also returns the workspace_settings 'enrollment_projection_enabled' flag so
+// the UI knows whether to show Projection mode locked or unlocked.
 
 const SETTING_KEY = 'enrollment_projection_enabled';
 
@@ -31,10 +38,10 @@ interface TokenResponse {
 }
 
 export interface CurrentEnrollmentStudent {
-  id: number; // person_id
+  id: number; // person_id (students.id)
   first_name: string;
   last_name: string;
-  grade_level: number; // CURRENT (26-27) grade in Veracross numbering
+  grade_level: number; // CURRENT (26-27) grade in Veracross admissions numbering
   enrollment_status: number;
   campus: string;
   pisgah?: boolean;
@@ -54,30 +61,6 @@ function currentYearGradesForDivisions(divisions: string[]): number[] {
   return grades;
 }
 
-async function getEnrollmentsToken(workspaceId: string): Promise<string> {
-  const { admissionsClientId, admissionsClientSecret, schoolCode } = await getVeracrossCredentials(workspaceId);
-  if (!admissionsClientId || !admissionsClientSecret) {
-    throw new Error('Missing Veracross Admissions credentials');
-  }
-  const res = await fetch(`https://accounts.veracross.com/${schoolCode}/oauth/token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'client_credentials',
-      client_id: admissionsClientId,
-      client_secret: admissionsClientSecret,
-      scope: 'academics.enrollments:list academics.enrollments:read',
-    }),
-  });
-  if (!res.ok) {
-    const err = await res.text();
-    console.error('[current-enrollment] enrollments token error:', res.status, err);
-    throw new Error('Failed to get Veracross enrollments token');
-  }
-  const data: TokenResponse = await res.json();
-  return data.access_token;
-}
-
 async function getStudentsToken(workspaceId: string): Promise<string> {
   const { admissionsClientId, admissionsClientSecret, schoolCode } = await getVeracrossCredentials(workspaceId);
   if (!admissionsClientId || !admissionsClientSecret) {
@@ -90,12 +73,12 @@ async function getStudentsToken(workspaceId: string): Promise<string> {
       grant_type: 'client_credentials',
       client_id: admissionsClientId,
       client_secret: admissionsClientSecret,
-      scope: 'students:list students:read admission.applications:list admission.applicants:list admission.households:list',
+      scope: 'students:list students:read',
     }),
   });
   if (!res.ok) {
     const err = await res.text();
-    console.error('[current-enrollment] students token error:', res.status, err);
+    console.error('[CURRENT-ENROLLMENT ROUTE] students token error:', res.status, err);
     throw new Error('Failed to get Veracross students token');
   }
   const data: TokenResponse = await res.json();
@@ -116,11 +99,15 @@ async function fetchAllPages(url: string, token: string, label: string): Promise
       },
     });
     if (!res.ok) {
-      console.error(`[current-enrollment][${label}] Fetch failed: ${res.status}`);
+      const body = await res.text().catch(() => '');
+      console.error(`[CURRENT-ENROLLMENT ${label}] Fetch failed: ${res.status}`, body.slice(0, 300));
       break;
     }
     const json = await res.json();
     const pageData = json.data || [];
+    if (pageNum === 1) {
+      console.log(`[CURRENT-ENROLLMENT ${label}]`, JSON.stringify({ status: res.status, page1Count: pageData.length, sample: pageData.slice(0, 2) }).slice(0, 1500));
+    }
     if (pageData.length === 0) break;
     all.push(...pageData);
     if (pageData.length < 1000) break;
@@ -140,19 +127,21 @@ async function readProjectionEnabled(workspaceId: string): Promise<boolean> {
       .eq('key', SETTING_KEY)
       .maybeSingle();
     if (error) {
-      console.warn('[current-enrollment] settings read error (defaulting locked):', error.message);
+      console.warn('[CURRENT-ENROLLMENT ROUTE] settings read error (defaulting locked):', error.message);
       return false;
     }
     return data?.value === true;
   } catch (e) {
-    console.warn('[current-enrollment] settings read threw (defaulting locked):', e);
+    console.warn('[CURRENT-ENROLLMENT ROUTE] settings read threw (defaulting locked):', e);
     return false;
   }
 }
 
 export async function GET(request: NextRequest) {
+  console.log('[CURRENT-ENROLLMENT ROUTE] called', new URL(request.url).search);
   const session = await getAuthSession();
   if (!session?.user?.email || !session.workspaceId) {
+    console.warn('[CURRENT-ENROLLMENT ROUTE] unauthorized — no session');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -167,43 +156,24 @@ export async function GET(request: NextRequest) {
   const currentYearGradesSet = new Set(
     currentYearGradesForDivisions(memberDivisions).filter(g => allowedGradesSet.has(g)),
   );
-  console.log('[current-enrollment] divisions=', memberDivisions, 'grades=', [...currentYearGradesSet], 'user=', session.user.email);
+  console.log('[CURRENT-ENROLLMENT ROUTE] divisions=', memberDivisions, 'grades=', [...currentYearGradesSet], 'user=', session.user.email);
 
   const projectionEnabled = await readProjectionEnabled(session.workspaceId);
 
   try {
     const { schoolCode: schoolRoute } = await getVeracrossCredentials(session.workspaceId);
-    const [enrollmentsToken, studentsToken] = await Promise.all([
-      getEnrollmentsToken(session.workspaceId),
-      getStudentsToken(session.workspaceId),
-    ]);
+    const studentsToken = await getStudentsToken(session.workspaceId);
+    console.log('[CURRENT-ENROLLMENT ROUTE] token acquired, schoolRoute=', schoolRoute);
 
-    // Current-year enrollment records (authoritative current grade). Pass
-    // school_year=2026 as the task specifies; also filter client-side with
-    // tolerant year matching in case the param is ignored by the endpoint.
-    const allEnrollments = await fetchAllPages(
-      `https://api.veracross.com/${schoolRoute}/v3/academics/enrollments?school_year=2026`,
-      enrollmentsToken,
-      'Enrollments',
-    );
-
-    // Stable roster fields (name/campus/household/student_group) by person_id.
-    // grade_level here is the post-rollover NEXT-year grade, so it is NOT used
-    // for grade — only for name/campus/pisgah lookup.
+    // The roster — the authoritative current-year (26-27) source. `grade_level`
+    // is the admissions numbering (40=I/T … 20=K, 1-8, 9-12), fully populated.
     const allStudents = await fetchAllPages(
       `https://api.veracross.com/${schoolRoute}/v3/students`,
       studentsToken,
-      'Students',
+      'STUDENTS',
     );
 
     const now = new Date().toISOString().split('T')[0];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const studentById = new Map<number, any>();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    allStudents.forEach((s: any) => {
-      const pid = s.id ?? s.person_id;
-      if (pid != null) studentById.set(pid, s);
-    });
 
     const campusName = (raw: unknown): string => {
       if (raw && typeof raw === 'object') {
@@ -215,44 +185,28 @@ export async function GET(request: NextRequest) {
     };
     const isPisgah = (raw: unknown): boolean => {
       if (raw == null) return false;
-      const s = String(raw).toLowerCase();
-      return s.includes('pisgah');
+      return String(raw).toLowerCase().includes('pisgah');
     };
 
-    // Dedup by person_id — academics/enrollments can return more than one row
-    // per student. Keep the first row that carries an allowed current grade.
-    const seen = new Set<number>();
     const students: CurrentEnrollmentStudent[] = [];
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const e of allEnrollments as any[]) {
-      const year = e.school_year ?? e.year_id ?? e.school_year_id;
-      const yearMatch =
-        year == null ||
-        year === 2026 || year === '2026' || year === '2025-2026' || String(year).includes('2026');
-      if (!yearMatch) continue;
-
-      const pid = e.person_id ?? e.student_id ?? e.id ?? 0;
-      if (!pid || seen.has(pid)) continue;
-
-      const grade = e.grade_level ?? e.future_grade_level ?? e.current_grade_level ?? 0;
+    for (const s of allStudents as any[]) {
+      const grade = s.grade_level;
       if (!currentYearGradesSet.has(grade)) continue;
+      // Active only — drop students who have already left (past exit_date).
+      if (s.exit_date && s.exit_date <= now) continue;
 
-      const roster = studentById.get(pid);
-      // Skip students who have already withdrawn/left (past exit_date).
-      if (roster?.exit_date && roster.exit_date <= now) continue;
+      const pid = s.id ?? s.person_id;
+      if (pid == null) continue;
 
-      const status = e.enrollment_status ?? e.status ?? roster?.enrollment_status ?? 0;
-
-      seen.add(pid);
       students.push({
         id: pid,
-        first_name: roster?.first_name ?? e.first_name ?? e.person_first_name ?? '',
-        last_name: roster?.last_name ?? e.last_name ?? e.person_last_name ?? '',
+        first_name: s.first_name ?? '',
+        last_name: s.last_name ?? '',
         grade_level: grade,
-        enrollment_status: status,
-        campus: campusName(roster?.campus ?? e.campus),
-        pisgah: isPisgah(roster?.student_group ?? roster?.student_group_name),
+        enrollment_status: s.enrollment_status ?? 0,
+        campus: campusName(s.campus),
+        pisgah: isPisgah(s.student_group ?? s.student_group_name),
       });
     }
 
@@ -263,7 +217,13 @@ export async function GET(request: NextRequest) {
     });
     const totalEnrolled = students.length;
 
-    console.log('[current-enrollment] enrollmentsRows=', allEnrollments.length, 'students=', totalEnrolled, 'countsByGrade=', countsByGrade, 'projectionEnabled=', projectionEnabled);
+    console.log('[CURRENT-ENROLLMENT RESULT]', JSON.stringify({
+      rosterRows: allStudents.length,
+      totalEnrolled,
+      gradesCount: Object.keys(countsByGrade).length,
+      countsByGrade,
+      projectionEnabled,
+    }));
 
     return NextResponse.json({
       students,
@@ -272,7 +232,7 @@ export async function GET(request: NextRequest) {
       enrollment_projection_enabled: projectionEnabled,
     });
   } catch (error) {
-    console.error('[current-enrollment] Error:', error);
+    console.error('[CURRENT-ENROLLMENT ROUTE] Error:', error);
     // Non-fatal: return an empty payload + the flag so the UI still renders.
     return NextResponse.json(
       {
@@ -322,7 +282,7 @@ export async function PATCH(request: NextRequest) {
     );
 
   if (error) {
-    console.error('[current-enrollment] toggle upsert error:', error.message);
+    console.error('[CURRENT-ENROLLMENT ROUTE] toggle upsert error:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 

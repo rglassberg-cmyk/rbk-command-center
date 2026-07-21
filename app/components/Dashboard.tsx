@@ -1591,23 +1591,30 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
   // Projection tab is open, and re-fetched on division change. Also surfaces
   // the projection-unlock flag so the UI knows whether to lock Projection mode.
   const fetchCurrentEnrollment = useCallback(async (division: 'academy' | 'hs' | 'both' = 'academy') => {
+    console.log('[CURRENT-ENROLLMENT] fetching...', { division });
     setCurrentEnrollmentLoading(true);
     try {
       const res = await apiFetch(`/api/admissions/current-enrollment?division=${division}`);
+      console.log('[CURRENT-ENROLLMENT] response', { status: res.status, ok: res.ok });
       if (res.ok) {
         const data = await res.json();
+        console.log('[CURRENT-ENROLLMENT] data', { totalEnrolled: data.totalEnrolled, gradesCount: Object.keys(data.countsByGrade || {}).length, unlocked: data.enrollment_projection_enabled, error: data.error });
         setCurrentEnrollmentData(data.students || []);
         setCurrentEnrollmentCounts(data.countsByGrade || {});
         setCurrentEnrollmentTotal(data.totalEnrolled || 0);
         setProjectionUnlocked(!!data.enrollment_projection_enabled);
+      } else {
+        console.error('[CURRENT-ENROLLMENT ERROR] non-ok response', res.status);
       }
-    } catch (e) {
-      console.error('Failed to fetch current enrollment:', e);
+    } catch (err) {
+      console.error('[CURRENT-ENROLLMENT ERROR]', err);
     }
     setCurrentEnrollmentLoading(false);
   }, []);
 
   useEffect(() => {
+    // Diagnostic: shows whether the trigger fires and why it may bail early.
+    console.log('[CURRENT-ENROLLMENT] effect check', { activeNav, admissionsTab, division: activeDivisionAdmissions });
     if (activeNav !== 'admissions' || admissionsTab !== 'projection') return;
     fetchCurrentEnrollment(activeDivisionAdmissions);
   // eslint-disable-next-line react-hooks/exhaustive-deps
