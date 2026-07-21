@@ -9473,39 +9473,51 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
                             </table>
                           )}
 
-                          {/* Drilldown — student names for the selected grade */}
-                          {currentEnrollmentDrilldownGrade != null && (
-                            <div className="mt-4 pt-4 border-t border-slate-200">
-                              <div className="flex items-center justify-between mb-3">
-                                <h4 className="text-sm font-semibold text-slate-900">
-                                  {ADMISSIONS_GRADE_LABELS[currentEnrollmentDrilldownGrade] || `Grade ${currentEnrollmentDrilldownGrade}`} — {curDrillStudents.length} student{curDrillStudents.length !== 1 ? 's' : ''}
-                                </h4>
-                                <button onClick={() => setCurrentEnrollmentDrilldownGrade(null)} className="text-slate-400 hover:text-slate-600 text-sm">×</button>
-                              </div>
-                              {curDrillStudents.length === 0 ? (
-                                <p className="text-sm text-slate-400">No students to show</p>
-                              ) : (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                                  {curDrillStudents.map(s => (
-                                    <a
-                                      key={s.id}
-                                      href={veracrossAdmissionUrl(s.id, true)}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="flex items-center justify-between gap-2 border border-slate-200 rounded-lg px-3 py-2 hover:border-blue-300 hover:bg-blue-50/40 transition-colors group"
-                                    >
-                                      <span className="text-sm text-slate-800 truncate">
-                                        {s.first_name} {s.last_name}
-                                        {s.pisgah && <span className="ml-1.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">Pisgah</span>}
-                                      </span>
-                                      <svg className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" /></svg>
-                                    </a>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
                         </div>
+
+                        {/* Grade drilldown — right-side slide-in panel, matching
+                            the other Admissions drilldowns (backdrop + 420px panel
+                            + X close). Fixed-positioned, so nesting here is fine. */}
+                        {currentEnrollmentDrilldownGrade != null && (
+                          <>
+                            <div className="fixed inset-0 bg-slate-900/20 z-40" onClick={() => setCurrentEnrollmentDrilldownGrade(null)} />
+                            <div className="fixed top-0 right-0 bottom-0 w-full max-w-[420px] bg-white shadow-2xl z-50 flex flex-col">
+                              <div className="px-6 py-5 border-b border-slate-100">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <h3 className="text-lg font-semibold text-slate-900">{ADMISSIONS_GRADE_LABELS[currentEnrollmentDrilldownGrade] || `Grade ${currentEnrollmentDrilldownGrade}`} — {curDrillStudents.length} student{curDrillStudents.length !== 1 ? 's' : ''}</h3>
+                                  </div>
+                                  <button onClick={() => setCurrentEnrollmentDrilldownGrade(null)} className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="flex-1 overflow-y-auto px-6 py-4">
+                                {curDrillStudents.length === 0 ? (
+                                  <div className="text-center py-12 text-slate-400"><p className="text-sm">No students to show</p></div>
+                                ) : (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    {curDrillStudents.map(s => (
+                                      <a
+                                        key={s.id}
+                                        href={veracrossAdmissionUrl(s.id, true)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center justify-between gap-2 border border-slate-200 rounded-lg px-3 py-2 hover:border-blue-300 hover:bg-blue-50/40 transition-colors group"
+                                      >
+                                        <span className="text-sm text-slate-800 truncate">
+                                          {s.first_name} {s.last_name}
+                                          {s.pisgah && <span className="ml-1.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">Pisgah</span>}
+                                        </span>
+                                        <svg className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" /></svg>
+                                      </a>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </>
+                        )}
                       </>
                     );
 
