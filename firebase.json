@@ -8,7 +8,7 @@
     ],
     "frameworksBackend": {
       "region": "us-east1",
-      "memory": "512MiB"
+      "memory": "256MiB"
     }
   },
   "functions": {

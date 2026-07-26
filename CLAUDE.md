@@ -2,7 +2,8 @@
 > Full ecosystem context: ~/Desktop/DevProjects/_context/LHASA_CONTEXT.md
 > Workflow preferences: ~/Desktop/DevProjects/_context/BECCA_WORKFLOW.md
 > Latest session handoff: RBKCC_HANDOFF_2026-07-17.md (repo root + ~/Desktop/); prior: RBKCC_HANDOFF_2026-07-14.md, RBKCC_HANDOFF_2026-06-18.md
-> Last updated: July 14, 2026
+> Last updated: July 25, 2026
+> ⚠️ **SUMMER SHUTDOWN MODE IS ACTIVE (2026-07-25 → September 2026).** The app is deployed but running at minimum cost: Cloud Run scaled to zero with CPU throttled, and ALL scheduled Cloud Functions deleted. Nothing syncs automatically. See **[SEPTEMBER RESTART CHECKLIST](#september-restart-checklist)** before the school year starts.
 
 # RBK Command Center — Project Context
 
@@ -10,9 +11,57 @@
 
 Next.js 16 app serving as a unified operations dashboard for Rebecca (RBK) and Emily. Deployed to Firebase Hosting at **https://rbk-cmd-center.web.app**, with Supabase as the database and Firebase Auth (Google OAuth) for authentication.
 
-**Latest Cloud Run revision:** `ssrrbkcmdcenter-00718-kzz` (firebase hosting release 2026-07-21e). **Latest deploy:** July 21, 2026 (`is_super_admin` flag: distinguishes Becca as system admin from RBK as plain owner — gates the admin panel, feature flags, dev Sync Gift History, and enrollment-projection elevation; ⚡SA badge in the permissions UI). Earlier same day: `00716-4gf` (Admissions `admissions_manager` sub-permission + Projection lock visibility + inline enrollment edit). Earlier same day: `00714-zh9` (Current Enrollment grade drilldown → right-side slide-in panel); `00712-hzh` (Current Enrollment 0-data fix → `/v3/students` roster); `00708-tfg` (Current-Enrollment view + Projection year-lock toggle). Earlier same day: `00712-hzh` (FIX: Current Enrollment 0-data → read `/v3/students` roster, not `academics/enrollments`); `00708-tfg` (Admissions → Enrollment Projection Current-Enrollment view + Projection year-lock toggle gated on `workspace_settings.enrollment_projection_enabled`). Earlier: July 16 (FY25 Campaign Giving by Fund now reads giving_history_cache with the new `fund` column); July 14 (@Notify interactive Slack "Mark Resolved" button + /api/slack/interactions, @Notify Slack diagnostic logging, tasks-for-all + Admissions note pre-fill, This Week at SAR URL → vercel, cross-module @Notify). NOTE: the interactive `gcloud auth print-access-token` credential still needs `gcloud auth login` reauth, but deploys now work non-interactively by exporting the Application Default Credentials token: `export CLOUDSDK_AUTH_ACCESS_TOKEN="$(gcloud auth application-default print-access-token)"` before `./deploy.sh` — that is how revision 00708-tfg was captured.
+**Latest Cloud Run revision:** `ssrrbkcmdcenter-00721-hfr` (firebase hosting release 2026-07-25). **Latest deploy:** July 25, 2026 (**SUMMER SHUTDOWN — minimum-cost mode**: Cloud Run `--min-instances=0 --max-instances=2 --cpu-throttling --memory=256Mi`, `firebase.json` frameworksBackend `256MiB`, and all 9 scheduled Cloud Functions deleted; only the 3 HTTP functions remain). Prior: `ssrrbkcmdcenter-00718-kzz` (firebase hosting release 2026-07-21e), July 21, 2026 (`is_super_admin` flag: distinguishes Becca as system admin from RBK as plain owner — gates the admin panel, feature flags, dev Sync Gift History, and enrollment-projection elevation; ⚡SA badge in the permissions UI). Earlier same day: `00716-4gf` (Admissions `admissions_manager` sub-permission + Projection lock visibility + inline enrollment edit). Earlier same day: `00714-zh9` (Current Enrollment grade drilldown → right-side slide-in panel); `00712-hzh` (Current Enrollment 0-data fix → `/v3/students` roster); `00708-tfg` (Current-Enrollment view + Projection year-lock toggle). Earlier same day: `00712-hzh` (FIX: Current Enrollment 0-data → read `/v3/students` roster, not `academics/enrollments`); `00708-tfg` (Admissions → Enrollment Projection Current-Enrollment view + Projection year-lock toggle gated on `workspace_settings.enrollment_projection_enabled`). Earlier: July 16 (FY25 Campaign Giving by Fund now reads giving_history_cache with the new `fund` column); July 14 (@Notify interactive Slack "Mark Resolved" button + /api/slack/interactions, @Notify Slack diagnostic logging, tasks-for-all + Admissions note pre-fill, This Week at SAR URL → vercel, cross-module @Notify). NOTE: the interactive `gcloud auth print-access-token` credential still needs `gcloud auth login` reauth, but deploys now work non-interactively by exporting the Application Default Credentials token: `export CLOUDSDK_AUTH_ACCESS_TOKEN="$(gcloud auth application-default print-access-token)"` before `./deploy.sh` — that is how revision 00708-tfg was captured.
 
 **Tech stack:** Next.js 16 + React 19 + Tailwind CSS (v4, `@tailwindcss/typography`) + Tiptap (rich text) + Supabase + Firebase (Auth, Hosting, Cloud Functions). Fonts: Geist (UI), Source Serif 4 (home greeting). ALL authenticated users auto-redirect from `/` to `/home` unless `?nav=` or `?projectPanel=` params are present. The old Dashboard at `/` is only accessible via sidebar nav items that pass `?nav=` params. ALL users see "Home" in sidebar (no more "Dashboard" item for anyone). `shouldRedirectHome` is always true.
+
+## SEPTEMBER RESTART CHECKLIST
+
+> Summer shutdown was applied **2026-07-25** (Cloud Run revision `ssrrbkcmdcenter-00721-hfr`). Work this list top-to-bottom before the school year starts. Nothing below is automatic.
+
+**1. Restore `deploy.sh` to school-year Cloud Run settings.**
+In the `=== Forcing Cloud Run revision update ===` block, restore:
+`--no-cpu-throttling --memory=512Mi --max-instances=10` (and `--min-instances=1` for warm starts).
+⚠️ Order matters: `--memory=512Mi` must be raised **in the same command as** `--no-cpu-throttling` (or before it) — Cloud Run rejects `< 512Mi` while CPU is always-allocated. Also delete the now-stale `--cpu-throttling` flag; leaving it in silently defeats `--no-cpu-throttling`.
+Also revert `firebase.json` → `frameworksBackend.memory: "512MiB"`.
+
+**2. Re-enable the Cloud Function schedules in `functions/src/index.ts`.**
+Each disabled scheduler is marked `=== SUMMER SHUTDOWN 2026-07-25 — SCHEDULER DISABLED ===` with its original cron and a `TODO: RE-ENABLE FOR SCHOOL YEAR`. Uncomment the `exports.… = functions.pubsub.schedule(…)` block above each preserved handler. The nine to restore:
+
+| Function | Original schedule (America/New_York) |
+|---|---|
+| `scheduledMorningBriefings` | `30 7 * * 1-5` — 7:30am weekdays |
+| `syncDailyAttendance` | `0 23 * * 1-5` — 11pm weekdays |
+| `syncAfterSchoolPrograms` | `0 7 * * *` — 7am daily |
+| `syncGiftsHourlyWeekdays` | `0 * * * 1-5` — hourly weekdays |
+| `syncGiftsDailyWeekends` | `0 6 * * 0,6` — 6am Sat/Sun |
+| `dailyTaskDueReminder` | `0 8 * * *` — 8am daily |
+| `dailyAbsenceAlert` | `30 9 * * 1-5` — 9:30am weekdays |
+| `triageGmail` | `*/15 * * * 1-5` — every 15 min weekdays |
+| `syncDraftsReady` | `*/15 * * * 1-5` — every 15 min weekdays |
+
+The handler bodies were **not** deleted — they live on as `…Handler` functions/consts in the same file, so re-enabling is purely uncommenting. `ingestGivingHistory` was already retired in June 2026 and is intentionally **not** on this list (it stays manual-only).
+
+**3. Redeploy both.**
+```bash
+export CLOUDSDK_AUTH_ACCESS_TOKEN="$(gcloud auth application-default print-access-token)"
+./deploy.sh
+npx firebase deploy --only functions --force
+```
+`--force` is needed so the CLI recreates the deleted schedulers without prompting.
+
+**4. Trigger a manual sync** — click **"Sync Gift History"** on the Development Overview page (super-admin only) to backfill everything the nightly jobs missed over the summer.
+
+**5. Verify the Veracross Data Package is running** — it was changed to **weekly, Sunday 3am** for the summer. Restore its school-year cadence.
+
+**6. Test the Buzz AI morning briefing** — `POST` the `generateMorningBriefings` HTTP function (or `/api/slack/morning-briefing/preview`) and confirm a real Slack send. ⚠️ Buzz's fire-and-forget Slack→Anthropic call **requires `--no-cpu-throttling`** (step 1); with throttling on it gets frozen post-ack and falls through to the "Something's off on my end" fallback.
+
+**7. Check the SFTP VM is still running:**
+```bash
+gcloud compute instances list --project=rbk-cmd-center
+```
+
+**8. Re-verify the manual Gmail buttons.** Deleting the `triageGmail` / `syncDraftsReady` schedulers also destroyed the Pub/Sub topics `firebase-schedule-triageGmail-us-central1` and `firebase-schedule-syncDraftsReady-us-central1`, which the `manualTriage` / `manualSyncDrafts` HTTP functions publish to. **The "Sync Gmail" and manual draft-sync buttons error until step 2+3 recreate those topics** — expected during the shutdown, but confirm they work again afterward.
 
 ## UI & Performance Standards
 
@@ -720,6 +769,21 @@ Phase F per-workspace integration credentials. **Service-role only** — RLS den
 - **Vercel:** Deprecated (deployment dead as of June 2025)
 
 ## Recent Changes
+
+### Summer shutdown: minimum-cost mode + all scheduled Cloud Functions disabled (2026-07-25)
+
+Firebase hosting release 2026-07-25, **Cloud Run revision `ssrrbkcmdcenter-00721-hfr`**. The app stays deployed and reachable, but runs at minimum cost until September 2026 — nobody uses it over the summer. See **SEPTEMBER RESTART CHECKLIST** (near the top of this file) to undo all of it.
+
+- **Cloud Run minimum-cost settings** (`deploy.sh`): `--min-instances=1` → `--min-instances=0` (scales to zero when idle; trade-off is a ~3-8s cold start on the first request), new `--max-instances=2` (spend ceiling), `--memory=512Mi` → `--memory=256Mi`, and `--no-cpu-throttling` removed. `firebase.json` `frameworksBackend.memory` `512MiB` → `256MiB` to match. A `# SCHOOL YEAR: restore --no-cpu-throttling --memory=512Mi --max-instances=10` comment sits directly above the `gcloud run services update` block.
+- **⚠️ Non-obvious deploy finding — `--cpu-throttling` had to be added explicitly.** Simply *dropping* `--no-cpu-throttling` does not revert it; CPU allocation is a **sticky service setting**. The first deploy attempt failed twice with `400 … spec.template.spec.containers.resources.limits.memory: Invalid value specified for memory. Total memory < 512 Mi is not supported with cpu always allocated (unthrottled)` — Cloud Run refuses `256Mi` while CPU is always-allocated. Fixed by adding an explicit `--cpu-throttling` flag to the `gcloud run services update` command in `deploy.sh`. **Reverse implication for September:** raising memory back to `512Mi` must happen in the same command as (or before) re-adding `--no-cpu-throttling`, and the `--cpu-throttling` flag must be deleted.
+- **Second deploy hiccup (self-healed):** after the failed function update, the service spec pointed at image tag `…/ssrrbkcmdcenter:version_1`, which no longer existed (`Image … not found`), so a standalone `gcloud run services update` couldn't mint a revision even though the spec had accepted the new values. Re-running the full `./deploy.sh` rebuilt and pushed a fresh image and the revision went out cleanly. The previously-good revision `00718-kzz` kept serving throughout — **no downtime** (site returned 307 the whole time).
+- **All 9 scheduled Cloud Functions disabled** in `functions/src/index.ts` and **deleted from GCP** via `npx firebase deploy --only functions --force`: `scheduledMorningBriefings`, `syncDailyAttendance`, `syncAfterSchoolPrograms`, `syncGiftsHourlyWeekdays`, `syncGiftsDailyWeekends`, `dailyTaskDueReminder`, `dailyAbsenceAlert`, `triageGmail`, `syncDraftsReady`. `gcloud scheduler jobs list` now returns **0 items**. Each is marked in-file with `=== SUMMER SHUTDOWN 2026-07-25 — SCHEDULER DISABLED ===`, its original cron + timezone, and a `TODO: RE-ENABLE FOR SCHOOL YEAR`; the `exports.… functions.pubsub.schedule(…)` chain is commented out.
+- **Handler bodies were preserved, not deleted.** Each scheduled function's body now lives as a `…Handler` function/const (e.g. `syncDailyAttendanceHandler()`, `triageGmailHandler`), so re-enabling in September is purely uncommenting the export block. The two large ones (`triageGmail` ~280 lines, `syncDraftsReady` ~220 lines) use the `const xHandler = (async () => { … });` form specifically so their bodies and indentation stay **byte-identical** and the diff is reviewable. `functions/` has no ESLint config and `tsconfig.json` does not set `noUnusedLocals`, so the unreferenced handlers compile clean (`tsc` exit 0).
+- **The 3 HTTP functions were kept and redeployed** — `manualTriage`, `manualSyncDrafts`, `generateMorningBriefings`. They cost nothing when idle.
+- **⚠️ Known summer breakage (intentional):** deleting the `triageGmail` / `syncDraftsReady` schedulers also destroyed the Pub/Sub topics `firebase-schedule-triageGmail-us-central1` and `firebase-schedule-syncDraftsReady-us-central1` that `manualTriage` / `manualSyncDrafts` publish to — so the in-app **"Sync Gmail"** and manual draft-sync buttons will error until the schedulers are restored. Nothing syncs automatically over the summer: no Gmail triage, no gifts/constituents sync, no attendance, no after-school, no task/absence reminders, no morning briefings.
+- **`ingestGivingHistory` skipped** — already retired 2026-06-25 (manual-only via the Development Overview "Sync Gift History" button); left as-is.
+- **Not touched (out of scope, still billing):** the SFTP VM (`gcloud compute instances list`), Supabase, and the Veracross Data Package (already moved to weekly Sunday 3am for the summer). The SFTP VM is likely the largest remaining line item if further savings are wanted.
+- Verified post-deploy: serving revision `00721-hfr` = `256Mi` / `cpu-throttling: true` / `minScale` unset (0) / `maxScale: 2`; 0 scheduler jobs; site 307.
 
 ### is_super_admin: distinguish Becca (system admin) from RBK (owner) (2026-07-21e)
 

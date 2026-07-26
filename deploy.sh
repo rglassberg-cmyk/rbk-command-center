@@ -94,19 +94,33 @@ npx firebase deploy --only functions 2>&1 | tail -5
 
 echo ""
 echo "=== Forcing Cloud Run revision update ==="
-# --min-instances=1 keeps one container always warm, eliminating ~3-8s cold starts
-# after the service has been idle. Costs ~$5-15/mo for a small always-on instance.
-# --no-cpu-throttling keeps CPU allocated even after the HTTP response is sent, so
-# fire-and-forget background work (e.g. Buzz's Slack handler calling the Anthropic
-# API after the 200 ack to Slack) actually runs to completion instead of being
-# frozen/aborted post-ack. Without this, Buzz intermittently fell through to its
-# "Something's off on my end" error fallback.
+# SCHOOL YEAR: restore --no-cpu-throttling --memory=512Mi --max-instances=10
+#
+# SUMMER SHUTDOWN MODE (2026-07-25 → September 2026): minimum-cost settings.
+#   --min-instances=0    scale to zero when idle (no always-on container billing).
+#                        Trade-off: ~3-8s cold start on the first request after idle.
+#   --max-instances=2    hard ceiling on concurrent containers; nobody is using the
+#                        app over the summer, so 2 is plenty and caps runaway spend.
+#   --memory=256Mi       half the school-year allocation.
+#   --cpu-throttling     REQUIRED to undo a previous --no-cpu-throttling. Simply
+#                        dropping the --no-cpu-throttling flag does NOT revert it —
+#                        it is a sticky service setting, and Cloud Run rejects
+#                        --memory=256Mi outright while CPU is always-allocated
+#                        ("Total memory < 512 Mi is not supported with cpu always
+#                        allocated"). Consequence: CPU is throttled after the HTTP
+#                        response is sent, so fire-and-forget background work (e.g.
+#                        Buzz's Slack handler calling the Anthropic API after the
+#                        200 ack) may be frozen mid-flight. Acceptable while Buzz's
+#                        schedules are disabled; MUST be restored for the school
+#                        year or Buzz intermittently falls through to its
+#                        "Something's off on my end" fallback.
 gcloud run services update "$SERVICE" \
   --region="$REGION" \
   --project="$PROJECT" \
-  --min-instances=1 \
-  --no-cpu-throttling \
-  --memory=512Mi \
+  --min-instances=0 \
+  --max-instances=2 \
+  --cpu-throttling \
+  --memory=256Mi \
   --update-labels=forcedeploy=$(date +%s) \
   --update-env-vars="INTERNAL_SYNC_SECRET=0395162bea09e40d074331d0d7da73adb5abc94e04f08a46442b761f9c964dc3,SYNC_SECRET=rbk-sync-2026,LEVER_API_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImhpcmUyXzEifQ.eyJqdGkiOiI2YmYxOGQwYy1mNmQ0LTRjZjEtODdkMC01NGZjYTQ0NTc3MWMiLCJpc3MiOiJodHRwczovL2xldmVyLmNvLyIsInN1YiI6IjgwODY5MGM2LTg1NTgtNDdlYy04Mjk4LWYyMWZjYTEyOTAxYSIsImF1ZCI6Imh0dHBzOi8vYXBpLmxldmVyLmNvIiwiaWF0IjoxNzc3OTMzNTA2NzM3LCJodHRwczovL2FwaS5sZXZlci5jby9jcmVkZW50aWFsSWQiOiIyZjllMDU4MC02OTNiLTQwZjYtOGIzOC1lYTZiYWNiYjk5MTUiLCJodHRwczovL2FwaS5sZXZlci5jby9hY2NvdW50SWQiOiJiYzU2NDlmNC0wMDU2LTRhMjItYTQxMy01ZTlkNmYyMjBmYjgiLCJodHRwczovL2FwaS5sZXZlci5jby9yZWdpb24iOiJnbG9iYWwiLCJodHRwczovL2FwaS5sZXZlci5jby9iYXNlVXJpIjoiaHR0cHM6Ly9hcGkubGV2ZXIuY28ifQ.E-2DacDW8ElI531fAr0Ty2sO8QeYM92A29mUf0qClrw,ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY,SLACK_BOT_TOKEN=$SLACK_BOT_TOKEN,COOPER_RECONCILIATION_SHEET_ID=$COOPER_RECONCILIATION_SHEET_ID,ISRAEL_GRANTS_SHEET_ID=$ISRAEL_GRANTS_SHEET_ID,VERACROSS_PROGRAMS_CLIENT_ID=$VERACROSS_PROGRAMS_CLIENT_ID,VERACROSS_PROGRAMS_CLIENT_SECRET=$VERACROSS_PROGRAMS_CLIENT_SECRET"
 

@@ -85,62 +85,80 @@ exports.generateMorningBriefings = functions.https.onRequest(async (_req, res) =
 // DRY_RUN flipped to false 2026-06-05 (rev 00604-48l follow-up) after
 // preview review by Becca; BUZZ_TEST_MODE in lib/buzzBot.ts still
 // restricts deliveries to Becca + Emily until full rollout is approved.
-exports.scheduledMorningBriefings = functions.pubsub
-  .schedule('30 7 * * 1-5') // 7:30am ET school days
-  .timeZone('America/New_York')
-  .onRun(async () => {
-    const response = await fetch(
-      'https://ssrrbkcmdcenter-429508710310.us-east1.run.app/api/slack/morning-briefing-internal',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Internal-Secret': process.env.INTERNAL_SYNC_SECRET || '',
-        },
+//
+// === SUMMER SHUTDOWN 2026-07-25 — SCHEDULER DISABLED ===
+// Original schedule: '30 7 * * 1-5' / America/New_York  (7:30am ET, Mon-Fri)
+// TODO: RE-ENABLE FOR SCHOOL YEAR — uncomment the exports block below and redeploy.
+// The handler body is preserved as scheduledMorningBriefingsHandler().
+// exports.scheduledMorningBriefings = functions.pubsub
+//   .schedule('30 7 * * 1-5') // 7:30am ET school days
+//   .timeZone('America/New_York')
+//   .onRun(scheduledMorningBriefingsHandler);
+async function scheduledMorningBriefingsHandler() {
+  const response = await fetch(
+    'https://ssrrbkcmdcenter-429508710310.us-east1.run.app/api/slack/morning-briefing-internal',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Internal-Secret': process.env.INTERNAL_SYNC_SECRET || '',
       },
-    );
-    console.log('[BUZZ SCHEDULED] status:', response.status);
-    return null;
-  });
+    },
+  );
+  console.log('[BUZZ SCHEDULED] status:', response.status);
+  return null;
+}
 
 // ---------------------------------------------------------------------------
 // Existing: Daily attendance sync
+//
+// === SUMMER SHUTDOWN 2026-07-25 — SCHEDULER DISABLED ===
+// Original schedule: '0 23 * * 1-5' / America/New_York  (11pm ET, Mon-Fri)
+// TODO: RE-ENABLE FOR SCHOOL YEAR — uncomment the exports block below and redeploy.
+// The handler body is preserved as syncDailyAttendanceHandler().
 // ---------------------------------------------------------------------------
-exports.syncDailyAttendance = functions.pubsub
-  .schedule('0 23 * * 1-5')
-  .timeZone('America/New_York')
-  .onRun(async () => {
-    const res = await fetch('https://rbk-cmd-center.web.app/api/absences/sync?mode=daily', {
-      headers: { Authorization: 'Bearer rbk-sync-2026' },
-    });
-    const data = await res.json();
-    console.log('Daily attendance sync:', data);
-    return null;
+// exports.syncDailyAttendance = functions.pubsub
+//   .schedule('0 23 * * 1-5')
+//   .timeZone('America/New_York')
+//   .onRun(syncDailyAttendanceHandler);
+async function syncDailyAttendanceHandler() {
+  const res = await fetch('https://rbk-cmd-center.web.app/api/absences/sync?mode=daily', {
+    headers: { Authorization: 'Bearer rbk-sync-2026' },
   });
+  const data = await res.json();
+  console.log('Daily attendance sync:', data);
+  return null;
+}
 
 // ---------------------------------------------------------------------------
 // After School Programs sync — daily at 7am ET. Pulls Veracross programs
 // courses/classes/enrollments into the after_school_*_cache tables.
+//
+// === SUMMER SHUTDOWN 2026-07-25 — SCHEDULER DISABLED ===
+// Original schedule: '0 7 * * *' / America/New_York  (7am ET, every day)
+// TODO: RE-ENABLE FOR SCHOOL YEAR — uncomment the exports block below and redeploy.
+// The handler body is preserved as syncAfterSchoolProgramsHandler().
 // ---------------------------------------------------------------------------
-exports.syncAfterSchoolPrograms = functions.pubsub
-  .schedule('0 7 * * *')
-  .timeZone('America/New_York')
-  .onRun(async () => {
-    const res = await fetch(
-      'https://ssrrbkcmdcenter-429508710310.us-east1.run.app/api/after-school/sync',
-      {
-        method: 'POST',
-        headers: {
-          'X-Internal-Secret': process.env.INTERNAL_SYNC_SECRET || '',
-          'X-Workspace-Id': 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-    const data = await res.json();
-    console.log('After School sync:', data);
-    return null;
-  });
+// exports.syncAfterSchoolPrograms = functions.pubsub
+//   .schedule('0 7 * * *')
+//   .timeZone('America/New_York')
+//   .onRun(syncAfterSchoolProgramsHandler);
+async function syncAfterSchoolProgramsHandler() {
+  const res = await fetch(
+    'https://ssrrbkcmdcenter-429508710310.us-east1.run.app/api/after-school/sync',
+    {
+      method: 'POST',
+      headers: {
+        'X-Internal-Secret': process.env.INTERNAL_SYNC_SECRET || '',
+        'X-Workspace-Id': 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+  const data = await res.json();
+  console.log('After School sync:', data);
+  return null;
+}
 
 // ---------------------------------------------------------------------------
 // Giving History ingest — scheduler REMOVED 2026-06-25. The nightly auto-
@@ -218,78 +236,96 @@ async function runGiftsSyncForAllWorkspaces() {
   console.log('[GIFTS SYNC] Complete');
 }
 
-exports.syncGiftsHourlyWeekdays = functions.pubsub
-  .schedule('0 * * * 1-5')
-  .timeZone('America/New_York')
-  .onRun(async () => {
-    await runGiftsSyncForAllWorkspaces();
-    return null;
-  });
-
-exports.syncGiftsDailyWeekends = functions.pubsub
-  .schedule('0 6 * * 0,6')
-  .timeZone('America/New_York')
-  .onRun(async () => {
-    await runGiftsSyncForAllWorkspaces();
-    return null;
-  });
+// === SUMMER SHUTDOWN 2026-07-25 — SCHEDULERS DISABLED ===
+// Original schedules: '0 * * * 1-5'  / America/New_York  (hourly, Mon-Fri)
+//                     '0 6 * * 0,6'  / America/New_York  (6am ET, Sat + Sun)
+// Both drove runGiftsSyncForAllWorkspaces() above (gifts sync + chained
+// constituents sync). That helper is retained and still reachable manually.
+// TODO: RE-ENABLE FOR SCHOOL YEAR — uncomment both exports blocks and redeploy.
+// exports.syncGiftsHourlyWeekdays = functions.pubsub
+//   .schedule('0 * * * 1-5')
+//   .timeZone('America/New_York')
+//   .onRun(async () => {
+//     await runGiftsSyncForAllWorkspaces();
+//     return null;
+//   });
+//
+// exports.syncGiftsDailyWeekends = functions.pubsub
+//   .schedule('0 6 * * 0,6')
+//   .timeZone('America/New_York')
+//   .onRun(async () => {
+//     await runGiftsSyncForAllWorkspaces();
+//     return null;
+//   });
 
 // ---------------------------------------------------------------------------
 // Daily task due-date reminder — 8am America/New_York every day.
 // Scheduler-only; the Next.js endpoint /api/tasks/due-today does the
 // Supabase query and Slack DM fan-out (same shape as syncGiftsHourlyWeekdays).
+//
+// === SUMMER SHUTDOWN 2026-07-25 — SCHEDULER DISABLED ===
+// Original schedule: '0 8 * * *' / America/New_York  (8am ET, every day)
+// TODO: RE-ENABLE FOR SCHOOL YEAR — uncomment the exports block below and redeploy.
+// The handler body is preserved as dailyTaskDueReminderHandler().
 // ---------------------------------------------------------------------------
-exports.dailyTaskDueReminder = functions.pubsub
-  .schedule('0 8 * * *')
-  .timeZone('America/New_York')
-  .onRun(async () => {
-    try {
-      const response = await fetch(
-        'https://ssrrbkcmdcenter-429508710310.us-east1.run.app/api/tasks/due-today',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Internal-Secret': process.env.INTERNAL_SYNC_SECRET || '',
-          },
+// exports.dailyTaskDueReminder = functions.pubsub
+//   .schedule('0 8 * * *')
+//   .timeZone('America/New_York')
+//   .onRun(dailyTaskDueReminderHandler);
+async function dailyTaskDueReminderHandler() {
+  try {
+    const response = await fetch(
+      'https://ssrrbkcmdcenter-429508710310.us-east1.run.app/api/tasks/due-today',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Internal-Secret': process.env.INTERNAL_SYNC_SECRET || '',
         },
-      );
-      const result = await response.json();
-      console.log('[DUE REMINDER] Result:', JSON.stringify(result));
-    } catch (error) {
-      console.error('[DUE REMINDER] Failed:', error);
-    }
-    return null;
-  });
+      },
+    );
+    const result = await response.json();
+    console.log('[DUE REMINDER] Result:', JSON.stringify(result));
+  } catch (error) {
+    console.error('[DUE REMINDER] Failed:', error);
+  }
+  return null;
+}
 
 // ---------------------------------------------------------------------------
 // Daily absence threshold alert — 9:30am America/New_York on weekdays.
 // Fires after morning attendance is typically entered. The route checks
 // for students who crossed 5 or 10 YTD absences today and DMs RBK if so.
 // Silent if nothing crossed.
+//
+// === SUMMER SHUTDOWN 2026-07-25 — SCHEDULER DISABLED ===
+// Original schedule: '30 9 * * 1-5' / America/New_York  (9:30am ET, Mon-Fri)
+// TODO: RE-ENABLE FOR SCHOOL YEAR — uncomment the exports block below and redeploy.
+// The handler body is preserved as dailyAbsenceAlertHandler().
 // ---------------------------------------------------------------------------
-exports.dailyAbsenceAlert = functions.pubsub
-  .schedule('30 9 * * 1-5')
-  .timeZone('America/New_York')
-  .onRun(async () => {
-    try {
-      const response = await fetch(
-        'https://ssrrbkcmdcenter-429508710310.us-east1.run.app/api/absences/threshold-alert-internal',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Internal-Secret': process.env.INTERNAL_SYNC_SECRET || '',
-          },
+// exports.dailyAbsenceAlert = functions.pubsub
+//   .schedule('30 9 * * 1-5')
+//   .timeZone('America/New_York')
+//   .onRun(dailyAbsenceAlertHandler);
+async function dailyAbsenceAlertHandler() {
+  try {
+    const response = await fetch(
+      'https://ssrrbkcmdcenter-429508710310.us-east1.run.app/api/absences/threshold-alert-internal',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Internal-Secret': process.env.INTERNAL_SYNC_SECRET || '',
         },
-      );
-      const result = await response.json();
-      console.log('[ABSENCE THRESHOLD] Result:', JSON.stringify(result));
-    } catch (error) {
-      console.error('[ABSENCE THRESHOLD] Failed:', error);
-    }
-    return null;
-  });
+      },
+    );
+    const result = await response.json();
+    console.log('[ABSENCE THRESHOLD] Result:', JSON.stringify(result));
+  } catch (error) {
+    console.error('[ABSENCE THRESHOLD] Failed:', error);
+  }
+  return null;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -429,11 +465,21 @@ const PRIORITY_ASSIGNEE: Record<string, string> = {
 
 // ---------------------------------------------------------------------------
 // triageGmail — Scheduled Cloud Function (every 15 min, weekdays)
+//
+// === SUMMER SHUTDOWN 2026-07-25 — SCHEDULER DISABLED ===
+// Original schedule: '*/15 * * * 1-5' / America/New_York  (every 15 min, Mon-Fri)
+// TODO: RE-ENABLE FOR SCHOOL YEAR — uncomment the exports block below and redeploy.
+// The handler body is preserved verbatim as triageGmailHandler().
+// NOTE: disabling this scheduler also removes the Pub/Sub topic
+// `firebase-schedule-triageGmail-us-central1` that the manualTriage HTTP
+// function publishes to — so the "Sync Gmail" button will error until the
+// scheduler is restored. Expected during the summer shutdown.
 // ---------------------------------------------------------------------------
-exports.triageGmail = functions.pubsub
-  .schedule('*/15 * * * 1-5')
-  .timeZone('America/New_York')
-  .onRun(async () => {
+// exports.triageGmail = functions.pubsub
+//   .schedule('*/15 * * * 1-5')
+//   .timeZone('America/New_York')
+//   .onRun(triageGmailHandler);
+const triageGmailHandler = (async () => {
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -764,11 +810,21 @@ async function getOrCreateLabel(
 
 // ---------------------------------------------------------------------------
 // syncDraftsReady — Syncs Emily's Gmail drafts labeled "Drafts Ready" to Supabase
+//
+// === SUMMER SHUTDOWN 2026-07-25 — SCHEDULER DISABLED ===
+// Original schedule: '*/15 * * * 1-5' / America/New_York  (every 15 min, Mon-Fri)
+// TODO: RE-ENABLE FOR SCHOOL YEAR — uncomment the exports block below and redeploy.
+// The handler body is preserved verbatim as syncDraftsReadyHandler().
+// NOTE: as with triageGmail, this also removes the Pub/Sub topic
+// `firebase-schedule-syncDraftsReady-us-central1` that the manualSyncDrafts
+// HTTP function publishes to — the manual draft-sync button will error until
+// the scheduler is restored. Expected during the summer shutdown.
 // ---------------------------------------------------------------------------
-exports.syncDraftsReady = functions.pubsub
-  .schedule('*/15 * * * 1-5')
-  .timeZone('America/New_York')
-  .onRun(async () => {
+// exports.syncDraftsReady = functions.pubsub
+//   .schedule('*/15 * * * 1-5')
+//   .timeZone('America/New_York')
+//   .onRun(syncDraftsReadyHandler);
+const syncDraftsReadyHandler = (async () => {
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;

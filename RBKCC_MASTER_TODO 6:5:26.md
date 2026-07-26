@@ -2,11 +2,27 @@
 
 > ⚠️ THIS IS THE ONLY TODO FILE. Update this after every session. Do not create new TODO or action item files. Archive any other planning docs by adding an ARCHIVED header. Phase build plans are reference-only.
 
-*Last updated: July 21, 2026*
+*Last updated: July 25, 2026*
 
 For the longer roadmap + horizon items + architecture history, see `RBKCC_VISION_AND_ROADMAP.md`. For implementation detail, see `CLAUDE_CONTEXT.md` ("Recent Changes" section).
 
 ---
+
+## 🌴 SUMMER SHUTDOWN ACTIVE (2026-07-25 → September 2026)
+
+**The app is deployed but nothing runs automatically.** Cloud Run is scaled to zero with CPU throttled at 256Mi; all 9 scheduled Cloud Functions have been deleted from GCP. No Gmail triage, no gifts/constituents sync, no attendance, no after-school sync, no task/absence reminders, no morning briefings.
+
+**➡️ Before the school year, work the `## SEPTEMBER RESTART CHECKLIST` section at the top of `CLAUDE.md`.** Do not skip it — none of this self-restores.
+
+Known intentional breakage while shut down: the in-app **"Sync Gmail"** and manual draft-sync buttons error, because deleting the `triageGmail` / `syncDraftsReady` schedulers also destroyed the Pub/Sub topics their `manualTriage` / `manualSyncDrafts` HTTP functions publish to.
+
+Still billing (deliberately not touched): the **SFTP VM**, Supabase, and the Veracross Data Package (already on a reduced weekly Sunday-3am cadence). The SFTP VM is the largest remaining line item if more savings are wanted.
+
+---
+
+## ✅ Shipped (July 25, 2026)
+
+- ✅ **Summer shutdown — minimum-cost mode + all scheduled Cloud Functions disabled** (firebase release 2026-07-25; **Cloud Run revision `ssrrbkcmdcenter-00721-hfr`**). App stays deployed and reachable at minimum cost until September. **`deploy.sh`:** `--min-instances=1`→`0`, new `--max-instances=2`, `--memory=512Mi`→`256Mi`, `--no-cpu-throttling` removed, plus a `# SCHOOL YEAR: restore …` comment above the `gcloud run services update` block; `firebase.json` `frameworksBackend.memory` → `256MiB`. **⚠️ Non-obvious finding:** dropping `--no-cpu-throttling` does NOT revert it — CPU allocation is a sticky service setting, and Cloud Run hard-rejects `<512Mi` while CPU is always-allocated (`400 … Total memory < 512 Mi is not supported with cpu always allocated`). An explicit **`--cpu-throttling`** flag had to be added; in September, memory must go back to `512Mi` in the same command as re-adding `--no-cpu-throttling`, and `--cpu-throttling` must be deleted. A second failure (stale `:version_1` image not found) self-healed on a full `./deploy.sh` rerun that rebuilt the image; revision `00718-kzz` kept serving throughout, **no downtime**. **All 9 schedulers deleted** from GCP via `npx firebase deploy --only functions --force` (`scheduledMorningBriefings`, `syncDailyAttendance`, `syncAfterSchoolPrograms`, `syncGiftsHourlyWeekdays`, `syncGiftsDailyWeekends`, `dailyTaskDueReminder`, `dailyAbsenceAlert`, `triageGmail`, `syncDraftsReady`) — `gcloud scheduler jobs list` now returns 0 items. Handler **bodies preserved** as `…Handler` functions/consts so September is pure uncommenting; the two big ones use `const xHandler = (async () => {…});` to keep bodies byte-identical. The 3 HTTP functions (`manualTriage`, `manualSyncDrafts`, `generateMorningBriefings`) kept + redeployed. `ingestGivingHistory` skipped (already retired 2026-06-25, manual-only). Verified: serving revision `256Mi` / `cpu-throttling: true` / minScale 0 / maxScale 2, 0 scheduler jobs, site 307; `tsc` + build clean. **➡️ Restart steps live in `## SEPTEMBER RESTART CHECKLIST` in `CLAUDE.md`.**
 
 ## ✅ Shipped (July 21, 2026)
 
