@@ -2,7 +2,7 @@
 
 > ⚠️ THIS IS THE ONLY TODO FILE. Update this after every session. Do not create new TODO or action item files. Archive any other planning docs by adding an ARCHIVED header. Phase build plans are reference-only.
 
-*Last updated: July 25, 2026*
+*Last updated: August 10, 2026*
 
 For the longer roadmap + horizon items + architecture history, see `RBKCC_VISION_AND_ROADMAP.md`. For implementation detail, see `CLAUDE_CONTEXT.md` ("Recent Changes" section).
 
@@ -16,9 +16,15 @@ For the longer roadmap + horizon items + architecture history, see `RBKCC_VISION
 
 Known intentional breakage while shut down: the in-app **"Sync Gmail"** and manual draft-sync buttons error, because deleting the `triageGmail` / `syncDraftsReady` schedulers also destroyed the Pub/Sub topics their `manualTriage` / `manualSyncDrafts` HTTP functions publish to.
 
+**The After School manual Sync button now works** (fixed 2026-08-10 — it had *never* worked, independent of the shutdown; the route only accepted Cloud-Function secret auth). It calls the sync route directly and does not depend on any Pub/Sub topic, so it is a live way to refresh after-school data during the shutdown. The daily 7am `syncAfterSchoolPrograms` scheduler is still deleted — restart step 2 still applies.
+
 Still billing (deliberately not touched): the **SFTP VM**, Supabase, and the Veracross Data Package (already on a reduced weekly Sunday-3am cadence). The SFTP VM is the largest remaining line item if more savings are wanted.
 
 ---
+
+## ✅ Shipped (August 10, 2026)
+
+- ✅ **FIX: After School sync — session-auth fallback for the manual UI trigger** (firebase release 2026-08-10; **Cloud Run revision `ssrrbkcmdcenter-00723-8v6`**). The **Sync** button on the After School Programs page always returned `Unauthorized` — `app/api/after-school/sync/route.ts` only accepted the `x-internal-secret` shared secret (for the `syncAfterSchoolPrograms` Cloud Function), and the browser sends a `__session` cookie instead. With all schedulers deleted for the summer, that button was the only remaining way to refresh after-school data, so the module was frozen. Applied the exact dual-auth pattern from `app/api/development/giving-history/ingest/route.ts`: accept **either** `X-Internal-Secret` = `INTERNAL_SYNC_SECRET`/`SYNC_SECRET` (Cloud Function, unchanged) **or** an authenticated session where the caller is `is_super_admin` **or** `role === 'owner'` (manual trigger). Secret is checked first; `getAuthSession()` only runs on fallthrough, so the Cloud Function path is unchanged. **Deviation from ingest (deliberate, per spec):** ingest gates on `sessionIsSuperAdmin` alone, this route also allows `role === 'owner'` — so **RBK can run it, not just Becca**. No middleware change needed: the route was already in the `middleware.ts` exclusion list, which only bypasses the middleware session *check*; `getAuthSession()` reads the cookie inside the handler (same as ingest). **Untouched** per spec: all other after-school routes, all sync/Veracross/upsert logic in the file, `AfterSchoolTab.tsx`, the Cloud Function. tsc + build clean; deployed (Cloud Run `00723-8v6` 100%, site 307). Verified: unauthenticated POST → 401, wrong-secret POST → 401 (fallback rejects, doesn't open the route); the owner-session path needs a real browser to exercise.
 
 ## ✅ Shipped (July 25, 2026)
 

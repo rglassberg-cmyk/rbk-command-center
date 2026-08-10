@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAuthSession, sessionIsSuperAdmin } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 
 // After School Programs sync — pulls courses / classes / enrollments from
 // the Veracross *programs* API into the after_school_*_cache tables.
 //
-// Auth: shared-secret via the `x-internal-secret` header (called by the
-// syncAfterSchoolPrograms Cloud Function, no user session). Accepts
+// Auth: X-Internal-Secret (called by the syncAfterSchoolPrograms Cloud
+// Function, no user session) OR an admin session (the manual "Sync" button
+// on the After School page). Same dual-auth pattern as
+// app/api/development/giving-history/ingest. The secret accepts
 // INTERNAL_SYNC_SECRET (what every other internal route + Cloud Function
 // uses) and SYNC_SECRET as a fallback, since the task spec referenced
 // both names. Workspace id from the `x-workspace-id` header (defaults to
@@ -145,11 +148,16 @@ async function fetchAllPages<T>(path: string, token: string): Promise<T[]> {
 }
 
 export async function POST(request: NextRequest) {
-  // Auth — shared secret. Accept INTERNAL_SYNC_SECRET or SYNC_SECRET.
+  // ---- Auth ----
+  // Shared secret (Cloud Function) OR an admin session (manual UI trigger).
   const secret = request.headers.get('x-internal-secret');
   const accepted = [process.env.INTERNAL_SYNC_SECRET, process.env.SYNC_SECRET].filter(Boolean);
-  if (!secret || !accepted.includes(secret)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const hasSecret = !!secret && accepted.includes(secret);
+  if (!hasSecret) {
+    const session = await getAuthSession();
+    if (!sessionIsSuperAdmin(session) && session?.role !== 'owner') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
   }
 
   const workspaceId = request.headers.get('x-workspace-id') || DEFAULT_WORKSPACE_ID;
