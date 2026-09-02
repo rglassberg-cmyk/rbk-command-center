@@ -8,13 +8,17 @@ import { classifySegment } from '../route';
 // GET /api/development/overview/segment-donors?segment=Parent
 //
 // Drill-down for the Development Overview segment cards. Returns every
-// FY26 Operating donor in the requested segment, with their received /
+// FY27 Operating donor in the requested segment, with their received /
 // pledged / total split. Uses the EXACT same classification as the
 // overview route (imported `classifySegment`) so the donor list always
 // reconciles with the card totals.
 //
+// Rolled to FY27 on 2026-09-02 alongside the overview route — the segment
+// cards now report Operating 2026-2027, so the drilldown must too or the
+// list stops reconciling with the card it was opened from.
+//
 // Filters mirror the overview route:
-//   fundraising_activity = 'Operating 2025-2026', gift_type IN (1,2,3).
+//   fundraising_activity = 'Operating 2026-2027', gift_type IN (1,2,3).
 // donationsReceived per constituent = SUM(amount) on type-1 gifts when
 // they gave directly, else SUM(amount) on qualifying type-3 soft credits
 // (soft_credit_type 1 or 2) — soft credits GAP-FILL only, never stacking
@@ -23,7 +27,7 @@ import { classifySegment } from '../route';
 // SUM(pledge_balance) on type-2; total = the two combined. Grouped by
 // constituent, sorted by total DESC. (2026-06-14 gap-fill spec.)
 
-const FY26_CAMPAIGN = 'Operating 2025-2026';
+const FY27_CAMPAIGN = 'Operating 2026-2027';
 const GIFT_TYPE_DONATION = 1;
 const GIFT_TYPE_PLEDGE = 2;
 const GIFT_TYPE_SOFT_CREDIT = 3;
@@ -95,7 +99,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unknown segment' }, { status: 400 });
   }
 
-  // 1. All FY26 Operating type-1/2 gifts.
+  // 1. All FY27 Operating type-1/2 gifts.
   const gifts: GiftRow[] = [];
   try {
     let from = 0;
@@ -105,7 +109,7 @@ export async function GET(request: NextRequest) {
         .from('gifts_cache')
         .select('id, constituent_id, constituent_name, amount, pledge_balance, gift_type, soft_credit_type, hard_credit_gift_id, date')
         .eq('workspace_id', wsId)
-        .eq('fundraising_activity', FY26_CAMPAIGN)
+        .eq('fundraising_activity', FY27_CAMPAIGN)
         .in('gift_type', [GIFT_TYPE_DONATION, GIFT_TYPE_PLEDGE, GIFT_TYPE_SOFT_CREDIT])
         .range(from, from + pageSize - 1);
       if (error) {
@@ -145,7 +149,7 @@ export async function GET(request: NextRequest) {
     hasType2: boolean;
     lastGiftDate: string | null;
   }>();
-  // FY26 type-1/type-2 gift record id → owner constituent. Used after the loop
+  // FY27 type-1/type-2 gift record id → owner constituent. Used after the loop
   // to find family foundations / DAFs whose own gift was soft-credited to a
   // different (named-segment) constituent — those are excluded from "Other".
   const type1GiftToConstituent = new Map<number, number>();
@@ -174,7 +178,7 @@ export async function GET(request: NextRequest) {
 
   // Family foundations / DAFs already represented via a soft credit to a
   // different constituent — excluded from "Other" (see overview route). The
-  // query is FY26-only, so every type-3 soft credit here is in scope; skip
+  // query is FY27-only, so every type-3 soft credit here is in scope; skip
   // the household twin (recipient === gift owner) so direct donors stay put.
   const softCreditedOrgs = new Set<number>();
   for (const g of gifts) {
@@ -238,7 +242,7 @@ export async function GET(request: NextRequest) {
     if (!(v.hasType1 || v.hasType2 || v.softByKey.size > 0)) continue;
     if (segmentOf(cid) !== segment) continue;
     // "Other" double-count filter (mirrors the overview route): exclude a
-    // foundation/DAF whose own FY26 gift was soft-credited to a different
+    // foundation/DAF whose own FY27 gift was soft-credited to a different
     // (named-segment) constituent — that person's segment already counts it.
     if (segment === 'Other' && softCreditedOrgs.has(cid)) continue;
     // Twin-matching gap-fill: count every direct (type-1) gift, PLUS every

@@ -14,6 +14,9 @@ interface Segment {
   donationsReceived: number;
   outstandingPledges: number;
   total: number;
+  // FY26 total for the same segment — prior-year reference line on the
+  // card. Computed server-side with the identical donor→segment math.
+  priorYearTotal: number;
 }
 
 interface LapsedDonor {
@@ -26,23 +29,26 @@ interface LapsedDonor {
 
 interface OverviewData {
   headline: {
+    raisedFY27: number;
+    donorsFY27: number;
     raisedFY26: number;
     donorsFY26: number;
-    raisedFY25: number;
-    donorsFY25: number;
   };
   segments: Segment[];
   campaigns: Array<{
     fund: string;
+    raisedFY27: number;
     raisedFY26: number;
     raisedFY25: number;
+    changeFY27vFY26: number;
+    changePctFY27vFY26: number | null;
   }>;
   lapsed: {
     count: number;
     totalLastYearDonors: number;
     donors: LapsedDonor[];
   };
-  newDonorsFY26: number;
+  newDonorsFY27: number;
   newDonors: {
     count: number;
     donors: LapsedDonor[];
@@ -223,6 +229,7 @@ export default function OverviewTab() {
   }
 
   // Campaign totals row at the bottom of the table.
+  const campaignTotalFY27 = data.campaigns.reduce((s, c) => s + c.raisedFY27, 0);
   const campaignTotalFY26 = data.campaigns.reduce((s, c) => s + c.raisedFY26, 0);
   const campaignTotalFY25 = data.campaigns.reduce((s, c) => s + c.raisedFY25, 0);
 
@@ -279,26 +286,26 @@ export default function OverviewTab() {
       {/* SECTION 1 — Headline cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-500 p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Raised FY26</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Raised FY27</p>
           <p className="text-slate-900 font-bold mt-2" style={{ fontSize: 28, fontVariantNumeric: 'tabular-nums' }}>
-            {formatMoney(data.headline.raisedFY26)}
+            {formatMoney(data.headline.raisedFY27)}
           </p>
-          <p className="text-xs text-slate-400 mt-2">FY26 · Hard credits + outstanding pledges</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">FY25 comparison pending</p>
+          <p className="text-xs text-slate-400 mt-2">FY27 · Hard credits + outstanding pledges</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">FY26 comparison pending</p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-slate-500 p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Donors FY26</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Donors FY27</p>
           <p className="text-slate-900 font-bold mt-2" style={{ fontSize: 28, fontVariantNumeric: 'tabular-nums' }}>
-            {data.headline.donorsFY26.toLocaleString()}
+            {data.headline.donorsFY27.toLocaleString()}
           </p>
           <p className="text-xs text-slate-400 mt-2">Unique donors</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">FY25 comparison pending</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">FY26 comparison pending</p>
         </div>
 
         <button
           onClick={openLapsed}
-          title="Donors who gave in FY2024-25 but have not yet given in FY2025-26"
+          title="Donors who gave in FY2025-26 but have not yet given in FY2026-27"
           className="text-left bg-white rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-red-500 p-5 hover:shadow-md hover:border-red-300 transition-all cursor-pointer"
         >
           <div className="flex items-center justify-between">
@@ -308,7 +315,7 @@ export default function OverviewTab() {
           <p className="text-red-600 font-bold mt-2" style={{ fontSize: 28, fontVariantNumeric: 'tabular-nums' }}>
             {data.lapsed.count.toLocaleString()}
           </p>
-          <p className="text-xs text-slate-400 mt-2">Gave FY2024-25, not yet FY2025-26</p>
+          <p className="text-xs text-slate-400 mt-2">Gave FY2025-26, not yet FY2026-27</p>
           <div className="mt-2">
             <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
               <div className="h-full bg-red-500" style={{ width: `${Math.min(100, lapsedRatio * 100)}%` }} />
@@ -319,7 +326,7 @@ export default function OverviewTab() {
 
         <button
           onClick={openNew}
-          title="First-time donors in FY2025-26 who did not give in FY2024-25"
+          title="First-time donors in FY2026-27 who did not give in FY2025-26"
           className="text-left bg-white rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-green-500 p-5 hover:shadow-md hover:border-green-300 transition-all cursor-pointer"
         >
           <div className="flex items-center justify-between">
@@ -329,13 +336,13 @@ export default function OverviewTab() {
           <p className="text-green-600 font-bold mt-2" style={{ fontSize: 28, fontVariantNumeric: 'tabular-nums' }}>
             {data.newDonors.count.toLocaleString()}
           </p>
-          <p className="text-xs text-slate-400 mt-2">First-time in FY2025-26 (not FY2024-25)</p>
+          <p className="text-xs text-slate-400 mt-2">First-time in FY2026-27 (not FY2025-26)</p>
         </button>
       </div>
 
       {/* SECTION 2 — Segment cards (clickable → donor drill-down) */}
       <div>
-        <h2 className="text-base font-semibold text-slate-800">Giving by Segment · FY26</h2>
+        <h2 className="text-base font-semibold text-slate-800">Giving by Segment · FY27</h2>
         <p className="text-xs text-slate-500 mt-0.5 mb-3">Each donor counted once by current primary role · click a card to see its donors · YoY segment comparison omitted — roles shift annually in Veracross</p>
         <div className="overflow-x-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 min-w-[780px] lg:min-w-0">
@@ -385,6 +392,12 @@ export default function OverviewTab() {
                         <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatMoney(s.outstandingPledges)}</span>
                       </div>
                     )}
+                    {/* Prior-year reference — same segment, FY26, same math.
+                        Muted so it reads as context, not a second headline. */}
+                    <div className="flex items-center justify-between text-xs font-light text-slate-400 pt-0.5">
+                      <span>FY26</span>
+                      <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatMoney(s.priorYearTotal)}</span>
+                    </div>
                   </div>
                 </button>
               );
@@ -396,31 +409,39 @@ export default function OverviewTab() {
       {/* SECTION 3 — Campaign giving YoY table */}
       <div>
         <h2 className="text-base font-semibold text-slate-800">Campaign Giving by Fund</h2>
-        <p className="text-xs text-slate-500 mt-0.5 mb-3">FY26 vs FY25</p>
+        <p className="text-xs text-slate-500 mt-0.5 mb-3">FY27 · FY26 · FY25</p>
         <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
-          <table className="w-full text-sm min-w-[600px]">
+          <table className="w-full text-sm min-w-[760px]">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Fund</th>
+                <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase">FY27</th>
                 <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase">FY26</th>
-                <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase">FY25</th>
-                <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Change</th>
+                {/* FY25 is two years back — context, not the comparison.
+                    Rendered lighter so the eye lands on FY27 vs FY26. */}
+                <th className="text-right px-5 py-3 text-xs font-normal text-slate-400 uppercase">FY25</th>
+                <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Change (FY27 vs FY26)</th>
               </tr>
             </thead>
             <tbody>
               {data.campaigns.length === 0 ? (
-                <tr><td colSpan={4} className="text-center text-sm text-slate-400 py-6">No campaign data.</td></tr>
+                <tr><td colSpan={5} className="text-center text-sm text-slate-400 py-6">No campaign data.</td></tr>
               ) : data.campaigns.map(c => {
-                const delta = c.raisedFY26 - c.raisedFY25;
-                const pct = pctDelta(c.raisedFY26, c.raisedFY25);
+                // Server supplies the FY27-vs-FY26 delta; pctDelta is the
+                // local fallback for older cached payloads.
+                const delta = c.changeFY27vFY26 ?? (c.raisedFY27 - c.raisedFY26);
+                const pct = c.changePctFY27vFY26 ?? pctDelta(c.raisedFY27, c.raisedFY26);
                 const deltaCls = delta > 0 ? 'text-green-600' : delta < 0 ? 'text-red-600' : 'text-slate-400';
                 return (
                   <tr key={c.fund} className="border-b border-slate-100 last:border-0">
                     <td className="px-5 py-3 font-medium text-slate-800">{c.fund}</td>
                     <td className="px-5 py-3 text-right text-slate-800" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                      {c.raisedFY26 > 0 ? formatMoney(c.raisedFY26) : <span className="text-slate-300">—</span>}
+                      {c.raisedFY27 > 0 ? formatMoney(c.raisedFY27) : <span className="text-slate-300">—</span>}
                     </td>
                     <td className="px-5 py-3 text-right text-slate-600" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {c.raisedFY26 > 0 ? formatMoney(c.raisedFY26) : <span className="text-slate-300">—</span>}
+                    </td>
+                    <td className="px-5 py-3 text-right font-light text-slate-400" style={{ fontVariantNumeric: 'tabular-nums' }}>
                       {c.raisedFY25 > 0 ? formatMoney(c.raisedFY25) : <span className="text-slate-300">—</span>}
                     </td>
                     <td className={`px-5 py-3 text-right ${deltaCls}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -435,14 +456,15 @@ export default function OverviewTab() {
                 );
               })}
               {data.campaigns.length > 0 && (() => {
-                const totalDelta = campaignTotalFY26 - campaignTotalFY25;
-                const totalPct = pctDelta(campaignTotalFY26, campaignTotalFY25);
+                const totalDelta = campaignTotalFY27 - campaignTotalFY26;
+                const totalPct = pctDelta(campaignTotalFY27, campaignTotalFY26);
                 const cls = totalDelta > 0 ? 'text-green-700' : totalDelta < 0 ? 'text-red-700' : 'text-slate-500';
                 return (
                   <tr className="bg-slate-50 font-semibold">
                     <td className="px-5 py-3 text-slate-800">Total</td>
-                    <td className="px-5 py-3 text-right text-slate-900" style={{ fontVariantNumeric: 'tabular-nums' }}>{formatMoney(campaignTotalFY26)}</td>
-                    <td className="px-5 py-3 text-right text-slate-700" style={{ fontVariantNumeric: 'tabular-nums' }}>{formatMoney(campaignTotalFY25)}</td>
+                    <td className="px-5 py-3 text-right text-slate-900" style={{ fontVariantNumeric: 'tabular-nums' }}>{formatMoney(campaignTotalFY27)}</td>
+                    <td className="px-5 py-3 text-right text-slate-700" style={{ fontVariantNumeric: 'tabular-nums' }}>{formatMoney(campaignTotalFY26)}</td>
+                    <td className="px-5 py-3 text-right font-normal text-slate-400" style={{ fontVariantNumeric: 'tabular-nums' }}>{formatMoney(campaignTotalFY25)}</td>
                     <td className={`px-5 py-3 text-right ${cls}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
                       {totalDelta > 0 ? '+' : ''}{formatMoney(totalDelta)}
                       {totalPct != null && <span className="text-xs ml-1.5 opacity-70">({totalPct > 0 ? '+' : ''}{totalPct.toFixed(0)}%)</span>}
@@ -468,7 +490,7 @@ export default function OverviewTab() {
               <div className="text-left">
                 <h2 className="text-base font-semibold text-slate-800">Lapsed Donors</h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  {data.lapsed.count.toLocaleString()} {data.lapsed.count === 1 ? 'donor' : 'donors'} gave in FY25, haven&apos;t given yet in FY26 — click to {lapsedOpen ? 'collapse' : 'view'}
+                  {data.lapsed.count.toLocaleString()} {data.lapsed.count === 1 ? 'donor' : 'donors'} gave in FY26, haven&apos;t given yet in FY27 — click to {lapsedOpen ? 'collapse' : 'view'}
                 </p>
               </div>
             </div>
@@ -635,7 +657,7 @@ export default function OverviewTab() {
                   <thead className="sticky top-0 bg-white z-10">
                     <tr className="border-b border-slate-200">
                       <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Donor</th>
-                      <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">{drawer.kind === 'new' ? 'FY26 Gift' : 'FY25 Gift'}</th>
+                      <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">{drawer.kind === 'new' ? 'FY27 Gift' : 'FY26 Gift'}</th>
                       <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Status</th>
                     </tr>
                   </thead>
@@ -648,7 +670,7 @@ export default function OverviewTab() {
                           </a>
                         </td>
                         <td className="px-4 py-2.5 text-right text-slate-700" style={{ fontVariantNumeric: 'tabular-nums' }}>{formatMoney(d.lastAmount)}</td>
-                        <td className="px-4 py-2.5 text-slate-400 text-xs">{drawer.kind === 'new' ? 'New this year' : 'Not yet given FY26'}</td>
+                        <td className="px-4 py-2.5 text-slate-400 text-xs">{drawer.kind === 'new' ? 'New this year' : 'Not yet given FY27'}</td>
                       </tr>
                     ))}
                   </tbody>

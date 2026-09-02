@@ -2,17 +2,19 @@
 
 > ⚠️ THIS IS THE ONLY TODO FILE. Update this after every session. Do not create new TODO or action item files. Archive any other planning docs by adding an ARCHIVED header. Phase build plans are reference-only.
 
-*Last updated: August 10, 2026*
+*Last updated: September 2, 2026*
 
 For the longer roadmap + horizon items + architecture history, see `RBKCC_VISION_AND_ROADMAP.md`. For implementation detail, see `CLAUDE_CONTEXT.md` ("Recent Changes" section).
 
 ---
 
-## 🌴 SUMMER SHUTDOWN ACTIVE (2026-07-25 → September 2026)
+## 🚨 SUMMER SHUTDOWN STILL ACTIVE — RESTART IS NOW OVERDUE (as of 2026-09-02)
 
 **The app is deployed but nothing runs automatically.** Cloud Run is scaled to zero with CPU throttled at 256Mi; all 9 scheduled Cloud Functions have been deleted from GCP. No Gmail triage, no gifts/constituents sync, no attendance, no after-school sync, no task/absence reminders, no morning briefings.
 
-**➡️ Before the school year, work the `## SEPTEMBER RESTART CHECKLIST` section at the top of `CLAUDE.md`.** Do not skip it — none of this self-restores.
+**➡️ It is now September and the checklist has NOT been run. Work the `## SEPTEMBER RESTART CHECKLIST` section at the top of `CLAUDE.md` — this is the highest-priority item in this file.** Do not skip it; none of this self-restores.
+
+**New urgency as of the 2026-09-02 FY27 rollover:** the Development Overview now reports the `Operating 2026-2027` campaign, but `syncGiftsHourlyWeekdays` / `syncGiftsDailyWeekends` are still deleted, so **`gifts_cache` is not refreshing and the FY27 numbers will go stale** — they are only as current as the last sync before the shutdown. Restoring the gifts sync (checklist step 2 + 3) is what makes the rolled-over page actually live. Step 4 (a manual "Sync Gift History" run) also matters more now: the lapsed/new baseline unions in `giving_history_cache` FY26, which is only as fresh as the last CSV drop.
 
 Known intentional breakage while shut down: the in-app **"Sync Gmail"** and manual draft-sync buttons error, because deleting the `triageGmail` / `syncDraftsReady` schedulers also destroyed the Pub/Sub topics their `manualTriage` / `manualSyncDrafts` HTTP functions publish to.
 
@@ -21,6 +23,13 @@ Known intentional breakage while shut down: the in-app **"Sync Gmail"** and manu
 Still billing (deliberately not touched): the **SFTP VM**, Supabase, and the Veracross Data Package (already on a reduced weekly Sunday-3am cadence). The SFTP VM is the largest remaining line item if more savings are wanted.
 
 ---
+
+## ✅ Shipped (September 2, 2026)
+
+- ✅ **FY27 rollover — Development Overview moved to `Operating 2026-2027`** (firebase release 2026-09-02; **Cloud Run revision `ssrrbkcmdcenter-00726-4wz`**). The fiscal year turned over Sept 1. Current campaign is now FY27 `Operating 2026-2027`; FY26 `Operating 2025-2026` is prior year; FY25 `Operating 2024-2025` is two-years-ago context. `FY27_CAMPAIGN` is the **only** hardcoded string — FY26 and FY25 derive from it via the existing `priorCampaign()` helper, so **next September is a one-line bump**. What shipped: (1) segment cards report FY27 and each carries a muted `FY26` prior-year reference line, computed by running the **identical** donor→segment pipeline over FY26 (same twin-matching soft-credit gap-fill, same board_member_overrides, same "Other" DAF dedup — extracted into a shared `buildSegmentTotals()` helper so the two years can't drift methodologically); (2) **Campaign Giving by Fund is now three columns + change** — FY27 | FY26 | FY25 | CHANGE (FY27 vs FY26), with FY25 rendered lighter as context and the delta/percent computed server-side; (3) lapsed/new/retained rebased to FY27-vs-FY26; (4) the segment-donors drilldown follows to FY27 so it still reconciles with the card it was opened from. **Untouched per spec:** soft-credit gap-fill dedup, board_member_overrides, the "Other" softCreditedOrgs exclusion, Israel/Cooper/Guardian Circle/Weekly Gifts, and the giving_history_cache FY25 fund data. **Deliberate deviation from the brief:** the FY26 lapsed/new baseline **unions** `giving_history_cache` with `gifts_cache` instead of preferring history with a zero-count fallback — history only reflects the last nightly CSV drop, gifts_cache covers FY26 completely, and preferring history alone would shrink the baseline and wrongly promote real FY26 donors into "New Donors". A union can only grow the baseline and degrades to exactly the gifts_cache set when history is empty (the brief's fallback is the union's limiting case). Measured: gifts_cache 2,046 / history 2,044 / union 2,048. **Verified by SQL:** FY27 `SUM(amount)` type-1/2 = **$191,397.70** across 62 gifts ✓; 63 distinct FY27 donors (types 1/2/3); 43 retained, 20 new, 2,005 lapsed. Two notes on those numbers: the headline card reads **$189,857.70**, not $191,397.70, because the headline uses the Veracross "Donation & Pledge Balance" formula (type-1 `amount` + type-2 **`pledge_balance`**) and one FY27 pledge is $1,540 paid down — correct long-standing behavior, not a regression; and the very large lapsed count is expected two days into a fiscal year (it means "gave FY26, not yet FY27" and drains toward the card's "Goal: 0 by Aug 31"). tsc + build clean; deployed (Cloud Run `00726-4wz` 100%, site 307, both overview routes 401 = auth-gated and alive).
+  - **⚠️ Deploy gotcha worth remembering:** `npm run build` fails with `ENOTEMPTY: … rmdir '.next/server'` when Finder has dropped a `.DS_Store` into a `.next` subdirectory since the last build. Retrying `./deploy.sh` does not help. **Fix: `rm -rf .next && ./deploy.sh` in one command.** The first failed attempt left a dead Cloud Run revision (`00724-7cz`) and the known stale-image error on the forced revision update; both self-healed on the clean rerun and `00723-8v6` served throughout — no downtime.
+
+- ✅ **Docs: project path updated `~/Desktop/DevProjects` → `~/Projects/DevProjects`** (no deploy — documentation only). The project folder moved. Updated the 4 markdown files that referenced the old path: `CLAUDE.md` (the two `_context/` pointers) and the three `RBKCC_HANDOFF_*.md` files (Local Project line). Replaced the directory prefix rather than the literal whole path, so `~/Desktop/DevProjects/_context/LHASA_CONTEXT.md` correctly became `~/Projects/DevProjects/_context/LHASA_CONTEXT.md` instead of being flattened to the repo root. `RBKCC_MASTER_TODO 6:5:26.md` had **no** references to the old path. One reference deliberately left alone: `CLAUDE.md` line 4's "(repo root + `~/Desktop/`)" — that describes a copy of the handoff sitting on the Desktop itself, which is a different location from the moved `DevProjects` folder and outside the scope of the move.
 
 ## ✅ Shipped (August 10, 2026)
 
