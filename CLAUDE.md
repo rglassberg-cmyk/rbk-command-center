@@ -3,7 +3,7 @@
 > Workflow preferences: ~/Projects/DevProjects/_context/BECCA_WORKFLOW.md
 > Latest session handoff: RBKCC_HANDOFF_2026-07-17.md (repo root + ~/Desktop/); prior: RBKCC_HANDOFF_2026-07-14.md, RBKCC_HANDOFF_2026-06-18.md
 > Last updated: September 2, 2026
-> ⚠️ **SUMMER SHUTDOWN MODE IS ACTIVE (2026-07-25 → September 2026).** The app is deployed but running at minimum cost: Cloud Run scaled to zero with CPU throttled, and ALL scheduled Cloud Functions deleted. Nothing syncs automatically. See **[SEPTEMBER RESTART CHECKLIST](#september-restart-checklist)** before the school year starts.
+> ✅ **SCHOOL-YEAR MODE IS ACTIVE (restored 2026-09-02).** The summer shutdown (2026-07-25 → 2026-09-02) is over: all 9 scheduled Cloud Functions are redeployed and ENABLED, and Cloud Run is back on school-year settings (`--min-instances=1 --max-instances=10 --no-cpu-throttling --memory=512Mi`, `firebase.json` frameworksBackend `512MiB`). Everything syncs automatically again. **⚠️ One item still needs a human: Gmail triage is failing auth — see "Known blocker: Gmail refresh token" in the September 2 entry under Recent Changes.**
 
 # RBK Command Center — Project Context
 
@@ -11,57 +11,9 @@
 
 Next.js 16 app serving as a unified operations dashboard for Rebecca (RBK) and Emily. Deployed to Firebase Hosting at **https://rbk-cmd-center.web.app**, with Supabase as the database and Firebase Auth (Google OAuth) for authentication.
 
-**Latest Cloud Run revision:** `ssrrbkcmdcenter-00726-4wz` (firebase hosting release 2026-09-02). **Latest deploy:** September 2, 2026 (**FY27 ROLLOVER** — Development Overview rolled to `Operating 2026-2027`: segment cards now report FY27 with an FY26 prior-year reference line, Campaign Giving by Fund is a three-year FY27/FY26/FY25 table with an FY27-vs-FY26 change column, lapsed/new/retained rebased on an FY27-vs-FY26 comparison, and the segment drilldown follows to FY27). Prior: `ssrrbkcmdcenter-00723-8v6` (firebase hosting release 2026-08-10), August 10, 2026 (FIX: After School sync — dual auth so the in-app Sync button works, not just the Cloud Function). Prior: `ssrrbkcmdcenter-00721-hfr` (firebase hosting release 2026-07-25), July 25, 2026 (**SUMMER SHUTDOWN — minimum-cost mode**: Cloud Run `--min-instances=0 --max-instances=2 --cpu-throttling --memory=256Mi`, `firebase.json` frameworksBackend `256MiB`, and all 9 scheduled Cloud Functions deleted; only the 3 HTTP functions remain). Prior: `ssrrbkcmdcenter-00718-kzz` (firebase hosting release 2026-07-21e), July 21, 2026 (`is_super_admin` flag: distinguishes Becca as system admin from RBK as plain owner — gates the admin panel, feature flags, dev Sync Gift History, and enrollment-projection elevation; ⚡SA badge in the permissions UI). Earlier same day: `00716-4gf` (Admissions `admissions_manager` sub-permission + Projection lock visibility + inline enrollment edit). Earlier same day: `00714-zh9` (Current Enrollment grade drilldown → right-side slide-in panel); `00712-hzh` (Current Enrollment 0-data fix → `/v3/students` roster); `00708-tfg` (Current-Enrollment view + Projection year-lock toggle). Earlier same day: `00712-hzh` (FIX: Current Enrollment 0-data → read `/v3/students` roster, not `academics/enrollments`); `00708-tfg` (Admissions → Enrollment Projection Current-Enrollment view + Projection year-lock toggle gated on `workspace_settings.enrollment_projection_enabled`). Earlier: July 16 (FY25 Campaign Giving by Fund now reads giving_history_cache with the new `fund` column); July 14 (@Notify interactive Slack "Mark Resolved" button + /api/slack/interactions, @Notify Slack diagnostic logging, tasks-for-all + Admissions note pre-fill, This Week at SAR URL → vercel, cross-module @Notify). NOTE: the interactive `gcloud auth print-access-token` credential still needs `gcloud auth login` reauth, but deploys now work non-interactively by exporting the Application Default Credentials token: `export CLOUDSDK_AUTH_ACCESS_TOKEN="$(gcloud auth application-default print-access-token)"` before `./deploy.sh` — that is how revision 00708-tfg was captured.
+**Latest Cloud Run revision:** `ssrrbkcmdcenter-00729-zld` (firebase hosting release 2026-09-02 19:00). **Latest deploy:** September 2, 2026 (**SEPTEMBER RESTART** — school-year mode restored: all 9 scheduled Cloud Functions re-enabled + redeployed, Cloud Run back to `--min-instances=1 --max-instances=10 --no-cpu-throttling --memory=512Mi` / `firebase.json` `512MiB`, gifts-scheduler timeout raised 60s→540s so the chained constituents sync can finish. ⚠️ Gmail triage still blocked on a stale workspace refresh token — needs RBK to re-consent at `/api/auth/gmail-consent`). Earlier same day: `ssrrbkcmdcenter-00726-4wz` (**FY27 ROLLOVER** — Development Overview rolled to `Operating 2026-2027`: segment cards now report FY27 with an FY26 prior-year reference line, Campaign Giving by Fund is a three-year FY27/FY26/FY25 table with an FY27-vs-FY26 change column, lapsed/new/retained rebased on an FY27-vs-FY26 comparison, and the segment drilldown follows to FY27). Prior: `ssrrbkcmdcenter-00723-8v6` (firebase hosting release 2026-08-10), August 10, 2026 (FIX: After School sync — dual auth so the in-app Sync button works, not just the Cloud Function). Prior: `ssrrbkcmdcenter-00721-hfr` (firebase hosting release 2026-07-25), July 25, 2026 (**SUMMER SHUTDOWN — minimum-cost mode**: Cloud Run `--min-instances=0 --max-instances=2 --cpu-throttling --memory=256Mi`, `firebase.json` frameworksBackend `256MiB`, and all 9 scheduled Cloud Functions deleted; only the 3 HTTP functions remain). Prior: `ssrrbkcmdcenter-00718-kzz` (firebase hosting release 2026-07-21e), July 21, 2026 (`is_super_admin` flag: distinguishes Becca as system admin from RBK as plain owner — gates the admin panel, feature flags, dev Sync Gift History, and enrollment-projection elevation; ⚡SA badge in the permissions UI). Earlier same day: `00716-4gf` (Admissions `admissions_manager` sub-permission + Projection lock visibility + inline enrollment edit). Earlier same day: `00714-zh9` (Current Enrollment grade drilldown → right-side slide-in panel); `00712-hzh` (Current Enrollment 0-data fix → `/v3/students` roster); `00708-tfg` (Current-Enrollment view + Projection year-lock toggle). Earlier same day: `00712-hzh` (FIX: Current Enrollment 0-data → read `/v3/students` roster, not `academics/enrollments`); `00708-tfg` (Admissions → Enrollment Projection Current-Enrollment view + Projection year-lock toggle gated on `workspace_settings.enrollment_projection_enabled`). Earlier: July 16 (FY25 Campaign Giving by Fund now reads giving_history_cache with the new `fund` column); July 14 (@Notify interactive Slack "Mark Resolved" button + /api/slack/interactions, @Notify Slack diagnostic logging, tasks-for-all + Admissions note pre-fill, This Week at SAR URL → vercel, cross-module @Notify). NOTE: the interactive `gcloud auth print-access-token` credential still needs `gcloud auth login` reauth, but deploys now work non-interactively by exporting the Application Default Credentials token: `export CLOUDSDK_AUTH_ACCESS_TOKEN="$(gcloud auth application-default print-access-token)"` before `./deploy.sh` — that is how revision 00708-tfg was captured.
 
 **Tech stack:** Next.js 16 + React 19 + Tailwind CSS (v4, `@tailwindcss/typography`) + Tiptap (rich text) + Supabase + Firebase (Auth, Hosting, Cloud Functions). Fonts: Geist (UI), Source Serif 4 (home greeting). ALL authenticated users auto-redirect from `/` to `/home` unless `?nav=` or `?projectPanel=` params are present. The old Dashboard at `/` is only accessible via sidebar nav items that pass `?nav=` params. ALL users see "Home" in sidebar (no more "Dashboard" item for anyone). `shouldRedirectHome` is always true.
-
-## SEPTEMBER RESTART CHECKLIST
-
-> Summer shutdown was applied **2026-07-25** (Cloud Run revision `ssrrbkcmdcenter-00721-hfr`). Work this list top-to-bottom before the school year starts. Nothing below is automatic.
-
-**1. Restore `deploy.sh` to school-year Cloud Run settings.**
-In the `=== Forcing Cloud Run revision update ===` block, restore:
-`--no-cpu-throttling --memory=512Mi --max-instances=10` (and `--min-instances=1` for warm starts).
-⚠️ Order matters: `--memory=512Mi` must be raised **in the same command as** `--no-cpu-throttling` (or before it) — Cloud Run rejects `< 512Mi` while CPU is always-allocated. Also delete the now-stale `--cpu-throttling` flag; leaving it in silently defeats `--no-cpu-throttling`.
-Also revert `firebase.json` → `frameworksBackend.memory: "512MiB"`.
-
-**2. Re-enable the Cloud Function schedules in `functions/src/index.ts`.**
-Each disabled scheduler is marked `=== SUMMER SHUTDOWN 2026-07-25 — SCHEDULER DISABLED ===` with its original cron and a `TODO: RE-ENABLE FOR SCHOOL YEAR`. Uncomment the `exports.… = functions.pubsub.schedule(…)` block above each preserved handler. The nine to restore:
-
-| Function | Original schedule (America/New_York) |
-|---|---|
-| `scheduledMorningBriefings` | `30 7 * * 1-5` — 7:30am weekdays |
-| `syncDailyAttendance` | `0 23 * * 1-5` — 11pm weekdays |
-| `syncAfterSchoolPrograms` | `0 7 * * *` — 7am daily |
-| `syncGiftsHourlyWeekdays` | `0 * * * 1-5` — hourly weekdays |
-| `syncGiftsDailyWeekends` | `0 6 * * 0,6` — 6am Sat/Sun |
-| `dailyTaskDueReminder` | `0 8 * * *` — 8am daily |
-| `dailyAbsenceAlert` | `30 9 * * 1-5` — 9:30am weekdays |
-| `triageGmail` | `*/15 * * * 1-5` — every 15 min weekdays |
-| `syncDraftsReady` | `*/15 * * * 1-5` — every 15 min weekdays |
-
-The handler bodies were **not** deleted — they live on as `…Handler` functions/consts in the same file, so re-enabling is purely uncommenting. `ingestGivingHistory` was already retired in June 2026 and is intentionally **not** on this list (it stays manual-only).
-
-**3. Redeploy both.**
-```bash
-export CLOUDSDK_AUTH_ACCESS_TOKEN="$(gcloud auth application-default print-access-token)"
-./deploy.sh
-npx firebase deploy --only functions --force
-```
-`--force` is needed so the CLI recreates the deleted schedulers without prompting.
-
-**4. Trigger a manual sync** — click **"Sync Gift History"** on the Development Overview page (super-admin only) to backfill everything the nightly jobs missed over the summer.
-
-**5. Verify the Veracross Data Package is running** — it was changed to **weekly, Sunday 3am** for the summer. Restore its school-year cadence.
-
-**6. Test the Buzz AI morning briefing** — `POST` the `generateMorningBriefings` HTTP function (or `/api/slack/morning-briefing/preview`) and confirm a real Slack send. ⚠️ Buzz's fire-and-forget Slack→Anthropic call **requires `--no-cpu-throttling`** (step 1); with throttling on it gets frozen post-ack and falls through to the "Something's off on my end" fallback.
-
-**7. Check the SFTP VM is still running:**
-```bash
-gcloud compute instances list --project=rbk-cmd-center
-```
-
-**8. Re-verify the manual Gmail buttons.** Deleting the `triageGmail` / `syncDraftsReady` schedulers also destroyed the Pub/Sub topics `firebase-schedule-triageGmail-us-central1` and `firebase-schedule-syncDraftsReady-us-central1`, which the `manualTriage` / `manualSyncDrafts` HTTP functions publish to. **The "Sync Gmail" and manual draft-sync buttons error until step 2+3 recreate those topics** — expected during the shutdown, but confirm they work again afterward.
 
 ## UI & Performance Standards
 
@@ -770,6 +722,55 @@ Phase F per-workspace integration credentials. **Service-role only** — RLS den
 
 ## Recent Changes
 
+### September restart — all 9 schedulers re-enabled, Cloud Run back to school-year settings (2026-09-02)
+
+Firebase hosting release 2026-09-02 (19:00), **Cloud Run revision `ssrrbkcmdcenter-00729-zld`**. Worked the (now-deleted) SEPTEMBER RESTART CHECKLIST end to end, ending the 2026-07-25 summer shutdown. The checklist section has been removed from this file because it is done; this entry is the record of what was restored.
+
+**Schedulers — all 9 re-enabled in `functions/src/index.ts` and redeployed** (`npx firebase deploy --only functions --force`), each at its original cron, all `America/New_York`, all verified `ENABLED` via `gcloud scheduler jobs list`:
+
+| Function | Schedule |
+|---|---|
+| `scheduledMorningBriefings` | `30 7 * * 1-5` |
+| `syncDailyAttendance` | `0 23 * * 1-5` |
+| `syncAfterSchoolPrograms` | `0 7 * * *` |
+| `syncGiftsHourlyWeekdays` | `0 * * * 1-5` |
+| `syncGiftsDailyWeekends` | `0 6 * * 0,6` |
+| `dailyTaskDueReminder` | `0 8 * * *` |
+| `dailyAbsenceAlert` | `30 9 * * 1-5` |
+| `triageGmail` | `*/15 * * * 1-5` |
+| `syncDraftsReady` | `*/15 * * * 1-5` |
+
+12 exports total (the 9 above + the 3 HTTP functions). **There is no separate `syncConstituents` scheduler** — the constituents sync is chained inside `runGiftsSyncForAllWorkspaces()`, which the two gifts schedulers drive, so restoring those two restores constituent syncing too.
+
+**⚠️ The re-enable was NOT "purely uncommenting", contrary to the note the shutdown left behind.** `triageGmailHandler` and `syncDraftsReadyHandler` are `const` arrow functions declared *below* their export blocks (that form was chosen during the shutdown to keep the handler bodies byte-identical). Uncommenting `.onRun(triageGmailHandler)` verbatim dereferences the const during module evaluation and throws `ReferenceError: Cannot access 'triageGmailHandler' before initialization` — a temporal-dead-zone error that would have failed the deploy's module analysis. Both are now wrapped so the lookup is deferred to invocation time:
+```ts
+.onRun(async () => { await triageGmailHandler(); return null; });
+```
+which is also the shape the gifts schedulers already used. The other seven handlers are `async function` declarations and hoist fine, so those took a plain reference. Pre-flight `require()` of the compiled `lib/index.js` (with `GCLOUD_PROJECT`/`FIREBASE_CONFIG` stubbed) is a cheap way to catch this class of error before deploying — it loaded all 12 exports clean.
+
+**⚠️ Fixed a real bug the restart exposed: the gifts schedulers were timing out at 60s.** These are 1st-gen functions and had no `runWith`, so they inherited the **default 60s timeout**. On live SAR data the gifts leg alone takes ~58s, so: the hourly job frequently died before the gifts sync even returned (the 23:00 run did exactly that), and the chained constituents sync **never completed** — `constituents_cache` had not refreshed since **2026-07-25**, silently staling the `role`/`roles_raw` values behind the Development Overview segment classification. Both gifts schedulers now carry `functions.runWith({ timeoutSeconds: 540 })` (the 1st-gen max, comfortably over the Cloud Run 300s request ceiling). Verified by re-running the job: execution went from `60000 ms … status: 'timeout'` to **`94437 ms … status: 'ok'`**, with the constituents leg completing (9,698 constituents / 1,711 students). This was pre-existing fragility, not something the shutdown introduced — but it meant the automation was only nominally restored without it.
+
+**Cloud Run restored to school-year settings** — `deploy.sh` `gcloud run services update` now passes `--min-instances=1 --max-instances=10 --no-cpu-throttling --memory=512Mi`, and the summer's explicit `--cpu-throttling` flag is deleted (leaving it would silently defeat `--no-cpu-throttling`). `firebase.json` `frameworksBackend.memory` `256MiB` → **`512MiB`**. Verified live on the serving revision: `cpu-throttling: false`, `minScale 1`, `maxScale 10`, `512Mi`. The 512MiB/512Mi pairing also removes the ordering hazard the shutdown documented — the hosting step earlier in `deploy.sh` updates the same service from `firebase.json`, and at 256MiB it would now be rejected against always-allocated CPU. **`--no-cpu-throttling` is what Buzz depends on**: its Slack handler acks within 3s then calls Anthropic in the background, and under throttling that call is frozen post-ack and Buzz falls through to its "Something's off on my end" fallback.
+
+**Verification performed:**
+- **Gifts sync (checklist step 4):** triggered the real scheduler job (`gcloud scheduler jobs run`), exercising the full production chain scheduler → Pub/Sub → function → sync endpoint. `gifts_sync_meta` = success / 10,846. **FY27 `Operating 2026-2027` type-1/2 went 62 gifts / $191,397.70 → 63 gifts / $191,433.70** — a new gift landed, confirming the pipeline is live and the FY27 Overview will stay current.
+- **`constituents_cache`:** `2026-07-25` → **2026-09-02 23:08**, 9,691 → 9,712 rows.
+- **SFTP VM (step 7):** `veracross-sftp` (e2-micro, `us-east1-c`) already **RUNNING** — no action needed.
+- **Manual Gmail buttons (step 8):** the summer breakage is fixed — deleting the two schedulers had destroyed the Pub/Sub topics `firebase-schedule-triageGmail-us-central1` / `firebase-schedule-syncDraftsReady-us-central1`; both topics are recreated, and `manualTriage` / `manualSyncDrafts` now both return `{"success":true}` HTTP 200 (they returned errors all summer).
+- Site healthy: `/` 307, `/login` 200, `/api/health` 200, `/api/development/overview` 401 (auth-gated, alive). `npx tsc --noEmit` clean for both the app and `functions/`.
+
+**🔴 Known blocker: Gmail refresh token — needs a human, could not be fixed from here.** `triageGmail` now fires on schedule and completes `ok`, and the Pub/Sub plumbing is confirmed working — but the Gmail API call itself fails:
+```
+[kraussb@saracademy.org] Gmail list error: code: 403,
+  message: 'Delegation denied for rglassberg@saracademy.org', reason: 'forbidden',
+  status: 'PERMISSION_DENIED'
+```
+Exactly one workspace ("SAR Academy — RBK", owner `kraussb@`) has a `gmail_refresh_token`, and the stored token resolves to `rglassberg@` (Becca), which Google is refusing to delegate to RBK's mailbox. **`syncDraftsReady` uses the same workspace token and will fail the same way.** Fix: the workspace owner (`kraussb@saracademy.org`) signs in and re-runs the OAuth consent flow at **`/api/auth/gmail-consent`**, which writes a fresh `workspaces.gmail_refresh_token`. (Per `auth/gmail-callback`, the workspace-level token is only overwritten when the connecting user is a workspace **owner** — so Becca re-consenting will NOT fix it; it has to be RBK.) This is a credential/consent problem, not a scheduler problem — everything around it is restored and working. **Scope note:** the newest row in `emails` is 2026-08-06, so inbound triage has been dead since well before this restart; I could not determine from the available logs whether the delegation error predates the shutdown, so I am not claiming it is new.
+
+**Not done (needs a human, outside what I can reach):** checklist step 5 — **verify the Veracross Data Package cadence**. It was moved to weekly (Sunday 3am) for the summer and should be restored to its school-year schedule; that lives in the Veracross admin UI, not in this repo or GCP. Checklist step 6 (test a Buzz morning briefing) was deliberately **not** triggered: `DRY_RUN` is false and it would have sent real Slack DMs to Becca and Emily at 7pm for no reason. Its hard dependency (`--no-cpu-throttling`) is restored and verified, and the `30 7 * * 1-5` scheduler will exercise it at 7:30am on the next school day.
+
+**Deploy note:** the `.DS_Store` / `ENOTEMPTY` build race bit again, and worse than last time — `rm -rf .next` *itself* failed (`rm: .next/server: Directory not empty`) because Finder rewrote a `.DS_Store` mid-delete. The robust workaround is to rename first, since `mv` is atomic and Finder is not watching the renamed path: `mv .next .next.trash.$$ && rm -rf .next.trash.$$`. One `./deploy.sh` run also hit the known Firebase CLI hosting error; a clean re-run went through end to end (hosting finalized + released, revision `00729-zld`), so the pipeline is healthy going into the school year.
+
 ### FY27 rollover — Development Overview moved to `Operating 2026-2027` (2026-09-02)
 
 Firebase hosting release 2026-09-02, **Cloud Run revision `ssrrbkcmdcenter-00726-4wz`**. The fiscal year turned over on September 1st, so the Development Overview now reports **FY27 (`Operating 2026-2027`)** as the current campaign, with FY26 (`Operating 2025-2026`) as prior year and FY25 (`Operating 2024-2025`) as two-years-ago context. Three files changed: `app/api/development/overview/route.ts`, `app/api/development/overview/segment-donors/route.ts`, `app/components/development/OverviewTab.tsx`.
@@ -792,7 +793,7 @@ Firebase hosting release 2026-09-02, **Cloud Run revision `ssrrbkcmdcenter-00726
 
 **⚠️ Deploy gotcha hit twice this session (new, worth knowing):** `npm run build` fails with `Error: ENOTEMPTY: directory not empty, rmdir '…/.next/server'` (or `.next/build`) when macOS Finder has written a `.DS_Store` into a `.next` subdirectory since the previous build — Next.js clears `.next` at build start and `rmdir` trips over the file. It is not a code error and no amount of retrying `./deploy.sh` alone fixes it. **Fix: `rm -rf .next && ./deploy.sh` as a single command.** The first failed attempt also left a broken Cloud Run revision (`00724-7cz`, status False) and produced the known stale-image error (`Image …:version_1 not found`) on the forced revision update; both self-healed on the clean rerun, `00723-8v6` kept serving throughout and **there was no downtime**.
 
-**⚠️ Still outstanding after this deploy — the SEPTEMBER RESTART CHECKLIST has NOT been run.** It is now September and all 9 scheduled Cloud Functions are still deleted, including `syncGiftsHourlyWeekdays` / `syncGiftsDailyWeekends`. **That means `gifts_cache` is not refreshing, so the new FY27 numbers will go stale until the gifts sync is restored.** Working that checklist (top of this file) is the highest-priority follow-up; it was out of scope for this task.
+**~~Still outstanding after this deploy — the SEPTEMBER RESTART CHECKLIST has NOT been run.~~ RESOLVED the same day** — see the September 2 restart entry above. The schedulers (including `syncGiftsHourlyWeekdays` / `syncGiftsDailyWeekends`) are back, so `gifts_cache` refreshes hourly again and the FY27 numbers stay live.
 
 ### FIX: After School sync — session-auth fallback for the manual UI trigger (2026-08-10)
 
@@ -807,7 +808,7 @@ Firebase hosting release 2026-08-10, **Cloud Run revision `ssrrbkcmdcenter-00723
 
 ### Summer shutdown: minimum-cost mode + all scheduled Cloud Functions disabled (2026-07-25)
 
-Firebase hosting release 2026-07-25, **Cloud Run revision `ssrrbkcmdcenter-00721-hfr`**. The app stays deployed and reachable, but runs at minimum cost until September 2026 — nobody uses it over the summer. See **SEPTEMBER RESTART CHECKLIST** (near the top of this file) to undo all of it.
+Firebase hosting release 2026-07-25, **Cloud Run revision `ssrrbkcmdcenter-00721-hfr`**. The app stays deployed and reachable, but runs at minimum cost until September 2026 — nobody uses it over the summer. All of it was undone on 2026-09-02 — see the September 2 restart entry above. (The SEPTEMBER RESTART CHECKLIST section this used to point to has been removed now that it is complete.)
 
 - **Cloud Run minimum-cost settings** (`deploy.sh`): `--min-instances=1` → `--min-instances=0` (scales to zero when idle; trade-off is a ~3-8s cold start on the first request), new `--max-instances=2` (spend ceiling), `--memory=512Mi` → `--memory=256Mi`, and `--no-cpu-throttling` removed. `firebase.json` `frameworksBackend.memory` `512MiB` → `256MiB` to match. A `# SCHOOL YEAR: restore --no-cpu-throttling --memory=512Mi --max-instances=10` comment sits directly above the `gcloud run services update` block.
 - **⚠️ Non-obvious deploy finding — `--cpu-throttling` had to be added explicitly.** Simply *dropping* `--no-cpu-throttling` does not revert it; CPU allocation is a **sticky service setting**. The first deploy attempt failed twice with `400 … spec.template.spec.containers.resources.limits.memory: Invalid value specified for memory. Total memory < 512 Mi is not supported with cpu always allocated (unthrottled)` — Cloud Run refuses `256Mi` while CPU is always-allocated. Fixed by adding an explicit `--cpu-throttling` flag to the `gcloud run services update` command in `deploy.sh`. **Reverse implication for September:** raising memory back to `512Mi` must happen in the same command as (or before) re-adding `--no-cpu-throttling`, and the `--cpu-throttling` flag must be deleted.

@@ -94,33 +94,38 @@ npx firebase deploy --only functions 2>&1 | tail -5
 
 echo ""
 echo "=== Forcing Cloud Run revision update ==="
-# SCHOOL YEAR: restore --no-cpu-throttling --memory=512Mi --max-instances=10
-#
-# SUMMER SHUTDOWN MODE (2026-07-25 → September 2026): minimum-cost settings.
-#   --min-instances=0    scale to zero when idle (no always-on container billing).
-#                        Trade-off: ~3-8s cold start on the first request after idle.
-#   --max-instances=2    hard ceiling on concurrent containers; nobody is using the
-#                        app over the summer, so 2 is plenty and caps runaway spend.
-#   --memory=256Mi       half the school-year allocation.
-#   --cpu-throttling     REQUIRED to undo a previous --no-cpu-throttling. Simply
-#                        dropping the --no-cpu-throttling flag does NOT revert it —
-#                        it is a sticky service setting, and Cloud Run rejects
-#                        --memory=256Mi outright while CPU is always-allocated
-#                        ("Total memory < 512 Mi is not supported with cpu always
-#                        allocated"). Consequence: CPU is throttled after the HTTP
-#                        response is sent, so fire-and-forget background work (e.g.
-#                        Buzz's Slack handler calling the Anthropic API after the
-#                        200 ack) may be frozen mid-flight. Acceptable while Buzz's
-#                        schedules are disabled; MUST be restored for the school
-#                        year or Buzz intermittently falls through to its
-#                        "Something's off on my end" fallback.
+# SCHOOL YEAR MODE (restored 2026-09-02, ending the 2026-07-25 summer shutdown).
+#   --min-instances=1     keep one container warm. Without it Cloud Run scales to
+#                         zero and the first request after idle pays a ~3-8s cold
+#                         start (the reason min-instances=1 was added originally).
+#   --max-instances=10    normal school-year headroom (summer capped this at 2).
+#   --no-cpu-throttling   keep CPU allocated after the HTTP response is sent. This
+#                         is REQUIRED for fire-and-forget background work — most
+#                         importantly Buzz's Slack handler, which acks Slack within
+#                         3s and then calls the Anthropic API. With CPU throttled
+#                         that call gets frozen post-ack and Buzz falls through to
+#                         its "Something's off on my end" fallback.
+#   --memory=512Mi        school-year allocation. NOTE the ordering constraint:
+#                         Cloud Run refuses <512Mi while CPU is always-allocated
+#                         ("Total memory < 512 Mi is not supported with cpu always
+#                         allocated"), so memory must be raised in the SAME command
+#                         as (or before) --no-cpu-throttling. Both live in this one
+#                         `gcloud run services update` call, so that holds.
+#                         `firebase.json` frameworksBackend.memory must match at
+#                         512MiB, otherwise the hosting step earlier in this script
+#                         tries to update the same service down to 256Mi and is
+#                         rejected for the same reason.
+#   CPU allocation is a STICKY service setting: dropping --no-cpu-throttling does
+#   not revert it, which is why the summer shutdown had to pass an explicit
+#   --cpu-throttling. That flag is now removed (it would silently defeat
+#   --no-cpu-throttling if both were present).
 gcloud run services update "$SERVICE" \
   --region="$REGION" \
   --project="$PROJECT" \
-  --min-instances=0 \
-  --max-instances=2 \
-  --cpu-throttling \
-  --memory=256Mi \
+  --min-instances=1 \
+  --max-instances=10 \
+  --no-cpu-throttling \
+  --memory=512Mi \
   --update-labels=forcedeploy=$(date +%s) \
   --update-env-vars="INTERNAL_SYNC_SECRET=0395162bea09e40d074331d0d7da73adb5abc94e04f08a46442b761f9c964dc3,SYNC_SECRET=rbk-sync-2026,LEVER_API_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImhpcmUyXzEifQ.eyJqdGkiOiI2YmYxOGQwYy1mNmQ0LTRjZjEtODdkMC01NGZjYTQ0NTc3MWMiLCJpc3MiOiJodHRwczovL2xldmVyLmNvLyIsInN1YiI6IjgwODY5MGM2LTg1NTgtNDdlYy04Mjk4LWYyMWZjYTEyOTAxYSIsImF1ZCI6Imh0dHBzOi8vYXBpLmxldmVyLmNvIiwiaWF0IjoxNzc3OTMzNTA2NzM3LCJodHRwczovL2FwaS5sZXZlci5jby9jcmVkZW50aWFsSWQiOiIyZjllMDU4MC02OTNiLTQwZjYtOGIzOC1lYTZiYWNiYjk5MTUiLCJodHRwczovL2FwaS5sZXZlci5jby9hY2NvdW50SWQiOiJiYzU2NDlmNC0wMDU2LTRhMjItYTQxMy01ZTlkNmYyMjBmYjgiLCJodHRwczovL2FwaS5sZXZlci5jby9yZWdpb24iOiJnbG9iYWwiLCJodHRwczovL2FwaS5sZXZlci5jby9iYXNlVXJpIjoiaHR0cHM6Ly9hcGkubGV2ZXIuY28ifQ.E-2DacDW8ElI531fAr0Ty2sO8QeYM92A29mUf0qClrw,ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY,SLACK_BOT_TOKEN=$SLACK_BOT_TOKEN,COOPER_RECONCILIATION_SHEET_ID=$COOPER_RECONCILIATION_SHEET_ID,ISRAEL_GRANTS_SHEET_ID=$ISRAEL_GRANTS_SHEET_ID,VERACROSS_PROGRAMS_CLIENT_ID=$VERACROSS_PROGRAMS_CLIENT_ID,VERACROSS_PROGRAMS_CLIENT_SECRET=$VERACROSS_PROGRAMS_CLIENT_SECRET"
 
