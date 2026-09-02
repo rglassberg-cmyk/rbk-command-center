@@ -3,7 +3,7 @@
 **Latest Revision:** Cloud Run revision # **unread since June 18** (gcloud reauth pending — see Known Issues). Last *numbered* revision on record: `ssrrbkcmdcenter-00690-5b6`. Latest **firebase hosting release: 2026-07-14e**.
 **Live URL:** https://rbk-cmd-center.web.app
 **Backend:** https://ssrrbkcmdcenter-429508710310.us-east1.run.app
-**Local Project:** `~/Desktop/DevProjects/RBK_Command_Center` (Mac Mini, `ai@ais-Mac-mini`)
+**Local Project:** `~/Projects/DevProjects/RBK_Command_Center` (Mac Mini, `ai@ais-Mac-mini`)
 **GitHub:** `rglassberg-cmyk/rbk-command-center`, branch: `backup/wip-2026-06-12`
 **gcloud Auth:** `rglassberg@saracademy.org` (⚠️ token expired — needs `gcloud auth login`)
 **Deploy:** `./deploy.sh` → always followed by `git add -A && git commit -m "..." && git push origin backup/wip-2026-06-12`

@@ -1,6 +1,6 @@
 # RBK Command Center — Claude Context
-> Full ecosystem context: ~/Desktop/DevProjects/_context/LHASA_CONTEXT.md
-> Workflow preferences: ~/Desktop/DevProjects/_context/BECCA_WORKFLOW.md
+> Full ecosystem context: ~/Projects/DevProjects/_context/LHASA_CONTEXT.md
+> Workflow preferences: ~/Projects/DevProjects/_context/BECCA_WORKFLOW.md
 > Latest session handoff: RBKCC_HANDOFF_2026-07-17.md (repo root + ~/Desktop/); prior: RBKCC_HANDOFF_2026-07-14.md, RBKCC_HANDOFF_2026-06-18.md
 > Last updated: July 25, 2026
 > ⚠️ **SUMMER SHUTDOWN MODE IS ACTIVE (2026-07-25 → September 2026).** The app is deployed but running at minimum cost: Cloud Run scaled to zero with CPU throttled, and ALL scheduled Cloud Functions deleted. Nothing syncs automatically. See **[SEPTEMBER RESTART CHECKLIST](#september-restart-checklist)** before the school year starts.

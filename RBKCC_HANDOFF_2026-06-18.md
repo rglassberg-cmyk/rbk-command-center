@@ -3,7 +3,7 @@
 **Latest Revision:** `ssrrbkcmdcenter-00690-5b6`  
 **Live URL:** https://rbk-cmd-center.web.app  
 **Backend:** https://ssrrbkcmdcenter-429508710310.us-east1.run.app  
-**Local Project:** `~/Desktop/DevProjects/RBK_Command_Center` (Mac Mini, `ai@ais-Mac-mini`)  
+**Local Project:** `~/Projects/DevProjects/RBK_Command_Center` (Mac Mini, `ai@ais-Mac-mini`)  
 **GitHub:** `rglassberg-cmyk/rbk-command-center`, branch: `backup/wip-2026-06-12`  
 **gcloud Auth:** `rglassberg@saracademy.org`  
 **Deploy:** `./deploy.sh` → always followed by `git add -A && git commit -m "..." && git push origin backup/wip-2026-06-12`  
