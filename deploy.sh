@@ -119,6 +119,20 @@ echo "=== Forcing Cloud Run revision update ==="
 #   not revert it, which is why the summer shutdown had to pass an explicit
 #   --cpu-throttling. That flag is now removed (it would silently defeat
 #   --no-cpu-throttling if both were present).
+#   --timeout=300         Cloud Run REQUEST timeout. Must be pinned HERE, not set
+#                         by hand: the `firebase deploy --only hosting` step earlier
+#                         in this script recreates/updates the SSR service and
+#                         resets this to the 60s frameworks default, silently
+#                         reverting any manual `gcloud run services update
+#                         --timeout=300`. Because this block runs AFTER that step,
+#                         pinning it here makes it durable. 60s is NOT enough: the
+#                         chained constituents sync (/api/development/
+#                         sync-constituents-internal) takes ~47-60s on live SAR
+#                         data, so at 60s it fails intermittently with a plain-text
+#                         "upstream request timeout" that the caller then chokes on
+#                         as invalid JSON — observed failing the 2026-09-03 00:00
+#                         run at exactly 60.0s while the 23:08 and 23:49 runs
+#                         squeaked through at 47s and 54s.
 gcloud run services update "$SERVICE" \
   --region="$REGION" \
   --project="$PROJECT" \
@@ -126,6 +140,7 @@ gcloud run services update "$SERVICE" \
   --max-instances=10 \
   --no-cpu-throttling \
   --memory=512Mi \
+  --timeout=300 \
   --update-labels=forcedeploy=$(date +%s) \
   --update-env-vars="INTERNAL_SYNC_SECRET=0395162bea09e40d074331d0d7da73adb5abc94e04f08a46442b761f9c964dc3,SYNC_SECRET=rbk-sync-2026,LEVER_API_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImhpcmUyXzEifQ.eyJqdGkiOiI2YmYxOGQwYy1mNmQ0LTRjZjEtODdkMC01NGZjYTQ0NTc3MWMiLCJpc3MiOiJodHRwczovL2xldmVyLmNvLyIsInN1YiI6IjgwODY5MGM2LTg1NTgtNDdlYy04Mjk4LWYyMWZjYTEyOTAxYSIsImF1ZCI6Imh0dHBzOi8vYXBpLmxldmVyLmNvIiwiaWF0IjoxNzc3OTMzNTA2NzM3LCJodHRwczovL2FwaS5sZXZlci5jby9jcmVkZW50aWFsSWQiOiIyZjllMDU4MC02OTNiLTQwZjYtOGIzOC1lYTZiYWNiYjk5MTUiLCJodHRwczovL2FwaS5sZXZlci5jby9hY2NvdW50SWQiOiJiYzU2NDlmNC0wMDU2LTRhMjItYTQxMy01ZTlkNmYyMjBmYjgiLCJodHRwczovL2FwaS5sZXZlci5jby9yZWdpb24iOiJnbG9iYWwiLCJodHRwczovL2FwaS5sZXZlci5jby9iYXNlVXJpIjoiaHR0cHM6Ly9hcGkubGV2ZXIuY28ifQ.E-2DacDW8ElI531fAr0Ty2sO8QeYM92A29mUf0qClrw,ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY,SLACK_BOT_TOKEN=$SLACK_BOT_TOKEN,COOPER_RECONCILIATION_SHEET_ID=$COOPER_RECONCILIATION_SHEET_ID,ISRAEL_GRANTS_SHEET_ID=$ISRAEL_GRANTS_SHEET_ID,VERACROSS_PROGRAMS_CLIENT_ID=$VERACROSS_PROGRAMS_CLIENT_ID,VERACROSS_PROGRAMS_CLIENT_SECRET=$VERACROSS_PROGRAMS_CLIENT_SECRET"
 
