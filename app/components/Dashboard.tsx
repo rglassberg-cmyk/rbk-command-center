@@ -421,18 +421,44 @@ export default function Dashboard({ emails: initialEmails, calendarEvents }: Pro
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const VALID_NAV_IDS = ['dashboard', 'inbox', 'agenda', 'tasks', 'gemara', 'communications', 'projects', 'absences', 'after_school', 'admissions', 'simchas', 'student-logs', 'lever', 'development', 'emily'];
+  // Which nav the URL asked for on mount (hash or ?nav=). Needed by the
+  // super-admin inbox guard below: the hash-sync effect rewrites the hash to
+  // the current activeNav immediately, so after mount there is no way to tell
+  // a URL-supplied nav from an in-app one.
+  const initialNavFromUrlRef = useRef<string | null>(null);
   const [activeNav, setActiveNav] = useState(() => {
     if (typeof window !== 'undefined') {
       // Check ?nav= search param first (from /home navigation)
       const params = new URLSearchParams(window.location.search);
       const navParam = params.get('nav');
-      if (navParam && VALID_NAV_IDS.includes(navParam)) return navParam;
+      if (navParam && VALID_NAV_IDS.includes(navParam)) { initialNavFromUrlRef.current = navParam; return navParam; }
       // Fall back to hash
       const hash = window.location.hash.replace('#', '');
-      if (VALID_NAV_IDS.includes(hash)) return hash;
+      if (VALID_NAV_IDS.includes(hash)) { initialNavFromUrlRef.current = hash; return hash; }
     }
     return 'dashboard';
   });
+
+  // The inbox nav item is super-admin-only as of 2026-09-03. A stale `#inbox`
+  // hash (very likely — activeNav is persisted to the hash, so anyone whose
+  // last session ended on the inbox reloads straight back into it) would
+  // otherwise drop a non-super-admin onto a page with no sidebar entry and no
+  // obvious way out. Bounce that case to the dashboard.
+  //
+  // Deliberately scoped to the INITIAL URL-derived nav only, and fires once:
+  // in-app navigation to the inbox is still legitimate and still works — the
+  // Tasks page's "Drafts to Approve" cards and the Dashboard drafts cards call
+  // setActiveNav('inbox') to open the drafts popup, and the Drafts Ready flow
+  // is explicitly meant to keep working. Guarded on `workspaceId` because
+  // isSuperAdmin arrives with the workspace context; acting before it resolves
+  // would bounce the super-admin too.
+  useEffect(() => {
+    if (!workspaceId) return;
+    if (initialNavFromUrlRef.current !== 'inbox') return;
+    initialNavFromUrlRef.current = null; // one-shot
+    if (isSuperAdmin) return;
+    setActiveNav(prev => (prev === 'inbox' ? 'dashboard' : prev));
+  }, [workspaceId, isSuperAdmin]);
 
   // Sync activeNav to URL hash
   useEffect(() => {

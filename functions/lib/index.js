@@ -456,24 +456,41 @@ const PRIORITY_ASSIGNEE = {
 // ---------------------------------------------------------------------------
 // triageGmail — Scheduled Cloud Function (every 15 min, weekdays)
 //
-// SCHOOL YEAR ACTIVE — re-enabled 2026-09-02. Restoring this scheduler also
-// recreates the Pub/Sub topic `firebase-schedule-triageGmail-us-central1` that
-// the manualTriage HTTP function publishes to, so the in-app "Sync Gmail"
-// button works again.
+// === SCHEDULER DISABLED 2026-09-03 — Gmail triage retired ===
+// Original schedule: '*/15 * * * 1-5' / America/New_York  (every 15 min, Mon-Fri)
 //
-// ⚠️ `triageGmailHandler` is a `const` arrow function declared BELOW this block,
-// so passing it directly (`.onRun(triageGmailHandler)`) would dereference it
-// during module evaluation and throw a temporal-dead-zone ReferenceError before
-// the const initialises. The call is wrapped so the lookup happens at invocation
-// time instead — same shape the gifts schedulers already use.
+// WHY: RBK stopped using Gmail triage, and the "All Emails" module is now hidden
+// from everyone except the super-admin (see Sidebar.tsx). The scheduler was also
+// firing every 15 minutes and failing 100% of the time — the workspace's
+// `gmail_refresh_token` resolves to rglassberg@ and Google rejects it with
+// `403 PERMISSION_DENIED — "Delegation denied for rglassberg@saracademy.org"`
+// — so it was pure waste. Disabling it stops ~96 failing invocations/weekday.
+//
+// The handler body is preserved verbatim below as `triageGmailHandler`, so
+// re-enabling is uncommenting this block. ⚠️ When re-enabling, keep the wrapped
+// `.onRun(async () => { await triageGmailHandler(); return null; })` form:
+// `triageGmailHandler` is a `const` arrow function declared BELOW this block, so
+// passing it directly throws a temporal-dead-zone ReferenceError at module load.
+//
+// ⚠️ SIDE EFFECT: deleting this scheduler also destroys the Pub/Sub topic
+// `firebase-schedule-triageGmail-us-central1` that the `manualTriage` HTTP
+// function publishes to, so the in-app "Sync Gmail" button will error again.
+// That is acceptable here — the module it belongs to is hidden — but it is the
+// same breakage the summer shutdown caused, so don't be surprised by it.
+//
+// TO ACTUALLY FIX GMAIL (rather than hide it): RBK (kraussb@saracademy.org, the
+// workspace owner) must re-run the OAuth consent at /api/auth/gmail-consent to
+// write a fresh workspaces.gmail_refresh_token. Becca re-consenting will NOT
+// work — auth/gmail-callback only overwrites the workspace-level token when the
+// connecting user is a workspace owner.
 // ---------------------------------------------------------------------------
-exports.triageGmail = functions.pubsub
-    .schedule('*/15 * * * 1-5')
-    .timeZone('America/New_York')
-    .onRun(async () => {
-    await triageGmailHandler();
-    return null;
-});
+// exports.triageGmail = functions.pubsub
+//   .schedule('*/15 * * * 1-5')
+//   .timeZone('America/New_York')
+//   .onRun(async () => {
+//     await triageGmailHandler();
+//     return null;
+//   });
 const triageGmailHandler = (async () => {
     var _a, _b, _c;
     const SUPABASE_URL = process.env.SUPABASE_URL;
