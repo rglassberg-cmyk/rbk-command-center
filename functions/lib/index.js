@@ -753,22 +753,43 @@ async function getOrCreateLabel(accessToken, userEmail, labelName, cache) {
 // ---------------------------------------------------------------------------
 // syncDraftsReady — Syncs Emily's Gmail drafts labeled "Drafts Ready" to Supabase
 //
-// SCHOOL YEAR ACTIVE — re-enabled 2026-09-02. Restoring this scheduler also
-// recreates the Pub/Sub topic `firebase-schedule-syncDraftsReady-us-central1`
-// that the manualSyncDrafts HTTP function publishes to, so the manual
-// draft-sync button works again.
+// === SCHEDULER DISABLED 2026-09-03 — GAS handles this flow instead ===
+// Original schedule: '*/15 * * * 1-5' / America/New_York  (every 15 min, Mon-Fri)
 //
-// ⚠️ As with triageGmail, `syncDraftsReadyHandler` is a `const` arrow function
-// declared BELOW this block, so the reference is deferred into the callback to
-// avoid a temporal-dead-zone ReferenceError at module load.
+// WHY: the Google Apps Script `syncDraftsReadyLabel()` (google-apps-script/
+// email-triage.gs) covers the Drafts Ready flow, so this Cloud Function is
+// redundant. It was also failing on every single run for the same reason
+// triageGmail was — the workspace `gmail_refresh_token` resolves to
+// rglassberg@ and Google rejects it — surfacing not as a thrown 403 but as a
+// silent no-op:
+//     syncDraftsReady: Processing 1 workspace(s)
+//     Failed to create label "Drafts Ready"
+//     syncDraftsReady [kraussb@saracademy.org]: No "Drafts Ready" label, skipping
+// i.e. it reported `status: 'ok'` in ~1s while doing nothing, ~96 times per
+// weekday. Disabled alongside triageGmail (2026-09-03) so no Gmail-dependent
+// scheduler is left burning invocations on a broken credential.
+//
+// The handler body is preserved verbatim below as `syncDraftsReadyHandler`, so
+// re-enabling is uncommenting this block. ⚠️ When re-enabling, keep the wrapped
+// `.onRun(async () => { await syncDraftsReadyHandler(); return null; })` form:
+// `syncDraftsReadyHandler` is a `const` arrow function declared BELOW this
+// block, so a direct reference throws a temporal-dead-zone ReferenceError at
+// module load.
+//
+// SIDE EFFECT (low impact): deleting this scheduler also destroys the Pub/Sub
+// topic `firebase-schedule-syncDraftsReady-us-central1` that the
+// `manualSyncDrafts` HTTP function publishes to, so that function now returns
+// a 5 NOT_FOUND error. Unlike the equivalent triageGmail breakage there is NO
+// user-facing button affected: nothing under app/ calls
+// /api/gmail/sync-drafts — the route and the HTTP function are both orphaned.
 // ---------------------------------------------------------------------------
-exports.syncDraftsReady = functions.pubsub
-    .schedule('*/15 * * * 1-5')
-    .timeZone('America/New_York')
-    .onRun(async () => {
-    await syncDraftsReadyHandler();
-    return null;
-});
+// exports.syncDraftsReady = functions.pubsub
+//   .schedule('*/15 * * * 1-5')
+//   .timeZone('America/New_York')
+//   .onRun(async () => {
+//     await syncDraftsReadyHandler();
+//     return null;
+//   });
 const syncDraftsReadyHandler = (async () => {
     var _a, _b, _c;
     const SUPABASE_URL = process.env.SUPABASE_URL;
